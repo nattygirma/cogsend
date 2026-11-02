@@ -201,5 +201,41 @@ describe('appkeep connections', () => {
 			expect(seen[0].headers.get('x-altstack-connection')).toBe('con_p1');
 			expect(seen[0].url).not.toContain('access_token');
 		});
+
+		it('stores a LinkedIn member under the person URN posts go to', async () => {
+			useWorkerEnv({
+				ALTSTACK: {
+					connections: async (p: string) =>
+						p === 'linkedin'
+							? [
+									{
+										id: 'con_li',
+										provider: 'linkedin',
+										external_id: 'SUB1',
+										name: 'Glow Founder',
+										status: 'active',
+										scopes: ['openid', 'profile', 'w_member_social']
+									}
+								]
+							: []
+				}
+			});
+			const { seen, fetchImpl } = recorder(() => ({ sub: 'SUB1', name: 'Glow Founder' }));
+			vi.stubGlobal('fetch', fetchImpl);
+			await importAppkeepConnections(db, TEST_ENV as never, userId, 'linkedin');
+			const [row] = await db.select().from(connections).where(eq(connections.platform, 'linkedin'));
+			expect(JSON.parse(row.metaJson!)).toEqual({
+				personUrn: 'urn:li:person:SUB1',
+				maxCharacters: 3000,
+				appkeepConnectionId: 'con_li'
+			});
+			const creds = await decryptJson<ConnectionCredentials>(
+				row.credentialsEncrypted,
+				TEST_ENV.APP_ENCRYPTION_KEY
+			);
+			expect(creds).toMatchObject({ personUrn: 'urn:li:person:SUB1', openIdSub: 'SUB1' });
+			expect(seen[0].url).toBe('https://api.linkedin.com/v2/userinfo');
+			expect(seen[0].headers.get('x-altstack-connection')).toBe('con_li');
+		});
 	});
 });

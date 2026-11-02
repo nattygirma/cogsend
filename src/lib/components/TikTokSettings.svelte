@@ -112,130 +112,153 @@
 			</p>
 		{/each}
 
-		<div class="grid gap-4 sm:grid-cols-2">
-			<label>
-				<span class="field-label">Who can watch this video</span>
-				<select
-					class="field"
-					data-testid="tiktok-privacy"
-					value={options.privacyLevel ?? ''}
-					onchange={(e) => update({ privacyLevel: e.currentTarget.value || undefined })}
-				>
-					<option value="" disabled>Choose…</option>
-					{#each privacyLevels as level (level)}
-						<option
-							value={level}
-							disabled={level === 'SELF_ONLY' && Boolean(options.brandedContent)}
-							>{TIKTOK_PRIVACY_LABELS[level] ?? level}</option
-						>
-					{/each}
-				</select>
-				{#if options.brandedContent}
-					<span class="mt-1.5 block text-xs text-stone-500">Branded content can't be private.</span>
-				{/if}
-			</label>
-
-			<fieldset>
-				<legend class="field-label">Allow users to</legend>
-				<div class="flex flex-wrap gap-x-4 gap-y-2 pt-1">
-					<label
-						class="flex items-center gap-2 {commentLocked ? 'text-stone-400' : 'text-stone-800'}"
-					>
-						<input
-							type="checkbox"
-							data-testid="tiktok-comment"
-							disabled={commentLocked}
-							checked={!commentLocked && options.allowComment === true}
-							onchange={(e) => update({ allowComment: e.currentTarget.checked })}
-						/>
-						Comment
-					</label>
-					<label class="flex items-center gap-2 {duetLocked ? 'text-stone-400' : 'text-stone-800'}">
-						<input
-							type="checkbox"
-							data-testid="tiktok-duet"
-							disabled={duetLocked}
-							checked={!duetLocked && options.allowDuet === true}
-							onchange={(e) => update({ allowDuet: e.currentTarget.checked })}
-						/>
-						Duet
-					</label>
-					<label
-						class="flex items-center gap-2 {stitchLocked ? 'text-stone-400' : 'text-stone-800'}"
-					>
-						<input
-							type="checkbox"
-							data-testid="tiktok-stitch"
-							disabled={stitchLocked}
-							checked={!stitchLocked && options.allowStitch === true}
-							onchange={(e) => update({ allowStitch: e.currentTarget.checked })}
-						/>
-						Stitch
-					</label>
-				</div>
-			</fieldset>
-		</div>
-
-		<fieldset class="rounded-lg border border-stone-200 p-3">
-			<label class="flex items-center gap-2 font-semibold text-stone-900">
-				<input
-					type="checkbox"
-					data-testid="tiktok-disclose"
-					checked={options.discloseCommercial === true}
-					onchange={(e) =>
-						update(
-							e.currentTarget.checked
-								? { discloseCommercial: true }
-								: { discloseCommercial: false, brandOrganic: false, brandedContent: false }
-						)}
-				/>
-				Disclose commercial content
-			</label>
-			{#if options.discloseCommercial}
-				<div class="mt-2 ml-6 flex flex-col gap-2">
-					<label class="flex items-center gap-2 text-stone-800">
-						<input
-							type="checkbox"
-							data-testid="tiktok-brand-organic"
-							checked={options.brandOrganic === true}
-							onchange={(e) => update({ brandOrganic: e.currentTarget.checked })}
-						/>
-						Your brand
-					</label>
-					<label class="flex items-center gap-2 text-stone-800">
-						<input
-							type="checkbox"
-							data-testid="tiktok-branded"
-							checked={options.brandedContent === true}
-							onchange={(e) =>
-								update(
-									e.currentTarget.checked && options.privacyLevel === 'SELF_ONLY'
-										? { brandedContent: true, privacyLevel: undefined }
-										: { brandedContent: e.currentTarget.checked }
-								)}
-						/>
-						Branded content
-					</label>
-					{#if label}
-						<span class="text-xs text-stone-500">Your video will be labeled "{label}".</span>
-					{:else}
-						<span class="text-xs font-medium text-rose-600"
-							>Choose at least one to post with the disclosure on.</span
-						>
-					{/if}
-				</div>
-			{/if}
-		</fieldset>
-
-		<label class="flex items-center gap-2 text-stone-800">
+		<label class="flex items-start gap-2 text-stone-800">
 			<input
 				type="checkbox"
-				data-testid="tiktok-aigc"
-				checked={options.aiGenerated === true}
-				onchange={(e) => update({ aiGenerated: e.currentTarget.checked })}
+				class="mt-0.5"
+				data-testid="tiktok-drafts"
+				checked={options.sendToDrafts === true}
+				onchange={(e) => update({ sendToDrafts: e.currentTarget.checked })}
 			/>
-			AI-generated content
+			<span>
+				<span class="font-semibold text-stone-900">Send to my TikTok drafts</span>
+				<span class="block text-xs text-stone-500"
+					>The video lands in your TikTok inbox. Add the caption, choose who can watch and post it
+					from the TikTok app.</span
+				>
+			</span>
 		</label>
+
+		{#if !options.sendToDrafts}
+			<div class="grid gap-4 sm:grid-cols-2">
+				<label>
+					<span class="field-label">Who can watch this video</span>
+					<select
+						class="field"
+						data-testid="tiktok-privacy"
+						value={options.privacyLevel ?? ''}
+						onchange={(e) => update({ privacyLevel: e.currentTarget.value || undefined })}
+					>
+						<option value="" disabled>Choose…</option>
+						{#each privacyLevels as level (level)}
+							<option
+								value={level}
+								disabled={level === 'SELF_ONLY' && Boolean(options.brandedContent)}
+								>{TIKTOK_PRIVACY_LABELS[level] ?? level}</option
+							>
+						{/each}
+					</select>
+					{#if options.brandedContent}
+						<span class="mt-1.5 block text-xs text-stone-500"
+							>Branded content can't be private.</span
+						>
+					{/if}
+				</label>
+
+				<fieldset>
+					<legend class="field-label">Allow users to</legend>
+					<div class="flex flex-wrap gap-x-4 gap-y-2 pt-1">
+						<label
+							class="flex items-center gap-2 {commentLocked ? 'text-stone-400' : 'text-stone-800'}"
+						>
+							<input
+								type="checkbox"
+								data-testid="tiktok-comment"
+								disabled={commentLocked}
+								checked={!commentLocked && options.allowComment === true}
+								onchange={(e) => update({ allowComment: e.currentTarget.checked })}
+							/>
+							Comment
+						</label>
+						<label
+							class="flex items-center gap-2 {duetLocked ? 'text-stone-400' : 'text-stone-800'}"
+						>
+							<input
+								type="checkbox"
+								data-testid="tiktok-duet"
+								disabled={duetLocked}
+								checked={!duetLocked && options.allowDuet === true}
+								onchange={(e) => update({ allowDuet: e.currentTarget.checked })}
+							/>
+							Duet
+						</label>
+						<label
+							class="flex items-center gap-2 {stitchLocked ? 'text-stone-400' : 'text-stone-800'}"
+						>
+							<input
+								type="checkbox"
+								data-testid="tiktok-stitch"
+								disabled={stitchLocked}
+								checked={!stitchLocked && options.allowStitch === true}
+								onchange={(e) => update({ allowStitch: e.currentTarget.checked })}
+							/>
+							Stitch
+						</label>
+					</div>
+				</fieldset>
+			</div>
+
+			<fieldset class="rounded-lg border border-stone-200 p-3">
+				<label class="flex items-center gap-2 font-semibold text-stone-900">
+					<input
+						type="checkbox"
+						data-testid="tiktok-disclose"
+						checked={options.discloseCommercial === true}
+						onchange={(e) =>
+							update(
+								e.currentTarget.checked
+									? { discloseCommercial: true }
+									: { discloseCommercial: false, brandOrganic: false, brandedContent: false }
+							)}
+					/>
+					Disclose commercial content
+				</label>
+				{#if options.discloseCommercial}
+					<div class="mt-2 ml-6 flex flex-col gap-2">
+						<label class="flex items-center gap-2 text-stone-800">
+							<input
+								type="checkbox"
+								data-testid="tiktok-brand-organic"
+								checked={options.brandOrganic === true}
+								onchange={(e) => update({ brandOrganic: e.currentTarget.checked })}
+							/>
+							Your brand
+						</label>
+						<label class="flex items-center gap-2 text-stone-800">
+							<input
+								type="checkbox"
+								data-testid="tiktok-branded"
+								checked={options.brandedContent === true}
+								onchange={(e) =>
+									update(
+										e.currentTarget.checked && options.privacyLevel === 'SELF_ONLY'
+											? { brandedContent: true, privacyLevel: undefined }
+											: { brandedContent: e.currentTarget.checked }
+									)}
+							/>
+							Branded content
+						</label>
+						{#if label}
+							<span class="text-xs text-stone-500">Your video will be labeled "{label}".</span>
+						{:else}
+							<span class="text-xs font-medium text-rose-600"
+								>Choose at least one to post with the disclosure on.</span
+							>
+						{/if}
+					</div>
+				{/if}
+			</fieldset>
+
+			<label class="flex items-center gap-2 text-stone-800">
+				<input
+					type="checkbox"
+					data-testid="tiktok-aigc"
+					checked={options.aiGenerated === true}
+					onchange={(e) => update({ aiGenerated: e.currentTarget.checked })}
+				/>
+				AI-generated content
+			</label>
+		{/if}
 
 		{#if tooLong && maxDurationSec !== null}
 			<p class="font-medium text-rose-600">
@@ -243,22 +266,24 @@
 			</p>
 		{/if}
 
-		<p class="text-xs text-stone-500" data-testid="tiktok-consent">
-			By posting, you agree to TikTok's
-			{#if options.brandedContent}
+		{#if !options.sendToDrafts}
+			<p class="text-xs text-stone-500" data-testid="tiktok-consent">
+				By posting, you agree to TikTok's
+				{#if options.brandedContent}
+					<a
+						class="underline"
+						href="https://www.tiktok.com/legal/page/global/bc-policy/en"
+						target="_blank"
+						rel="noopener noreferrer">Branded Content Policy</a
+					> and
+				{/if}
 				<a
 					class="underline"
-					href="https://www.tiktok.com/legal/page/global/bc-policy/en"
+					href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en"
 					target="_blank"
-					rel="noopener noreferrer">Branded Content Policy</a
-				> and
-			{/if}
-			<a
-				class="underline"
-				href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en"
-				target="_blank"
-				rel="noopener noreferrer">Music Usage Confirmation</a
-			>. After you publish, it may take a few minutes for the video to appear on TikTok.
-		</p>
+					rel="noopener noreferrer">Music Usage Confirmation</a
+				>. After you publish, it may take a few minutes for the video to appear on TikTok.
+			</p>
+		{/if}
 	</div>
 </div>

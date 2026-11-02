@@ -32,6 +32,10 @@ export interface TikTokOptions {
 	/** Commercial content disclosure: a paid partnership. */
 	brandedContent?: boolean;
 	aiGenerated?: boolean;
+	/** Upload to the creator's TikTok inbox as a draft, finished and posted in
+	 *  the TikTok app: the person picks the audience and caption there. Works
+	 *  before TikTok has audited the app, which can only post to private accounts. */
+	sendToDrafts?: boolean;
 }
 
 export const YOUTUBE_PRIVACY: YouTubePrivacy[] = ['private', 'unlisted', 'public'];
@@ -85,7 +89,8 @@ export function parseTikTokOptions(raw: unknown): TikTokOptions {
 		discloseCommercial: bool(o.discloseCommercial),
 		brandOrganic: bool(o.brandOrganic),
 		brandedContent: bool(o.brandedContent),
-		aiGenerated: bool(o.aiGenerated)
+		aiGenerated: bool(o.aiGenerated),
+		sendToDrafts: bool(o.sendToDrafts)
 	});
 }
 
@@ -113,6 +118,8 @@ export function youtubeOptionProblems(options: YouTubeOptions, text: string): st
 /** What is missing or contradictory in the TikTok settings, worst first. */
 export function tiktokOptionProblems(options: TikTokOptions): string[] {
 	const problems: string[] = [];
+	// A draft's audience and disclosures are chosen in the TikTok app.
+	if (options.sendToDrafts) return problems;
 	if (!options.privacyLevel) problems.push('Choose who can watch the video in the TikTok settings');
 	if (options.discloseCommercial && !options.brandOrganic && !options.brandedContent)
 		problems.push('Say what the commercial content is in the TikTok settings');

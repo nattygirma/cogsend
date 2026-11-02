@@ -105,7 +105,7 @@ export function tiktokError(prefix: string, status: number, body: string): Provi
 	const said = message || code || detail;
 	if (code === 'unaudited_client_can_only_post_to_private_accounts') {
 		return new ProviderError(
-			'TikTok only lets an app it has not audited post to private accounts — make the TikTok account private, or have TikTok audit the app to post publicly',
+			'TikTok only lets an app it has not audited post to private accounts — send it to your TikTok drafts instead, make the TikTok account private, or have TikTok audit the app to post publicly',
 			{ status, code: 'forbidden', detail }
 		);
 	}
@@ -531,7 +531,7 @@ export const tiktokProvider: PlatformProvider = {
 		const init = async (): Promise<Required<TikTokVideoState>> => {
 			const creator = await tiktokCreatorInfo(creds, fetchImpl);
 			if (creator.username) username = creator.username;
-			if (!creator.privacyLevels.includes(options.privacyLevel!)) {
+			if (!options.sendToDrafts && !creator.privacyLevels.includes(options.privacyLevel!)) {
 				const label = TIKTOK_PRIVACY_LABELS[options.privacyLevel!] ?? options.privacyLevel;
 				throw new ProviderError(
 					`TikTok no longer offers “${label}” for this account — choose who can watch again`,
@@ -551,29 +551,35 @@ export const tiktokProvider: PlatformProvider = {
 			}
 			const size = await storedVideoSize(requireMediaReader(opts?.mediaReader), storageKey);
 			const plan = tiktokChunkPlan(size);
+			const source_info = {
+				source: 'FILE_UPLOAD',
+				video_size: size,
+				chunk_size: plan.chunkSize,
+				total_chunk_count: plan.total
+			};
 			const data = await call<{ publish_id?: string; upload_url?: string }>(
 				'TikTok video init',
-				`${API}/post/publish/video/init/`,
-				jsonInit(token, {
-					post_info: {
-						title: text,
-						privacy_level: options.privacyLevel,
-						// The guidelines have every interaction off unless the person
-						// turned it on, and off whenever the creator turned it off.
-						disable_comment: !options.allowComment || creator.commentDisabled,
-						disable_duet: !options.allowDuet || creator.duetDisabled,
-						disable_stitch: !options.allowStitch || creator.stitchDisabled,
-						brand_content_toggle: options.brandedContent === true,
-						brand_organic_toggle: options.brandOrganic === true,
-						is_aigc: options.aiGenerated === true
-					},
-					source_info: {
-						source: 'FILE_UPLOAD',
-						video_size: size,
-						chunk_size: plan.chunkSize,
-						total_chunk_count: plan.total
-					}
-				}),
+				// A draft goes to the creator's inbox and takes no post details.
+				options.sendToDrafts
+					? `${API}/post/publish/inbox/video/init/`
+					: `${API}/post/publish/video/init/`,
+				options.sendToDrafts
+					? jsonInit(token, { source_info })
+					: jsonInit(token, {
+							post_info: {
+								title: text,
+								privacy_level: options.privacyLevel,
+								// The guidelines have every interaction off unless the person
+								// turned it on, and off whenever the creator turned it off.
+								disable_comment: !options.allowComment || creator.commentDisabled,
+								disable_duet: !options.allowDuet || creator.duetDisabled,
+								disable_stitch: !options.allowStitch || creator.stitchDisabled,
+								brand_content_toggle: options.brandedContent === true,
+								brand_organic_toggle: options.brandOrganic === true,
+								is_aigc: options.aiGenerated === true
+							},
+							source_info
+						}),
 				fetchImpl
 			);
 			if (!data.publish_id || !data.upload_url)

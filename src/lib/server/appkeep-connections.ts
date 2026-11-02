@@ -7,6 +7,7 @@ import { APPKEEP_TOKEN, appkeepFetch } from './providers/appkeep';
 import {
 	facebookVerify,
 	instagramVerify,
+	linkedinVerify,
 	tiktokVerify,
 	youtubeVerify,
 	type ConnectionCredentials,
@@ -14,7 +15,13 @@ import {
 } from './providers/index';
 
 /** Platforms appkeep connects for this app on appkeep (see providers/appkeep.ts). */
-export const APPKEEP_PLATFORMS = ['instagram', 'facebook', 'tiktok', 'youtube'] as const;
+export const APPKEEP_PLATFORMS = [
+	'instagram',
+	'facebook',
+	'tiktok',
+	'youtube',
+	'linkedin'
+] as const;
 type AppkeepPlatform = (typeof APPKEEP_PLATFORMS)[number];
 
 export const isAppkeepPlatform = (platform: string): platform is AppkeepPlatform =>
@@ -49,14 +56,16 @@ const ACCOUNT_ID_KEY = {
 	instagram: 'igUserId',
 	facebook: 'pageId',
 	tiktok: 'tiktokOpenId',
-	youtube: 'channelId'
+	youtube: 'channelId',
+	linkedin: 'personUrn'
 } as const satisfies Record<AppkeepPlatform, keyof ConnectionCredentials>;
 
 const VERIFY = {
 	instagram: instagramVerify,
 	facebook: facebookVerify,
 	tiktok: tiktokVerify,
-	youtube: youtubeVerify
+	youtube: youtubeVerify,
+	linkedin: linkedinVerify
 } satisfies Record<
 	AppkeepPlatform,
 	(creds: ConnectionCredentials, fetchImpl: FetchLike) => Promise<unknown>
@@ -85,8 +94,13 @@ export async function importAppkeepConnections(
 	const found = (await altstack().connections(platform)).filter((c) => c.status === 'active');
 	const key = ACCOUNT_ID_KEY[platform];
 	for (const c of found) {
+		// Appkeep names a LinkedIn member by their OpenID sub; posts go to their person URN.
+		const ids: ConnectionCredentials =
+			platform === 'linkedin'
+				? { personUrn: `urn:li:person:${c.external_id}`, openIdSub: c.external_id }
+				: { [key]: c.external_id };
 		// The name appkeep stored is enough to show; the profile adds a photo and handle.
-		const info = await verifyAppkeepConnection(platform, c.id, { [key]: c.external_id }).catch(
+		const info = await verifyAppkeepConnection(platform, c.id, ids).catch(
 			() => ({}) as Awaited<ReturnType<typeof verifyAppkeepConnection>>
 		);
 		await upsertConnection(
@@ -95,11 +109,15 @@ export async function importAppkeepConnections(
 			userId,
 			{ platform: platform as PlatformId, accountIdKey: key },
 			{
-				credentials: { accessToken: APPKEEP_TOKEN, scopes: c.scopes, [key]: c.external_id },
+				credentials: { accessToken: APPKEEP_TOKEN, scopes: c.scopes, ...ids },
 				displayName: info.displayName || c.name,
 				handle: info.handle || c.name,
 				avatarUrl: info.avatarUrl ?? null,
-				meta: { [key]: c.external_id, appkeepConnectionId: c.id }
+				meta: {
+					[key]: ids[key],
+					...(platform === 'linkedin' ? { maxCharacters: 3000 } : {}),
+					appkeepConnectionId: c.id
+				}
 			}
 		);
 	}

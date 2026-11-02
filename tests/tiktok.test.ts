@@ -15,7 +15,7 @@ import {
 	type PlatformProvider,
 	type PublishPending
 } from '#lib/server/providers/types.js';
-import type { TikTokOptions } from '#lib/domain/platform-options.js';
+import { tiktokOptionProblems, type TikTokOptions } from '#lib/domain/platform-options.js';
 
 type Opts = NonNullable<Parameters<PlatformProvider['publish']>[4]>;
 type Handler = (req: Request) => Response | Promise<Response>;
@@ -305,6 +305,39 @@ describe('TikTok publish', () => {
 			remoteUrl: 'https://www.tiktok.com/@maker/video/7311'
 		});
 		expect(net.calls.map((c) => c.method)).toEqual(['POST', 'POST', 'PUT', 'POST']);
+	});
+
+	it('sends a draft to the creator’s inbox with no post details, before any audit', async () => {
+		let init: { post_info?: unknown; source_info?: unknown } | null = null;
+		const { fetchImpl, net } = fakeNetwork({
+			'/creator_info/': () => creator(),
+			'/inbox/video/init/': async (req) => {
+				init = await req.json();
+				return ok({ publish_id: 'd1', upload_url: UPLOAD });
+			},
+			'/video/init/': () => new Response('direct post is not for drafts', { status: 500 }),
+			'open-upload.tiktokapis.com': () => new Response(null, { status: 201 }),
+			'/status/fetch/': () => ok({ status: 'SEND_TO_USER_INBOX' })
+		});
+		// No audience chosen: the person picks it in the TikTok app.
+		expect(tiktokOptionProblems({ sendToDrafts: true })).toEqual([]);
+		const result = await tiktokProvider.publish(
+			videoPost(3_000_000, { sendToDrafts: true }),
+			creds,
+			undefined,
+			fetchImpl,
+			{ mediaReader: generatedVideo(3_000_000) }
+		);
+		expect(init).toEqual({
+			source_info: {
+				source: 'FILE_UPLOAD',
+				video_size: 3_000_000,
+				chunk_size: 3_000_000,
+				total_chunk_count: 1
+			}
+		});
+		expect(net.calls.some((c) => c.url.endsWith('/post/publish/video/init/'))).toBe(false);
+		expect(result).toEqual({ remotePostId: 'd1', remoteUrl: undefined });
 	});
 
 	it('plans 64 MB chunks with the remainder on the last one', () => {

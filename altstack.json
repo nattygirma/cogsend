@@ -2,7 +2,7 @@
 	"schema": 1,
 	"slug": "posteasy",
 	"name": "PostEasy",
-	"version": "1.23.1",
+	"version": "1.24.0",
 	"tagline": "Write once, schedule everywhere: X, Instagram, Facebook, YouTube, TikTok, LinkedIn, Threads and Bluesky",
 	"description": "A social media scheduler. Connect your accounts, write a post once, tailor it per platform, and publish now or on a schedule. Includes a calendar, drafts, video uploads, and an MCP server so AI agents can draft and schedule for you.",
 	"category": "marketing",
@@ -67,6 +67,13 @@
 			"scopes": [
 				"https://www.googleapis.com/auth/youtube.upload"
 			]
+		},
+		{
+			"provider": "linkedin",
+			"why": "Publish to your LinkedIn profile",
+			"scopes": [
+				"w_member_social"
+			]
 		}
 	],
 	"egress": [
@@ -87,12 +94,8 @@
 			"why": "Publish to Threads"
 		},
 		{
-			"host": "api.linkedin.com",
-			"why": "Publish to LinkedIn"
-		},
-		{
 			"host": "www.linkedin.com",
-			"why": "Connect LinkedIn accounts"
+			"why": "Upload your images and videos to LinkedIn"
 		},
 		{
 			"host": "bsky.social",
