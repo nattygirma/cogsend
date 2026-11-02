@@ -6,6 +6,7 @@
 	import PostEditor from './PostEditor.svelte';
 	import ChecksLine from './ChecksLine.svelte';
 	import PostPreview from './PostPreview.svelte';
+	import PlatformPreviews from './preview/PlatformPreviews.svelte';
 	import SettingsPanel from './SettingsPanel.svelte';
 	import AccountPicker from './AccountPicker.svelte';
 	import CustomizeTabs from './CustomizeTabs.svelte';
@@ -19,6 +20,25 @@
 </script>
 
 <svelte:window onclick={ed.handleWindowClick} />
+
+{#snippet preview()}
+	{#if ed.accountPreviews.length}
+		<PlatformPreviews
+			previews={ed.accountPreviews}
+			focus={ed.activeTab}
+			youtube={ed.youtubePreview}
+			mediaSrc={ed.mediaSrc}
+			isVideoItem={ed.isVideoItem}
+		/>
+	{:else}
+		<PostPreview
+			posts={ed.segments.map((text, index) => ({ text, media: ed.cardMedia(index) }))}
+			identity={ed.previewIdentity}
+			mediaSrc={ed.mediaSrc}
+			isVideoItem={ed.isVideoItem}
+		/>
+	{/if}
+{/snippet}
 
 <div class="flex h-full min-h-0 flex-col" data-testid="thread-preview">
 	<div class="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -191,12 +211,7 @@
 					</button>
 					{#if ed.previewOpen}
 						<div class="mt-4">
-							<PostPreview
-								posts={ed.segments.map((text, index) => ({ text, media: ed.cardMedia(index) }))}
-								identity={ed.previewIdentity}
-								mediaSrc={ed.mediaSrc}
-								isVideoItem={ed.isVideoItem}
-							/>
+							{@render preview()}
 						</div>
 					{/if}
 				</div>
@@ -227,12 +242,7 @@
 						onUncheck={ed.uncheckPlatform}
 					/>
 				{/if}
-				<PostPreview
-					posts={ed.segments.map((text, index) => ({ text, media: ed.cardMedia(index) }))}
-					identity={ed.previewIdentity}
-					mediaSrc={ed.mediaSrc}
-					isVideoItem={ed.isVideoItem}
-				/>
+				{@render preview()}
 			</div>
 		</section>
 	</div>

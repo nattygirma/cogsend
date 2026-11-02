@@ -1,15 +1,22 @@
 import { flattenThreadBody } from '#lib/domain/thread-segments.js';
 import { effectivePlatformBody, type PlatformId } from '#lib/domain/platform-sync.js';
+import { youtubeTitle } from '#lib/domain/platform-options.js';
+import {
+	accountPreviews as buildAccountPreviews,
+	type AccountPreview
+} from '#lib/domain/platform-preview.js';
 import { requiredSettingsByPlatform, composeChecks } from '../checks';
 import { displayHandle, platformName } from '#lib/domain/platforms.js';
 import { initialsOf } from '#lib/components/initials.js';
 import { showToast } from '#lib/components/toast.svelte.js';
 import type { ComposeCheck } from '../checks';
+import type { MediaItem } from '../types';
 import type { Composer } from './composer';
 import { field, provide } from './expose';
 
 /** What the panes show: settings, preview, checks and the footer labels. */
 export interface ComposerViewApi {
+	readonly accountPreviews: AccountPreview<MediaItem>[];
 	/** Problems stay quiet while the post is being written and show once the
 	 *  person first tries to publish or schedule it. */
 	checksRevealed: boolean;
@@ -25,6 +32,7 @@ export interface ComposerViewApi {
 	readonly settingsPlatforms: ('youtube' | 'tiktok')[];
 	readonly uncheckPlatform: (platform: string) => void;
 	readonly youtubeText: string;
+	readonly youtubePreview: { title: string; privacy: 'public' | 'unlisted' | 'private' };
 }
 
 export function useComposerView(ed: Composer): void {
@@ -59,6 +67,19 @@ export function useComposerView(ed: Composer): void {
 			avatarUrl: rep?.avatarUrl || ed.avatarSrc || null,
 			initials: initialsOf(rep ? name : ed.displayName || 'You')
 		};
+	});
+
+	const accountPreviews = $derived(
+		buildAccountPreviews({
+			accounts: ed.selectedAccounts,
+			baseBody: ed.baseBody,
+			overrides: ed.overrides,
+			media: ed.media
+		})
+	);
+	const youtubePreview = $derived({
+		title: youtubeTitle(ed.youtubeOptions, youtubeText),
+		privacy: ed.youtubeOptions.privacy ?? 'private'
 	});
 
 	const scheduleButtonLabel = $derived(
@@ -125,6 +146,7 @@ export function useComposerView(ed: Composer): void {
 		() => checksRevealed,
 		(value) => (checksRevealed = value)
 	);
+	field(ed, 'accountPreviews', () => accountPreviews);
 	field(ed, 'composeCheckList', () => composeCheckList);
 	field(ed, 'hasPlatformSettings', () => hasPlatformSettings);
 	field(ed, 'previewIdentity', () => previewIdentity);
@@ -144,5 +166,6 @@ export function useComposerView(ed: Composer): void {
 	);
 	field(ed, 'settingsPlatforms', () => settingsPlatforms);
 	field(ed, 'youtubeText', () => youtubeText);
+	field(ed, 'youtubePreview', () => youtubePreview);
 	provide(ed, { insertText, saveAsDraft, uncheckPlatform });
 }
