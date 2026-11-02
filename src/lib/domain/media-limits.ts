@@ -18,6 +18,11 @@ export const INSTAGRAM_MAX_IMAGE_BYTES = 8_000_000;
 // whole thread's media.
 export const INSTAGRAM_MAX_ITEMS = 10;
 export const MAX_IMAGES_PER_SEGMENT = 4;
+// Facebook takes JPEG, PNG, GIF, BMP and TIFF up to 10 MB. Each photo of a
+// multi-photo post is its own unpublished upload, so the count is capped like
+// Instagram's carousel to fit one run's calls.
+export const FACEBOOK_MAX_IMAGE_BYTES = 10_000_000;
+export const FACEBOOK_MAX_IMAGES = 10;
 
 // The largest video any route stores. Bluesky's 300 MB is the smallest cap
 // among the platforms that take long videos; larger files go up in parts
@@ -130,6 +135,7 @@ const PLATFORM_LABEL = {
 	linkedin: 'LinkedIn',
 	threads: 'Threads',
 	instagram: 'Instagram',
+	facebook: 'Facebook',
 	x: 'X'
 };
 
@@ -140,6 +146,7 @@ function imageCap(platform: string, mime: string): number | null {
 	// Anything else goes to Instagram as its JPEG copy, capped when it is made.
 	if (platform === 'instagram') return mime === 'image/jpeg' ? INSTAGRAM_MAX_IMAGE_BYTES : null;
 	if (platform === 'x') return mime === 'image/gif' ? X_MAX_GIF_BYTES : X_MAX_IMAGE_BYTES;
+	if (platform === 'facebook') return FACEBOOK_MAX_IMAGE_BYTES;
 	return null;
 }
 
@@ -235,6 +242,29 @@ export function instagramMediaProblems(media: InstagramMediaFacts[]): string[] {
  * Every platform takes one video per post, on its own: the upload routes
  * refuse anything else on a card so it cannot fail later at publish.
  */
+/**
+ * What stops a flattened post from going to Facebook, YouTube or TikTok, given
+ * the whole thread's media; empty for the other platforms, whose rules live
+ * elsewhere. YouTube and TikTok post exactly one video (TikTok's photo posts
+ * need a domain verified with TikTok, which an instance does not have).
+ */
+export function postMediaProblems(platform: string, media: { mime: string }[]): string[] {
+	const videos = media.filter((m) => (m.mime || '').toLowerCase().startsWith('video/')).length;
+	const images = media.length - videos;
+	if (platform === 'youtube' || platform === 'tiktok') {
+		const label = platform === 'youtube' ? 'YouTube' : 'TikTok';
+		if (videos === 0) return [`${label} needs a video`];
+		if (videos > 1 || images > 0) return [`${label} posts one video on its own`];
+		return [];
+	}
+	if (platform === 'facebook') {
+		if (videos > 1 || (videos && images)) return ['Facebook posts a video on its own'];
+		if (images > FACEBOOK_MAX_IMAGES)
+			return [`Facebook takes up to ${FACEBOOK_MAX_IMAGES} photos (${images} attached)`];
+	}
+	return [];
+}
+
 export function videoMixProblem(videos: number, images: number): string | null {
 	if (videos > 1) return 'Only one video per post';
 	if (videos > 0 && images > 0) return 'Videos cannot mix with images on the same post';

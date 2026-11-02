@@ -124,9 +124,11 @@ export function formatLocalDateTime(iso: string | Date): string {
 
 /** Absolute local date/time with explicit zone: "Sep 9, 2:30 PM CET". */
 export function formatLocalDateTimeWithZone(iso: string | Date): string {
-	const base = formatLocalDateTime(iso);
+	const d = typeof iso === 'string' ? new Date(iso) : iso;
+	const base = formatLocalDateTime(d);
 	if (!base) return '';
-	return `${base} ${localTimezoneShort()}`;
+	// The zone at that instant: a September time read in November is EDT, not EST.
+	return `${base} ${localTimezoneShort(d)}`;
 }
 
 /** Full local timestamp for tooltips: "Sep 9, 2026, 2:30:00 PM CET". */

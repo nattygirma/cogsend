@@ -3,7 +3,7 @@ import { qrSvg } from '#lib/server/qr.js';
 
 describe('qrSvg', () => {
 	it('emits an svg with an explicit size so it cannot collapse', () => {
-		const svg = qrSvg('otpauth://totp/CogSend:test@localhost?secret=ABC&issuer=CogSend');
+		const svg = qrSvg('otpauth://totp/PostEasy:test@localhost?secret=ABC&issuer=PostEasy');
 		expect(svg.startsWith('<svg ')).toBe(true);
 		expect(svg).toContain('width="192"');
 		expect(svg).toContain('height="192"');

@@ -26,7 +26,7 @@ describe('deploy repository', () => {
 	const version = JSON.parse(readFileSync('package.json', 'utf8')).version as string;
 
 	beforeAll(() => {
-		tmp = mkdtempSync(join(tmpdir(), 'cogsend-deploy-repo-'));
+		tmp = mkdtempSync(join(tmpdir(), 'posteasy-deploy-repo-'));
 		const worker = join(tmp, 'worker');
 		const assets = join(tmp, 'assets');
 		mkdirSync(worker);
@@ -82,7 +82,7 @@ describe('deploy repository', () => {
 		expect(config.triggers).toEqual(source.triggers);
 		expect(config.version_metadata).toEqual(source.version_metadata);
 		expect(config.compatibility_date).toBe(source.compatibility_date);
-		expect(config.vars).toEqual({ COGSEND_INSTALL: 'button' });
+		expect(config.vars).toEqual({ POSTEASY_INSTALL: 'button' });
 		// The prebuilt files, and only what wrangler uploads (plus _headers, which it reads).
 		expect(existsSync(join(out, 'worker/_worker.js'))).toBe(true);
 		expect(existsSync(join(out, 'worker/_worker.js.map'))).toBe(false);
@@ -144,7 +144,7 @@ process.exit(0);
 			'--tag',
 			`v${version}`,
 			'--message',
-			`CogSend ${version}`
+			`PostEasy ${version}`
 		]);
 	});
 
@@ -153,11 +153,11 @@ process.exit(0);
 		expect(run.status).toBe(1);
 		expect(run.stderr).toContain('v999.0.0');
 		expect(deploys).toEqual([]);
-		expect(deployWith('v999.0.0', undefined, { COGSEND_ALLOW_DOWNGRADE: '1' }).run.status).toBe(0);
+		expect(deployWith('v999.0.0', undefined, { POSTEASY_ALLOW_DOWNGRADE: '1' }).run.status).toBe(0);
 	});
 
 	it('lets exactly the release an update rolled back to past the downgrade check', () => {
-		const marker = join(out, '.cogsend-rollback');
+		const marker = join(out, '.posteasy-rollback');
 		try {
 			writeFileSync(marker, `${version}\n`);
 			expect(deployWith('v999.0.0').run.status).toBe(0);
@@ -172,14 +172,14 @@ process.exit(0);
 		const git = (...args: string[]) => spawnSync('git', args, { cwd: out, encoding: 'utf8' });
 		try {
 			git('init', '--quiet');
-			git('remote', 'add', 'origin', 'https://x-access-token:s3cret@github.com/me/my-cogsend.git');
+			git('remote', 'add', 'origin', 'https://x-access-token:s3cret@github.com/me/my-posteasy.git');
 			const { run, deploys } = deployWith(null, undefined, { WORKERS_CI_BRANCH: 'main' });
 			expect(run.status).toBe(0);
 			expect(deploys[0].slice(-4)).toEqual([
 				'--var',
-				'COGSEND_REPO:me/my-cogsend',
+				'POSTEASY_REPO:me/my-posteasy',
 				'--var',
-				'COGSEND_BRANCH:main'
+				'POSTEASY_BRANCH:main'
 			]);
 			expect(JSON.stringify(deploys)).not.toContain('s3cret');
 		} finally {

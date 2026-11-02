@@ -7,7 +7,7 @@
  * is also what keeps the assertions in tests/ matching the strings a person
  * reads on screen.
  *
- * `--verbose` (or COGSEND_VERBOSE=1) inverts the default: the scripts then print
+ * `--verbose` (or POSTEASY_VERBOSE=1) inverts the default: the scripts then print
  * every command they run and the raw output it produced. A failure always shows
  * the raw output, because that is the one time the detail is the message.
  */
@@ -15,7 +15,7 @@
 const env = process.env;
 
 const wantsColor = (() => {
-	if (process.argv.includes('--no-color') || env.COGSEND_NO_COLOR === '1') return false;
+	if (process.argv.includes('--no-color') || env.POSTEASY_NO_COLOR === '1') return false;
 	if (env.FORCE_COLOR && env.FORCE_COLOR !== '0') return true;
 	// A test runner's stdout can still be a terminal: never colour assertions.
 	if (env.VITEST || env.NODE_ENV === 'test') return false;
@@ -67,7 +67,7 @@ export function clearProgress() {
 /** Every command and its raw output, instead of one line per step. */
 export const isVerbose = () =>
 	process.argv.includes('--verbose') ||
-	['1', 'true', 'yes'].includes(String(env.COGSEND_VERBOSE ?? '').toLowerCase());
+	['1', 'true', 'yes'].includes(String(env.POSTEASY_VERBOSE ?? '').toLowerCase());
 
 /** Colour removed: for measuring, not for printing. Built from a code point so
  *  the regex itself carries no control character. */

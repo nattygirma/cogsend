@@ -31,7 +31,7 @@ function d1Shim(client: Client): D1Database {
 	} as unknown as D1Database;
 }
 
-const ORIGIN = 'https://cogsend.example.com';
+const ORIGIN = 'https://posteasy.example.com';
 const APP_ENCRYPTION_KEY = 'feedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedface';
 const AUTH_SECRET = 'test-auth-secret-0123456789abcdef';
 

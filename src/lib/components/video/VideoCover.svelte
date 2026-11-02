@@ -83,8 +83,7 @@
 		>
 			<h2 id="video-cover-title" class="text-sm font-semibold">Cover</h2>
 			<p class="mt-1 text-xs text-[var(--muted)]">
-				Shown before the video plays on Mastodon and LinkedIn. X, Threads and Bluesky choose their
-				own frame.
+				Shown before the video plays on LinkedIn. X, Threads and Bluesky choose their own frame.
 			</p>
 			<video
 				bind:this={videoEl}

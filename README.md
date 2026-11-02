@@ -1,11 +1,11 @@
 <p align="center">
-  <img width="96" alt="CogSend" src="https://github.com/user-attachments/assets/42c2579f-b1f2-4345-980a-01e24c9e027c" />
+  <img width="96" alt="PostEasy" src="https://github.com/user-attachments/assets/42c2579f-b1f2-4345-980a-01e24c9e027c" />
 </p>
 
-<h1 align="center">CogSend</h1>
+<h1 align="center">PostEasy</h1>
 
 <p align="center">
-  Self-hosted social scheduler for Mastodon, Bluesky, LinkedIn, Threads, Instagram and X.<br />
+  Self-hosted social scheduler for Bluesky, LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X.<br />
   Write a draft, customize it per platform, then publish it now or schedule it.
 </p>
 
@@ -35,9 +35,9 @@ https://github.com/user-attachments/assets/d704f9fa-5c0e-429a-90ab-bbab4c341d85
 
 <p align="center"><strong>Supported by <a href="https://zernio.link/cogsend?utm_source=cogsend&utm_medium=sponsorship&utm_campaign=cogsend-integration&utm_content=readme-sponsor">Zernio</a></strong>, which lets you connect X, Threads, LinkedIn and Bluesky <a href="docs/zernio.md">without your own developer apps</a>.</p>
 
-## Why CogSend
+## Why PostEasy
 
-Hosted schedulers usually charge per channel and keep your posts and tokens on their servers. CogSend runs on your own Cloudflare account instead: your data stays in your own D1 database and R2 bucket, posts go out through your own API credentials, and there is no subscription to keep paying.
+Hosted schedulers usually charge per channel and keep your posts and tokens on their servers. PostEasy runs on your own Cloudflare account instead: your data stays in your own D1 database and R2 bucket, posts go out through your own API credentials, and there is no subscription to keep paying.
 
 ## Features
 
@@ -49,7 +49,7 @@ Hosted schedulers usually charge per channel and keep your posts and tokens on t
 - **Automatic retries**: temporary failures retry on their own, up to five attempts
 - **Insights**: published against failed over 7, 30 or 90 days, and why posts failed
 - **Link previews**: cards for URLs in a post
-- **Secure by default**: encrypted credentials and 2FA on the admin account
+- **Accounts for everyone**: sign up with email and password; the first account owns the workspace and its platform apps
 - **AI agents (MCP)**: connect Claude Code, Codex or any MCP client to draft, schedule and publish with your API key
 - **API access**: a personal key for scripts and Shortcuts, read-only or read-write
 
@@ -67,29 +67,29 @@ The easiest way, and the one to pick unless you want to change the code: no term
 
 1. Generate an encryption key at [cogsend.com/key](https://cogsend.com/key/) and keep a copy: the next two steps ask for it, and losing it later means reconnecting every account.
 2. Press the button, sign in to Cloudflare and GitHub, and paste the key when the form asks for `APP_ENCRYPTION_KEY`.
-3. Open your new URL, enter the same key, an email and a password, then scan the QR with an authenticator app and save the backup codes.
+3. Open your new URL and create the first account: it owns the workspace.
 
-Updates come through your repository's **Update CogSend** action, with no Cloudflare token, and can install patch releases by themselves. You need a Cloudflare account with Workers, D1 and R2 available; [docs/deploy.md](docs/deploy.md#deploy-with-one-click) walks through every screen.
+Updates come through your repository's **Update PostEasy** action, with no Cloudflare token, and can install patch releases by themselves. You need a Cloudflare account with Workers, D1 and R2 available; [docs/deploy.md](docs/deploy.md#deploy-with-one-click) walks through every screen.
 
 ### From a terminal
 
 For changing the code, or deploying without a GitHub or GitLab account. Needs Node 22.17+, 24 or 26+ (odd-numbered releases such as 25 are not supported) and a Cloudflare account with Workers, D1 and R2 available.
 
 ```sh
-git clone --depth 1 https://github.com/cogsend/cogsend.git cogsend
-cd cogsend && npm install && npm run setup
+git clone --depth 1 https://github.com/cogsend/cogsend.git posteasy
+cd posteasy && npm install && npm run setup
 ```
 
-`setup` creates the Cloudflare resources, your admin account and the secrets, deploys, and prints your URL. Sign in there, scan the QR with an authenticator app and save the backup codes. It is safe to re-run; [docs/deploy.md](docs/deploy.md#one-command) lists every step and flag.
+`setup` creates the Cloudflare resources, your admin account and the secrets, deploys, and prints your URL. Sign in there. It is safe to re-run; [docs/deploy.md](docs/deploy.md#one-command) lists every step and flag.
 
-Next, [connect your accounts](docs/accounts.md). Mastodon and Bluesky work straight away; LinkedIn, Threads, Instagram and X need an [OAuth app](docs/oauth-apps.md) first, which the accounts dialog walks you through (or hands to a browser agent), or you can connect them through [Zernio](docs/zernio.md).
+Next, [connect your accounts](docs/accounts.md). Bluesky works straight away; LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X need an [OAuth app](docs/oauth-apps.md) first, which the accounts dialog walks you through (or hands to a browser agent), or you can connect them through [Zernio](docs/zernio.md).
 
 ## Updating
 
 Settings → Instance and a dot on your avatar say when a newer release is out.
 
-- **Installed with the button:** Settings links to your repository's **Update CogSend** action. Run it, and Workers Builds deploys the release it commits; set the repository variable `AUTO_UPDATE` to `true` and it installs patch releases by itself. No Cloudflare token involved.
-- **Any install, from Settings:** paste a Cloudflare API token (it can remember it, locked with your password), and CogSend uploads the signed release, checks the new version answers, then switches to it, with a Roll back button afterwards.
+- **Installed with the button:** Settings links to your repository's **Update PostEasy** action. Run it, and Workers Builds deploys the release it commits; set the repository variable `AUTO_UPDATE` to `true` and it installs patch releases by itself. No Cloudflare token involved.
+- **Any install, from Settings:** paste a Cloudflare API token (it can remember it, locked with your password), and PostEasy uploads the signed release, checks the new version answers, then switches to it, with a Roll back button afterwards.
 - **From a checkout,** one command:
 
 ```sh
@@ -106,7 +106,7 @@ Also published, with search, at [cogsend.com/docs](https://cogsend.com/docs/).
 
 - [Deploying](docs/deploy.md): the one-click button, the terminal install and its flags, checking it worked
 - [Updating](docs/updates.md): updating from Settings, through GitHub or from a checkout, rolling back, and why each is safe
-- [OAuth apps](docs/oauth-apps.md): LinkedIn, Threads, Instagram and X app setup, and what each platform allows
+- [OAuth apps](docs/oauth-apps.md): LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X app setup, and what each platform allows
 - [Zernio](docs/zernio.md): connecting through Zernio instead of registering your own apps
 - [Connecting accounts](docs/accounts.md): connecting, reconnecting and disconnecting accounts
 
@@ -134,7 +134,7 @@ SvelteKit 3 and Svelte 5 on Cloudflare Workers with Static Assets, D1 (SQLite) v
 
 [docs/development.md](docs/development.md) has local setup and the checks that must pass; [CONTRIBUTING.md](CONTRIBUTING.md) has the pull-request rules. Report security issues privately, as [SECURITY.md](SECURITY.md) describes.
 
-If CogSend is useful to you, [sponsoring](https://github.com/sponsors/deepakness) supports my time maintaining it.
+If PostEasy is useful to you, [sponsoring](https://github.com/sponsors/deepakness) supports my time maintaining it.
 
 ## License
 

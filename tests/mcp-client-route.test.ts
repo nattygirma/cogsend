@@ -57,7 +57,7 @@ beforeEach(async () => {
 		mfaVerified: true
 	};
 	rawKey = (await rotateApiKey(db, user.id)).raw;
-	transport = new StreamableHTTPClientTransport(new URL('https://cogsend.example/api/mcp'), {
+	transport = new StreamableHTTPClientTransport(new URL('https://posteasy.example/api/mcp'), {
 		requestInit: { headers: { Authorization: `Bearer ${rawKey}` } },
 		fetch: async (input, init) => {
 			const request = new Request(input, init);
@@ -83,7 +83,7 @@ beforeEach(async () => {
 		}
 	});
 	client = new Client(
-		{ name: 'cogsend-test-client', version: '1.0.0' },
+		{ name: 'posteasy-test-client', version: '1.0.0' },
 		{ versionNegotiation: { mode: { pin: '2026-07-28' } } }
 	);
 	await client.connect(transport);
@@ -102,9 +102,8 @@ async function seedConnection(ownerId = user.id) {
 	await db.insert(connections).values({
 		id,
 		userId: ownerId,
-		platform: 'mastodon',
-		handle: 'test@mastodon.example',
-		instanceUrl: 'https://mastodon.example',
+		platform: 'bluesky',
+		handle: 'test.bsky.social',
 		credentialsEncrypted: '{}',
 		metaJson: '{}',
 		status: 'active',
@@ -143,17 +142,7 @@ const expectedOutputFields: Record<string, string[]> = {
 	delete_draft: ['ok'],
 	set_draft_variant: ['variant'],
 	delete_draft_variant: ['ok'],
-	validate_post: [
-		'graphemes',
-		'mastodonLength',
-		'bluesky',
-		'mastodon',
-		'linkedin',
-		'threads',
-		'instagram',
-		'x',
-		'issues'
-	],
+	validate_post: ['graphemes', 'bluesky', 'linkedin', 'threads', 'instagram', 'x', 'issues'],
 	publish_draft: ['results', 'stopped', 'stoppedError', 'draft'],
 	schedule_draft: ['targets', 'scheduledFor'],
 	list_queue: ['targets', 'hasMore'],
@@ -164,7 +153,7 @@ const expectedOutputFields: Record<string, string[]> = {
 
 describe('MCP protocol client through the deployed route handler', () => {
 	it('initializes, checks unsupported ping, and exposes the exact catalog and annotations', async () => {
-		const pingRequest = new Request('https://cogsend.example/api/mcp', {
+		const pingRequest = new Request('https://posteasy.example/api/mcp', {
 			method: 'POST',
 			headers: {
 				'content-type': 'application/json',
@@ -196,7 +185,7 @@ describe('MCP protocol client through the deployed route handler', () => {
 		// The pinned 2026-07-28 SDK wire era no longer defines ping requests.
 		expect(pingResponse.status).toBe(404);
 		expect(pingPayload).toMatchObject({ jsonrpc: '2.0', id: 42, error: { code: -32601 } });
-		expect(client.getServerVersion()).toMatchObject({ name: 'cogsend', version: '1.0.0' });
+		expect(client.getServerVersion()).toMatchObject({ name: 'posteasy', version: '1.0.0' });
 		const { tools } = await client.listTools();
 		expect(tools.map((tool) => tool.name)).toEqual(expectedTools);
 		for (const tool of tools) {
@@ -299,21 +288,21 @@ describe('MCP protocol client through the deployed route handler', () => {
 		const variant = structured(
 			await client.callTool({
 				name: 'set_draft_variant',
-				arguments: { draftId, platform: 'mastodon', body: 'variant text' }
+				arguments: { draftId, platform: 'bluesky', body: 'variant text' }
 			})
 		);
-		expect(variant.variant).toMatchObject({ platform: 'mastodon', body: 'variant text' });
+		expect(variant.variant).toMatchObject({ platform: 'bluesky', body: 'variant text' });
 		expect(
 			(
 				structured(await client.callTool({ name: 'get_draft', arguments: { draftId } }))
 					.draft as Record<string, unknown>
 			).variants
-		).toEqual(expect.arrayContaining([expect.objectContaining({ platform: 'mastodon' })]));
+		).toEqual(expect.arrayContaining([expect.objectContaining({ platform: 'bluesky' })]));
 		expect(
 			structured(
 				await client.callTool({
 					name: 'delete_draft_variant',
-					arguments: { draftId, platform: 'mastodon' }
+					arguments: { draftId, platform: 'bluesky' }
 				})
 			)
 		).toEqual({ ok: true });
@@ -321,7 +310,7 @@ describe('MCP protocol client through the deployed route handler', () => {
 			structured(
 				await client.callTool({
 					name: 'validate_post',
-					arguments: { text: 'hello', platform: 'mastodon' }
+					arguments: { text: 'hello', platform: 'bluesky' }
 				})
 			).graphemes
 		).toBe(5);
@@ -388,7 +377,7 @@ describe('MCP protocol client through the deployed route handler', () => {
 			connectionId,
 			status: 'published',
 			remotePostId: 'remote-post',
-			remoteUrl: 'https://mastodon.example/@test/1',
+			remoteUrl: 'https://bsky.app/profile/test.bsky.social/post/1',
 			attemptCount: 1,
 			createdAt: now,
 			updatedAt: now
@@ -458,7 +447,7 @@ describe('MCP protocol client through the deployed route handler', () => {
 	it('preserves a successful publish when a later destination fails', async () => {
 		const draftId = await seedDraft(user.id, 'Partial publish');
 		const connectionIds = [await seedConnection(), await seedConnection()];
-		const permalink = 'https://mastodon.example/@test/partial';
+		const permalink = 'https://bsky.app/profile/test.bsky.social/post/partial';
 		vi.spyOn(publish, 'publishTarget')
 			.mockImplementationOnce(async (_db, _env, _store, targetId) => {
 				await db
@@ -494,7 +483,7 @@ describe('MCP protocol client through the deployed route handler', () => {
 
 	it('uses JSON-RPC errors for unknown tools and malformed JSON-RPC messages', async () => {
 		const send = async (body: string) => {
-			const request = new Request('https://cogsend.example/api/mcp', {
+			const request = new Request('https://posteasy.example/api/mcp', {
 				method: 'POST',
 				headers: {
 					'content-type': 'application/json',

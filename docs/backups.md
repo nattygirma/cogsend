@@ -15,8 +15,8 @@ For a copy of your own, export the database to SQL. `DB` is the binding in your
 config, so the same command works on a database you renamed:
 
 ```sh
-node scripts/wrangler.mjs d1 export DB --remote --skip-confirmation --output ~/cogsend-$(date +%F).sql
-node scripts/wrangler.mjs d1 execute DB --remote --yes --file ~/cogsend-2026-09-22.sql
+node scripts/wrangler.mjs d1 export DB --remote --skip-confirmation --output ~/posteasy-$(date +%F).sql
+node scripts/wrangler.mjs d1 execute DB --remote --yes --file ~/posteasy-2026-09-22.sql
 ```
 
 `--no-schema` exports rows without the schema and `--table` narrows the export to
@@ -28,7 +28,7 @@ R2 has no export command. Copy the bucket with any S3 client (`rclone`, `aws s3
 sync`) against its S3 endpoint, or fetch objects one at a time with:
 
 ```sh
-node scripts/wrangler.mjs r2 object get cogsend-media/<key> --remote --file ./<key>
+node scripts/wrangler.mjs r2 object get posteasy-media/<key> --remote --file ./<key>
 ```
 
 The bucket name is `bucket_name` in `wrangler.personal.jsonc`.

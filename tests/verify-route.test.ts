@@ -27,8 +27,8 @@ describe('POST /api/connections/[id]/verify — session only, gate before write'
 		await db.insert(connections).values({
 			id,
 			userId: owner,
-			platform: 'mastodon',
-			handle: `acct-${id.slice(0, 8)}@example.social`,
+			platform: 'x',
+			handle: `acct-${id.slice(0, 8)}`,
 			credentialsEncrypted: 'enc',
 			status: 'active',
 			createdAt: now,
@@ -112,7 +112,7 @@ describe('POST /api/connections/[id]/verify — session only, gate before write'
 	it('still expires the row on a real provider auth failure', async () => {
 		const conn = await addConnection(ownerId, {
 			credentialsEncrypted: await encryptJson(
-				{ instanceUrl: 'https://mastodon.example', accessToken: 'dead-token' },
+				{ accessToken: 'dead-token', xUserId: '1', xUsername: 'me' },
 				TEST_ENV.APP_ENCRYPTION_KEY
 			)
 		});
@@ -131,13 +131,13 @@ describe('POST /api/connections/[id]/verify — session only, gate before write'
 	it('marks the row active again when the provider accepts the token', async () => {
 		const conn = await addConnection(ownerId, {
 			credentialsEncrypted: await encryptJson(
-				{ instanceUrl: 'https://mastodon.example', accessToken: 'good-token' },
+				{ accessToken: 'good-token', xUserId: '1', xUsername: 'me' },
 				TEST_ENV.APP_ENCRYPTION_KEY
 			)
 		});
 		vi.stubGlobal(
 			'fetch',
-			vi.fn(async () => Response.json({ id: '1', username: 'me', display_name: 'Me' }))
+			vi.fn(async () => Response.json({ data: { id: '1', username: 'me', name: 'Me' } }))
 		);
 
 		const res = await verify(conn);
@@ -193,71 +193,14 @@ describe('POST /api/connections/[id]/verify — session only, gate before write'
 		});
 	});
 
-	it('stores the limits the instance reports, and keeps what it knew when the instance does not say', async () => {
-		const stored = { maxCharacters: 5000, videoSizeLimit: 40_000_000 };
+	it('refuses a platform PostEasy no longer supports, without touching the row', async () => {
 		const conn = await addConnection(ownerId, {
-			credentialsEncrypted: await encryptJson(
-				{ instanceUrl: 'https://mastodon.example', accessToken: 'good-token' },
-				TEST_ENV.APP_ENCRYPTION_KEY
-			),
-			metaJson: JSON.stringify(stored)
+			platform: 'mastodon',
+			credentialsEncrypted: await encryptJson({ accessToken: 't' }, TEST_ENV.APP_ENCRYPTION_KEY)
 		});
-		let instance: () => Response = () => new Response('', { status: 503 });
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async (input: unknown) =>
-				String(input).endsWith('/api/v2/instance')
-					? instance()
-					: Response.json({ id: '1', username: 'me', display_name: 'Me' })
-			)
-		);
-		const meta = async () => JSON.parse((await statusOf(conn)).metaJson ?? '{}');
-
-		expect((await verify(conn)).status).toBe(200);
-		expect(await meta()).toEqual(stored);
-
-		instance = () => Response.json({ version: '4.3.0' });
-		expect((await verify(conn)).status).toBe(200);
-		expect(await meta()).toEqual(stored);
-
-		instance = () =>
-			Response.json({
-				configuration: { media_attachments: { video_size_limit: 99_000_000 } }
-			});
-		expect((await verify(conn)).status).toBe(200);
-		expect(await meta()).toEqual({ maxCharacters: 5000, videoSizeLimit: 99_000_000 });
-		vi.unstubAllGlobals();
-	});
-
-	it('refuses to follow an instance that redirects to an internal address', async () => {
-		const conn = await addConnection(ownerId, {
-			credentialsEncrypted: await encryptJson(
-				{ instanceUrl: 'https://mastodon.example', accessToken: 'secret-token' },
-				TEST_ENV.APP_ENCRYPTION_KEY
-			)
-		});
-		const seen: string[] = [];
-		const internal = 'http://169.254.169.254/latest/meta-data/';
-		// Follows redirects the way fetch does unless told `redirect: 'manual'`.
-		const fakeFetch = async (input: unknown, init?: RequestInit): Promise<Response> => {
-			const url = String(input);
-			seen.push(url);
-			if (url === internal) return Response.json({ id: 'metadata' });
-			if (init?.redirect === 'manual') {
-				return new Response(null, { status: 302, headers: { location: internal } });
-			}
-			return fakeFetch(internal, init);
-		};
-		vi.stubGlobal('fetch', vi.fn(fakeFetch));
-
 		const res = await verify(conn);
-
-		expect(res.ok).toBe(false);
-		// The token-carrying request never reached the internal address.
-		expect(seen).toEqual(['https://mastodon.example/api/v1/accounts/verify_credentials']);
-		// A refused hop is not a dead token: the account keeps its status.
+		expect(res.status).toBe(410);
 		expect((await statusOf(conn)).status).toBe('active');
-		vi.unstubAllGlobals();
 	});
 
 	describe('through Zernio', () => {

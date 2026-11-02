@@ -59,7 +59,7 @@
 	let buildsNoticeHidden = $state(false);
 	let workflowCopied = $state(false);
 
-	const BUILDS_NOTICE_KEY = 'cogsend.hideBuildsNotice';
+	const BUILDS_NOTICE_KEY = 'posteasy.hideBuildsNotice';
 
 	onMount(() => {
 		try {
@@ -346,8 +346,8 @@
 	<input
 		type="password"
 		autocomplete="current-password"
-		placeholder="Your CogSend password"
-		aria-label="Your CogSend password"
+		placeholder="Your PostEasy password"
+		aria-label="Your PostEasy password"
 		bind:value={password}
 		class="w-full rounded-xl border border-stone-200/80 bg-white px-3 py-2 text-[12px] text-stone-900 focus:border-stone-400 focus:outline-none pointer-coarse:text-base"
 	/>
@@ -394,7 +394,7 @@
 				<p>
 					This instance updates through its GitHub repository,
 					<span class="font-mono text-stone-800">{status.github.repo}</span>: run its
-					<span class="font-bold text-stone-800">Update CogSend</span> Action, and Workers Builds deploys
+					<span class="font-bold text-stone-800">Update PostEasy</span> Action, and Workers Builds deploys
 					the release a couple of minutes later. No Cloudflare token needed.
 				</p>
 				<a
@@ -495,7 +495,7 @@
 				{#if useSaved && status?.savedToken}
 					<p data-testid="saved-token">
 						Your Cloudflare token (ending <span class="font-mono">{status.savedToken.hint}</span>)
-						is saved, locked with your CogSend password. Enter the password to use it.
+						is saved, locked with your PostEasy password. Enter the password to use it.
 					</p>
 					{@render passwordField()}
 					<p class="flex flex-wrap gap-x-3">
@@ -533,7 +533,7 @@
 					<label class="flex items-start gap-2">
 						<input type="checkbox" bind:checked={remember} class="mt-0.5" />
 						<span
-							>Remember it for later updates, locked with my CogSend password. Unticked, it is used
+							>Remember it for later updates, locked with my PostEasy password. Unticked, it is used
 							for this update only and nothing is stored.</span
 						>
 					</label>

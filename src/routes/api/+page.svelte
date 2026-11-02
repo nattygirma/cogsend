@@ -5,51 +5,51 @@
 		{
 			title: 'List drafts',
 			code: `curl ${origin}/api/drafts \\
-  -H "Authorization: Bearer $COGSEND_API_KEY"`
+  -H "Authorization: Bearer $POSTEASY_API_KEY"`
 		},
 		{
 			title: 'Create a draft and publish it now',
 			code: `DRAFT=$(curl -s ${origin}/api/drafts \\
-  -H "Authorization: Bearer $COGSEND_API_KEY" \\
+  -H "Authorization: Bearer $POSTEASY_API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"baseBody":"Hello from the API"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["draft"]["id"])')
 CONNS=$(curl -s ${origin}/api/connections \\
-  -H "Authorization: Bearer $COGSEND_API_KEY" | python3 -c 'import json,sys; print(json.load(sys.stdin)["connections"][0]["id"])')
+  -H "Authorization: Bearer $POSTEASY_API_KEY" | python3 -c 'import json,sys; print(json.load(sys.stdin)["connections"][0]["id"])')
 curl ${origin}/api/drafts/$DRAFT/publish \\
-  -H "Authorization: Bearer $COGSEND_API_KEY" \\
+  -H "Authorization: Bearer $POSTEASY_API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d "{\\"connectionIds\\":[\\"$CONNS\\"]}"`
 		},
 		{
 			title: 'Schedule for later',
 			code: `curl ${origin}/api/drafts/$DRAFT/schedule \\
-  -H "Authorization: Bearer $COGSEND_API_KEY" \\
+  -H "Authorization: Bearer $POSTEASY_API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"connectionIds":["<connection-id>"],"runAt":"2030-01-01T09:00:00Z"}'`
 		},
 		{
 			title: 'Check the queue',
 			code: `curl ${origin}/api/queue \\
-  -H "Authorization: Bearer $COGSEND_API_KEY"`
+  -H "Authorization: Bearer $POSTEASY_API_KEY"`
 		},
 		{
 			title: 'MCP Inspector CLI (list tools)',
-			code: `: "\${COGSEND_API_KEY:?Load it from a secret manager}"\nnpx @modelcontextprotocol/inspector --cli \\
+			code: `: "\${POSTEASY_API_KEY:?Load it from a secret manager}"\nnpx @modelcontextprotocol/inspector --cli \\
   "${origin}/api/mcp" \\
   --transport http \\
   --protocol-era modern \\
   --method tools/list \\
-  --header "Authorization: Bearer $COGSEND_API_KEY"`
+  --header "Authorization: Bearer $POSTEASY_API_KEY"`
 		},
 		{
 			title: 'Generic MCP client configuration template',
 			code: `{
   "mcpServers": {
-    "cogsend": {
+    "posteasy": {
       "type": "http",
       "url": "${origin}/api/mcp",
       "headers": {
-        "Authorization": "Bearer $COGSEND_API_KEY"
+        "Authorization": "Bearer $POSTEASY_API_KEY"
       }
     }
   }
@@ -102,12 +102,12 @@ curl ${origin}/api/drafts/$DRAFT/publish \\
 
 			<div class="group relative mb-6">
 				<pre
-					class="overflow-x-auto rounded-xl border border-stone-200/60 bg-stone-50 p-4 font-mono text-[13px] text-stone-900">Authorization: Bearer cog_…</pre>
+					class="overflow-x-auto rounded-xl border border-stone-200/60 bg-stone-50 p-4 font-mono text-[13px] text-stone-900">Authorization: Bearer pe_…</pre>
 				<button
 					type="button"
 					aria-label="Copy authorization header"
 					aria-live="polite"
-					onclick={(e) => void copy('Authorization: Bearer cog_…', e.currentTarget)}
+					onclick={(e) => void copy('Authorization: Bearer pe_…', e.currentTarget)}
 					class="absolute top-3 right-3 rounded-md border border-stone-200/80 bg-white px-2 py-1 text-xs font-medium text-stone-600 opacity-100 transition-opacity group-hover:opacity-100 hover:bg-stone-100 hover:text-stone-900 focus:opacity-100 focus-visible:opacity-100 sm:opacity-0"
 				>
 					Copy
@@ -282,7 +282,7 @@ curl ${origin}/api/drafts/$DRAFT/publish \\
 					Use an MCP client that asks you to approve destructive and open-world actions. Review
 					content and destination before <code>publish_draft</code> or <code>retry_delivery</code>,
 					which can post to external services. Tool annotations are hints, not authorization or
-					enforced consent; CogSend has no server-side preview/commit step in v1.
+					enforced consent; PostEasy has no server-side preview/commit step in v1.
 				</p>
 				<p class="mt-2 text-[14px] leading-relaxed text-amber-950">
 					MCP v1 does not expose media operations, settings, insights, account/provider management,
@@ -311,7 +311,7 @@ curl ${origin}/api/drafts/$DRAFT/publish \\
 				</li>
 			</ol>
 			<p class="text-[13px] leading-relaxed text-stone-500">
-				The copyable CLI example below uses shell expansion for <code>$COGSEND_API_KEY</code>. The
+				The copyable CLI example below uses shell expansion for <code>$POSTEASY_API_KEY</code>. The
 				generic configuration is a template: client-specific variable interpolation is not
 				guaranteed. Never commit a real key.
 			</p>

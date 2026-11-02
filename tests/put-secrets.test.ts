@@ -50,15 +50,15 @@ describe('npm run secrets:put', () => {
 			deployedTo = null
 		}: { secretList?: string[] | null; account?: string | null; deployedTo?: string | null } = {}
 	) {
-		const created = mkdtempSync(join(tmpdir(), 'cogsend-secrets-'));
+		const created = mkdtempSync(join(tmpdir(), 'posteasy-secrets-'));
 		dir = created;
 		writeFileSync(join(created, '.dev.vars'), devVars);
 		if (deployedTo) {
-			writeFileSync(join(created, 'wrangler.jsonc'), JSON.stringify({ name: 'cogsend' }));
+			writeFileSync(join(created, 'wrangler.jsonc'), JSON.stringify({ name: 'posteasy' }));
 			mkdirSync(join(created, '.wrangler'));
 			writeFileSync(
 				join(created, '.wrangler', 'deployed-accounts.json'),
-				JSON.stringify({ cogsend: { accountId: deployedTo } })
+				JSON.stringify({ posteasy: { accountId: deployedTo } })
 			);
 		}
 		const bin = join(created, 'bin');
@@ -76,7 +76,7 @@ const args = process.argv.slice(2);
 const list = ${JSON.stringify(listJson)};
 const account = ${JSON.stringify(account)};
 if (args.includes('list') && process.env.WRANGLER_LOG === 'debug') {
-	if (account) process.stderr.write('GET https://api.cloudflare.com/client/v4/accounts/' + account + '/workers/scripts/cogsend/secrets\\n');
+	if (account) process.stderr.write('GET https://api.cloudflare.com/client/v4/accounts/' + account + '/workers/scripts/posteasy/secrets\\n');
 	process.exit(1);
 }
 if (args.includes('list')) {
@@ -149,7 +149,7 @@ process.stdin.resume();
 			[
 				'RESEND_API_KEY=re_123',
 				'NOTIFY_EMAIL=alerts@example.com',
-				'NOTIFY_FROM=CogSend <sent@example.com>'
+				'NOTIFY_FROM=PostEasy <sent@example.com>'
 			].join('\n')
 		);
 		expect(puts.map((c) => c.args.at(-1))).toEqual([
@@ -231,7 +231,7 @@ process.stdin.resume();
 			deployedTo: '0123456789abcdef0123456789abcdef'
 		});
 		expect(result.stderr).toContain(
-			'refusing: this checkout deployed cogsend to account 0123456789abcdef0123456789abcdef'
+			'refusing: this checkout deployed posteasy to account 0123456789abcdef0123456789abcdef'
 		);
 		expect(result.stderr).toContain('nothing was uploaded');
 		expect(puts).toEqual([]);
@@ -243,7 +243,7 @@ process.stdin.resume();
 			account: '0123456789abcdef0123456789abcdef',
 			deployedTo: '0123456789abcdef0123456789abcdef'
 		});
-		expect(result.stdout).toContain('target: cogsend on 0123456789abcdef0123456789abcdef');
+		expect(result.stdout).toContain('target: posteasy on 0123456789abcdef0123456789abcdef');
 		expect(puts.map((c) => c.args.at(-1))).toEqual(['THREADS_APP_ID']);
 	});
 

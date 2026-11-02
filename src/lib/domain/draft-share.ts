@@ -88,7 +88,7 @@ export function shareVersions(input: {
 	for (const platform of PLATFORM_ORDER) {
 		if (!input.platforms.includes(platform)) continue;
 		const variant = input.variants.find((v) => v.platform === platform);
-		// A variant with no body only carries options (Mastodon visibility, a
+		// A variant with no body only carries options (a platform's settings, a
 		// poll) and publishes the main text.
 		if (!variant || variant.body === null) continue;
 		const cards = supportsThreads(platform)

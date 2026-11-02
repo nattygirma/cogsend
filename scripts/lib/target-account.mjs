@@ -29,10 +29,10 @@ export const RECORD_FILE = '.wrangler/deployed-accounts.json';
 
 /** Set once a script has checked, so the wrangler calls it makes do not each
  *  check again. Holds the account id, or `unknown`. */
-export const CHECKED_ENV = 'COGSEND_TARGET_CHECKED';
+export const CHECKED_ENV = 'POSTEASY_TARGET_CHECKED';
 
 /** The deliberate way to move an instance to another account. */
-export const ALLOW_CHANGE_ENV = 'COGSEND_ALLOW_ACCOUNT_CHANGE';
+export const ALLOW_CHANGE_ENV = 'POSTEASY_ALLOW_ACCOUNT_CHANGE';
 
 const ACCOUNT_ID = /^[0-9a-f]{32}$/;
 

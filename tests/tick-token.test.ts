@@ -53,7 +53,7 @@ describe('tick token', () => {
 		expect(await verifyTickToken(db, token)).toBe(false);
 		expect(await verifyTickToken(db, null)).toBe(false);
 		expect(await verifyTickToken(db, '')).toBe(false);
-		expect(await verifyTickToken(db, 'cog_' + 'a'.repeat(64))).toBe(false);
+		expect(await verifyTickToken(db, 'pe_' + 'a'.repeat(64))).toBe(false);
 		expect(await verifyTickToken(db, `tick_${'a'.repeat(63)}`)).toBe(false);
 		expect(await verifyTickToken(db, current.slice(0, -1))).toBe(false);
 	});

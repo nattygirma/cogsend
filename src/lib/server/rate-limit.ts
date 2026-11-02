@@ -17,15 +17,12 @@ export type RateLimiter = {
 	limit(input: { key: string }): Promise<{ success: boolean }>;
 };
 
-/** `/api/auth/claim` takes the encryption key on a fresh instance,
- *  `/api/auth/totp/verify` covers the login challenge, and the two update routes
+/** Sign-in and sign-up take a password from anyone, and the two update routes
  *  take the account password to lock or open the saved Cloudflare token; the
- *  enroll/rotate routes need a session first, and the tick endpoint is
- *  bearer-guarded. */
+ *  tick endpoint is bearer-guarded. */
 export const RATE_LIMITED_PATHS = [
 	'/api/auth/login',
-	'/api/auth/claim',
-	'/api/auth/totp/verify',
+	'/api/auth/signup',
 	'/api/update/unlock',
 	'/api/update/remember'
 ];

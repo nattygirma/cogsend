@@ -1,5 +1,4 @@
 import { and, desc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
-import { isLocalAppUrl } from '#lib/domain/app-url.js';
 import { safeHttpUrl } from '#lib/domain/links.js';
 import { LEASE_REFRESH_MS, STALE_CLAIM_MS } from '#lib/domain/due-jobs.js';
 import type { PublishResult } from '#lib/server/providers/types.js';
@@ -10,7 +9,7 @@ import {
 } from '#lib/domain/threads-error.js';
 import { decodeImageDimensions } from './image-dimensions';
 import { coverKey, type StoredImageMeta, type StoredVideoMeta } from './media';
-import { parsePollConfig } from '#lib/domain/poll.js';
+import { parseTikTokOptions, parseYouTubeOptions } from '#lib/domain/platform-options.js';
 import { signPublicMediaUrl, type PublicMediaVariant } from './public-media';
 import { resolvePublishSegments } from '#lib/domain/thread-segments.js';
 import { targetRecordKey } from '#lib/domain/tid.js';
@@ -157,16 +156,8 @@ export async function buildNormalizedPost(
 		media.some((m) => (m.segmentIndex ?? 0) === segmentIndex);
 
 	const postOptions: NonNullable<NormalizedPost['options']> = {
-		visibility:
-			options.visibility === 'unlisted' ||
-			options.visibility === 'private' ||
-			options.visibility === 'direct' ||
-			options.visibility === 'public'
-				? options.visibility
-				: 'public',
-		spoilerText: typeof options.spoilerText === 'string' ? options.spoilerText : undefined,
-		langs: Array.isArray(options.langs) ? (options.langs as string[]) : undefined,
-		poll: parsePollConfig(options.poll) ?? undefined
+		...(platform === 'youtube' ? { youtube: parseYouTubeOptions(options) } : {}),
+		...(platform === 'tiktok' ? { tiktok: parseTikTokOptions(options) } : {})
 	};
 
 	const segmentsOpt = options.threadSegments as string[] | undefined;
@@ -316,10 +307,6 @@ export function publishCallEstimate(platform: string, content: NormalizedPost): 
 			}
 			platformCalls += segments.length;
 			break;
-		case 'mastodon':
-			// Upload, plus a couple of polls while the instance processes it.
-			platformCalls += images.length * 3 + segments.length;
-			break;
 		case 'bluesky':
 			platformCalls += images.length + segments.length;
 			// A link card: page fetch (and a redirect), image fetch, blob upload.
@@ -343,6 +330,20 @@ export function publishCallEstimate(platform: string, content: NormalizedPost): 
 			platformCalls += images.length * 3 + 4;
 			platformCalls -= videos.length * (VIDEO_START_CALLS - 3);
 			storage = 0;
+			break;
+		case 'facebook':
+			// Photos go as URLs: an unpublished upload each and the feed post for
+			// several, one /photos call for a single one; a video is one create
+			// and its status reads. The permalink lookup runs once.
+			platformCalls += images.length + 2;
+			platformCalls -= videos.length * (VIDEO_START_CALLS - 3);
+			storage = 0;
+			break;
+		case 'youtube':
+		case 'tiktok':
+			// Video only, which VIDEO_START_CALLS covers; plus the token refresh
+			// (and TikTok's creator check) before it starts.
+			platformCalls += 2;
 			break;
 		case 'zernio':
 			// One create and the status polls; media travels as URLs, so there
@@ -679,7 +680,6 @@ export async function publishTarget(
 				fetchImpl,
 				{
 					resume: resumeFrom ?? undefined,
-					allowLocalHosts: isLocalAppUrl(env.APP_URL),
 					mediaUrlFor: (storageKey: string, variant?: PublicMediaVariant) =>
 						publicMediaUrlFor(env, storageKey, variant),
 					mediaReader: mediaReaderFor(store),
@@ -1154,9 +1154,9 @@ export function isRetryableError(message: string): boolean {
 	// The same long text to the same account fails the same way: see x.ts.
 	if (lower.includes('x refused a post over 280')) return false;
 	if (lower.includes('utf-8 bytes') || lower.includes('max 16mb')) return false;
-	// The app's own host allowlist rejected the stored instance (Mastodon:
-	// "Instance host not allowed", Bluesky: "PDS host not allowed"). That is
-	// a permanent policy refusal — retrying cannot change it.
+	// The app's own host allowlist rejected the stored host (Bluesky: "PDS
+	// host not allowed"). That is a permanent policy refusal — retrying
+	// cannot change it.
 	if (lower.includes('host not allowed')) return false;
 	if (
 		lower.includes('linkedin') &&

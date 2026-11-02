@@ -125,23 +125,22 @@ describe('join / update / add / remove', () => {
 });
 
 describe('buildPreviewModel', () => {
-	it('builds multi-segment mastodon model from connections', () => {
+	it('builds multi-segment threads model from connections', () => {
 		const model = buildPreviewModel({
-			platform: 'mastodon',
+			platform: 'threads',
 			body: 'one\n---\ntwo',
 			connections: [
 				{
-					platform: 'mastodon',
+					platform: 'threads',
 					displayName: 'Test User',
-					handle: 'test@mastodon.social',
+					handle: '@testuser',
 					avatarUrl: 'https://example.com/a.png'
 				}
-			],
-			mastodonMax: 500
+			]
 		});
 		expect(model.segments).toEqual(['one', 'two']);
-		expect(model.platform).toBe('mastodon');
-		expect(model.identity.handle).toContain('mastodon');
+		expect(model.platform).toBe('threads');
+		expect(model.identity.handle).toContain('testuser');
 		expect(model.charLimits.max).toBe(500);
 	});
 

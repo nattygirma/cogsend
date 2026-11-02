@@ -13,11 +13,14 @@
 	 */
 	let {
 		draftId,
-		ensureSaved
+		ensureSaved,
+		placement = 'below'
 	}: {
 		draftId: string | null;
 		/** Saves pending edits and returns the draft's id, or null when it could not. */
 		ensureSaved: () => Promise<string | null>;
+		/** 'above' when the toggle sits in a bar at the bottom of the window. */
+		placement?: 'above' | 'below';
 	} = $props();
 
 	type Share = { url: string; expiresAt: string };
@@ -128,7 +131,9 @@
 			role="dialog"
 			aria-label="Preview link"
 			data-testid="share-panel"
-			class="absolute top-full right-0 z-40 mt-2 w-72 rounded-[1rem] border border-stone-200/80 bg-white p-3 shadow-[0_16px_40px_-12px_rgb(28_25_23/0.15)]"
+			class="absolute {placement === 'above'
+				? 'bottom-full left-0 mb-2'
+				: 'top-full right-0 mt-2'} z-40 w-72 rounded-[1rem] border border-stone-200/80 bg-white p-3 shadow-[0_16px_40px_-12px_rgb(28_25_23/0.15)]"
 			transition:slide={{ duration: 150 }}
 		>
 			<p class="mb-1 text-[10px] font-bold tracking-widest text-stone-500 uppercase">

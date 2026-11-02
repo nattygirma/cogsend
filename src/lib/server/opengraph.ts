@@ -8,7 +8,6 @@
  * - LinkedIn: Posts API does NOT scrape URLs. Caller must send
  *   `content.article { source, title, description, thumbnail? }`, thumbnail
  *   being an uploaded `urn:li:image:*`. Images/video XOR article.
- * - Mastodon: server scrapes OG into PreviewCard; client sends nothing.
  * - Threads: no LINK attachment; URL in `text` unfurls server-side.
  *
  * Security: every outbound fetch validates the host with
@@ -200,7 +199,7 @@ async function fetchWithRedirects(
 		try {
 			res = await fetchImpl(current, {
 				headers: {
-					'User-Agent': 'cogsend/1.0 (+link-preview)',
+					'User-Agent': 'posteasy/1.0 (+link-preview)',
 					Accept: 'text/html,application/xhtml+xml'
 				},
 				redirect: 'manual',
@@ -298,7 +297,7 @@ export async function fetchOgImage(
 			timer = setTimeout(() => ctrl.abort(), OG_FETCH_TIMEOUT_MS);
 			try {
 				res = await fetchImpl(current, {
-					headers: { 'User-Agent': 'cogsend/1.0 (+link-preview)', Accept: 'image/*' },
+					headers: { 'User-Agent': 'posteasy/1.0 (+link-preview)', Accept: 'image/*' },
 					redirect: 'manual',
 					signal: ctrl.signal
 				} as RequestInit);

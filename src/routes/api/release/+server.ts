@@ -15,6 +15,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
 		requireUser(locals.user);
 		requireScope(locals, 'read');
+		if (!locals.env.updates) {
+			return ok({
+				current: __APP_VERSION__,
+				latest: null,
+				updateAvailable: false,
+				checkedAt: null,
+				disabled: true
+			});
+		}
 		const refresh = url.searchParams.get('refresh') === '1';
 		return ok(await checkForRelease(locals.db, { refresh }));
 	} catch (err) {

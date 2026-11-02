@@ -11,17 +11,17 @@ describe('agent prompt', () => {
 	const ids = Object.keys(PLATFORM_SETUP) as OAuthPlatformId[];
 
 	it.each(ids)('gives %s the exact redirect URI and console', (id) => {
-		const prompt = buildAgentPrompt(id, 'https://cogsend.example.workers.dev/', 'My Instance');
-		expect(prompt).toContain(callbackUri(id, 'https://cogsend.example.workers.dev'));
+		const prompt = buildAgentPrompt(id, 'https://posteasy.example.workers.dev/', 'My Instance');
+		expect(prompt).toContain(callbackUri(id, 'https://posteasy.example.workers.dev'));
 		expect(prompt).not.toContain('workers.dev//');
 		expect(prompt).toContain(PLATFORM_SETUP[id].consoleUrl);
 		expect(prompt).toContain(PLATFORM_SETUP[id].redirectField);
-		expect(prompt).toContain('https://cogsend.example.workers.dev/accounts');
+		expect(prompt).toContain('https://posteasy.example.workers.dev/accounts');
 		expect(prompt).toContain('My Instance');
 	});
 
 	it.each(ids)('keeps %s credentials out of the chat and stops for the person', (id) => {
-		const prompt = buildAgentPrompt(id, 'https://a.example', 'CogSend');
+		const prompt = buildAgentPrompt(id, 'https://a.example', 'PostEasy');
 		expect(prompt).toMatch(/Never paste, repeat or summarise any client secret/);
 		expect(prompt).toContain('"Save and connect", and stop there');
 		for (const step of ['signing in', 'phone verification', 'CAPTCHAs', 'costs money']) {
@@ -32,11 +32,11 @@ describe('agent prompt', () => {
 	});
 
 	it('marks optional fields and carries the platform note', () => {
-		const prompt = buildAgentPrompt('x', 'https://a.example', 'CogSend');
+		const prompt = buildAgentPrompt('x', 'https://a.example', 'PostEasy');
 		expect(prompt).toContain('Client secret (optional)');
 		expect(prompt).toContain('pay-per-use API credits');
 		expect(prompt).toContain('Set up an X developer app');
-		expect(buildAgentPrompt('linkedin', 'https://a.example', 'CogSend')).not.toContain(
+		expect(buildAgentPrompt('linkedin', 'https://a.example', 'PostEasy')).not.toContain(
 			'(optional)'
 		);
 	});

@@ -48,7 +48,7 @@ export function isLocalRequestHost(host: string | undefined | null): boolean {
  * `queue` handlers) carry this host. It is not a public origin and must never
  * be adopted as the instance's URL.
  */
-export const INTERNAL_REQUEST_HOST = 'cogsend.internal';
+export const INTERNAL_REQUEST_HOST = 'posteasy.internal';
 
 /** The origin of a URL string, or null when it does not parse. */
 export function requestOrigin(url: string | undefined | null): string | null {

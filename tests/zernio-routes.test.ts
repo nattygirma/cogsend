@@ -172,7 +172,7 @@ describe('zernio list and import routes', () => {
 		expect(seen[0].headers.get('authorization')).toBe('Bearer zk_1');
 	});
 
-	it('refuses ids Zernio does not know or CogSend cannot post to', async () => {
+	it('refuses ids Zernio does not know or PostEasy cannot post to', async () => {
 		stubZernio();
 		const unknown = await call(importPOST, { accountIds: ['nope'] });
 		expect(unknown.status).toBe(400);

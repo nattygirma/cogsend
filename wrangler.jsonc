@@ -1,6 +1,6 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
-	"name": "cogsend",
+	"name": "posteasy",
 	"compatibility_date": "2026-08-17",
 	"compatibility_flags": ["nodejs_als"],
 	// Wrangler uploads source maps unless told not to, and the signed update
@@ -65,7 +65,7 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "cogsend",
+			"database_name": "posteasy",
 			// Empty on purpose: it tells Wrangler to create the database and bind
 			// it. Any value here — even a placeholder string — is read as "this
 			// database already exists", and provisioning is skipped. Your own
@@ -82,14 +82,14 @@
 			// so this is a starting point rather than a promise: change it in
 			// `wrangler.personal.jsonc` if it is taken. Wrangler creates the
 			// bucket when it is missing.
-			"bucket_name": "cogsend-media"
+			"bucket_name": "posteasy-media"
 		}
 	],
 	// Optional: binding Cloudflare Images (`"images": { "binding": "IMAGES" }`)
 	// makes the Posts grid serve cached 160px thumbnails instead of full-size
 	// originals. Without it, originals are served. See docs/configuration.md.
 	// No vars: the instance name is set in the app (Settings → Instance) and
-	// falls back to "CogSend", and the scheduled handler runs whenever the
+	// falls back to "PostEasy", and the scheduled handler runs whenever the
 	// trigger fires. Keys, passwords and OAuth client secrets belong in Worker
 	// secrets (`npm run secrets:put`), because a deploy overwrites vars with
 	// whatever this file says.

@@ -7,19 +7,18 @@ import { connections } from '#lib/server/db/schema.js';
 import { fail, handleError, ok } from '#lib/server/http.js';
 import {
 	blueskyCreateSession,
+	facebookVerify,
 	getProvider,
 	instagramVerify,
 	linkedinVerify,
 	ProviderError,
 	threadsVerify,
+	tiktokVerify,
+	isPlatformId,
 	xVerify,
+	youtubeVerify,
 	type ConnectionCredentials
 } from '#lib/server/providers/index.js';
-import {
-	mastodonInstanceLimits,
-	mastodonVerifyCredentials
-} from '#lib/server/providers/mastodon.js';
-import { isLocalAppUrl } from '#lib/domain/app-url.js';
 import { xLimitFor, type XLimitMeta } from '#lib/domain/x-limits.js';
 import { requireSession } from '#lib/server/require.js';
 import { isZernioAccountDead, listAccounts } from '#lib/server/zernio.js';
@@ -81,7 +80,7 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 						401
 					);
 				}
-				// Transient (429/5xx/network): keep the status, like Mastodon.
+				// Transient (429/5xx/network): keep the status.
 				return fail('Zernio verify temporarily unavailable', 502);
 			}
 			if (!account || isZernioAccountDead(account)) {
@@ -276,6 +275,57 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 					updatedAt: new Date()
 				})
 				.where(owned);
+		} else if (
+			conn.platform === 'facebook' ||
+			conn.platform === 'youtube' ||
+			conn.platform === 'tiktok'
+		) {
+			let checkCreds = creds;
+			const refresher = getProvider(conn.platform).refreshIfNeeded;
+			if (refresher) {
+				try {
+					const refreshed = await refresher(creds);
+					// TikTok rotates the refresh token too, so either change is kept.
+					if (
+						refreshed.accessToken !== creds.accessToken ||
+						refreshed.refreshToken !== creds.refreshToken
+					) {
+						checkCreds = refreshed;
+						await locals.db
+							.update(connections)
+							.set({
+								credentialsEncrypted: await encryptJson(refreshed, locals.env.APP_ENCRYPTION_KEY),
+								updatedAt: new Date()
+							})
+							.where(owned);
+					}
+				} catch (err) {
+					if ((err as { status?: number } | null)?.status === 401) {
+						await locals.db
+							.update(connections)
+							.set({ status: 'expired', updatedAt: new Date() })
+							.where(owned);
+						return fail('Token expired — reconnect', 401);
+					}
+				}
+			}
+			const verifier =
+				conn.platform === 'facebook'
+					? facebookVerify
+					: conn.platform === 'youtube'
+						? youtubeVerify
+						: tiktokVerify;
+			const info = await verifier(checkCreds);
+			await locals.db
+				.update(connections)
+				.set({
+					status: 'active',
+					displayName: info.displayName || conn.displayName,
+					avatarUrl: info.avatarUrl || conn.avatarUrl,
+					handle: info.handle || conn.handle,
+					updatedAt: new Date()
+				})
+				.where(owned);
 		} else if (conn.platform === 'x') {
 			let checkCreds = creds;
 			const refresher = getProvider('x').refreshIfNeeded;
@@ -336,45 +386,9 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 					updatedAt: new Date()
 				})
 				.where(owned);
-		} else if (conn.platform === 'mastodon' && creds.instanceUrl && creds.accessToken) {
-			// Re-normalizes and re-blocks the stored instance (fail closed on a
-			// poisoned row) and re-checks every redirect hop, like publishing does.
-			const res = await mastodonVerifyCredentials(
-				creds.instanceUrl,
-				creds.accessToken,
-				undefined,
-				isLocalAppUrl(locals.env.APP_URL)
-			);
-			await res.body?.cancel().catch(() => {});
-			if (res.status === 401 || res.status === 403) {
-				await locals.db
-					.update(connections)
-					.set({ status: 'expired', updatedAt: new Date() })
-					.where(owned);
-				return fail('Mastodon token expired — reconnect', 401);
-			}
-			if (!res.ok) {
-				// Transient (429/5xx/network): keep status, report 502 so the UI
-				// does not flap a healthy connection to `expired`.
-				return fail('Mastodon verify temporarily unavailable', 502);
-			}
-			// The instance's limits can change under the account (an admin raises
-			// the video size), and the composer checks against what is stored.
-			const limits = await mastodonInstanceLimits(
-				creds.instanceUrl,
-				undefined,
-				isLocalAppUrl(locals.env.APP_URL)
-			).catch(() => null);
-			await locals.db
-				.update(connections)
-				.set({
-					status: 'active',
-					...(limits
-						? { metaJson: JSON.stringify({ ...parseJson(conn.metaJson, {}), ...limits }) }
-						: {}),
-					updatedAt: new Date()
-				})
-				.where(owned);
+		} else if (!isPlatformId(conn.platform)) {
+			// A platform PostEasy no longer publishes to: nothing to check.
+			return fail('This platform is no longer supported — disconnect the account', 410);
 		}
 		return ok({ ok: true, status: 'active' });
 	} catch (err) {

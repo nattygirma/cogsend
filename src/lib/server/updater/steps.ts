@@ -103,7 +103,7 @@ const decodeBase64: Base64Decoder =
 	((text) => base64ToBytes(text) as Uint8Array<ArrayBuffer>);
 
 const stagedKey = (version: string, file: 'manifest.json' | 'manifest.sig' | 'pack') =>
-	`cogsend-updates/${version}/${file}`;
+	`posteasy-updates/${version}/${file}`;
 
 const stagedKeys = (version: string) =>
 	(['manifest.json', 'manifest.sig', 'pack'] as const).map((f) => stagedKey(version, f));
@@ -116,7 +116,7 @@ async function download(ctx: UpdaterContext, url: string): Promise<ArrayBuffer> 
 	try {
 		res = await ctx.fetchImpl(url, {
 			redirect: 'follow',
-			headers: { 'User-Agent': 'cogsend-updater' }
+			headers: { 'User-Agent': 'posteasy-updater' }
 		});
 	} catch (err) {
 		throw new UpdateError(
@@ -197,7 +197,7 @@ async function workerNameFromHost(ctx: UpdaterContext, accountId: string): Promi
 /**
  * True when the Worker is this instance: its serving deployment includes the
  * version answering this request. A config without CF_VERSION_METADATA cannot
- * prove that, so the Worker must at least carry the bindings every CogSend
+ * prove that, so the Worker must at least carry the bindings every PostEasy
  * has; anything else on the account is refused rather than overwritten.
  */
 async function servesThisRequest(
@@ -309,7 +309,7 @@ export async function stepPrepare(
 	if (existing) await dropJob(ctx, existing);
 
 	const version = tag.slice(1);
-	const base = `${RELEASE_DOWNLOAD_BASE}/${tag}/cogsend-${version}`;
+	const base = `${RELEASE_DOWNLOAD_BASE}/${tag}/posteasy-${version}`;
 	const [manifestBuffer, sigBuffer] = await Promise.all([
 		download(ctx, `${base}.manifest.json`),
 		download(ctx, `${base}.manifest.sig`)
@@ -322,7 +322,7 @@ export async function stepPrepare(
 			ctx.trustedKeys
 		))
 	) {
-		throw new UpdateError(`${tag} is not signed by a CogSend release key: refusing it`, 400);
+		throw new UpdateError(`${tag} is not signed by a PostEasy release key: refusing it`, 400);
 	}
 	const manifest = parseManifest(manifestBytes);
 	if (!manifest || manifest.tag !== tag) {
@@ -472,7 +472,7 @@ export async function stepVersion(ctx: UpdaterContext): Promise<VersionResult> {
 		keep_bindings: [...KEPT_BINDING_TYPES],
 		annotations: {
 			'workers/tag': manifest.tag,
-			'workers/message': `CogSend ${manifest.version}, installed from Settings`
+			'workers/message': `PostEasy ${manifest.version}, installed from Settings`
 		},
 		assets: { jwt: job.completionJwt, config: manifest.worker.assetConfig }
 	};
@@ -524,7 +524,7 @@ export async function stepStage(ctx: UpdaterContext): Promise<StageResult> {
 				{ version_id: job.previousVersionId, percentage: 100 },
 				{ version_id: job.newVersionId, percentage: 0 }
 			],
-			`CogSend ${job.version}: staged at 0% for a health check`
+			`PostEasy ${job.version}: staged at 0% for a health check`
 		);
 		job.phase = 'staged';
 		await writeJob(ctx.db, job);
@@ -546,7 +546,7 @@ export async function stepPromote(
 		job.accountId,
 		job.scriptName,
 		[{ version_id: job.newVersionId, percentage: 100 }],
-		`CogSend ${job.version}, installed from Settings`
+		`PostEasy ${job.version}, installed from Settings`
 	);
 	await writePrevious(ctx.db, {
 		versionId: job.previousVersionId,
@@ -578,7 +578,7 @@ export async function stepRollback(ctx: UpdaterContext): Promise<{ version: stri
 		target.accountId,
 		target.scriptName,
 		[{ version_id: previous.versionId, percentage: 100 }],
-		`CogSend: rolled back to ${previous.version} from Settings`
+		`PostEasy: rolled back to ${previous.version} from Settings`
 	);
 	await clearPrevious(ctx.db);
 	await clearUnlockedToken(ctx.db);
@@ -595,7 +595,7 @@ export async function stepAbort(ctx: UpdaterContext): Promise<{ aborted: boolean
 			job.accountId,
 			job.scriptName,
 			[{ version_id: job.previousVersionId, percentage: 100 }],
-			`CogSend ${job.version}: update cancelled`
+			`PostEasy ${job.version}: update cancelled`
 		);
 	}
 	await dropJob(ctx, job);

@@ -34,7 +34,7 @@ describe('settings api', () => {
 		const first = (await settingsGET({ locals: localsFor(userId) } as never)) as Response;
 		expect(first.status).toBe(200);
 		expect(await first.json()).toEqual({
-			settings: { mastoVisibility: 'public', defaultAccountIds: [], profilePictureUrl: '' },
+			settings: { defaultAccountIds: [], profilePictureUrl: '' },
 			displayName: null,
 			instanceName: TEST_ENV.APP_NAME,
 			offerPrereleases: false
@@ -45,7 +45,7 @@ describe('settings api', () => {
 			request: new Request('http://localhost/api/settings', {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ mastoVisibility: 'everywhere' })
+				body: JSON.stringify({ defaultAccountIds: 'everywhere' })
 			})
 		} as never)) as Response;
 		expect(bad.status).toBe(400);
@@ -55,12 +55,12 @@ describe('settings api', () => {
 			request: new Request('http://localhost/api/settings', {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ mastoVisibility: 'private', defaultAccountIds: ['c1'] })
+				body: JSON.stringify({ defaultAccountIds: ['c1'] })
 			})
 		} as never)) as Response;
 		expect(patched.status).toBe(200);
 		expect(await patched.json()).toEqual({
-			settings: { mastoVisibility: 'private', defaultAccountIds: ['c1'], profilePictureUrl: '' },
+			settings: { defaultAccountIds: ['c1'], profilePictureUrl: '' },
 			displayName: null,
 			instanceName: TEST_ENV.APP_NAME,
 			offerPrereleases: false
@@ -68,7 +68,7 @@ describe('settings api', () => {
 
 		const again = (await settingsGET({ locals: localsFor(userId) } as never)) as Response;
 		expect(await again.json()).toEqual({
-			settings: { mastoVisibility: 'private', defaultAccountIds: ['c1'], profilePictureUrl: '' },
+			settings: { defaultAccountIds: ['c1'], profilePictureUrl: '' },
 			displayName: null,
 			instanceName: TEST_ENV.APP_NAME,
 			offerPrereleases: false
@@ -80,7 +80,6 @@ describe('settings api', () => {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					mastoVisibility: 'private',
 					defaultAccountIds: ['c1'],
 					displayName: 'Bikash'
 				})
@@ -88,7 +87,7 @@ describe('settings api', () => {
 		} as never)) as Response;
 		expect(named.status).toBe(200);
 		expect(await named.json()).toEqual({
-			settings: { mastoVisibility: 'private', defaultAccountIds: ['c1'], profilePictureUrl: '' },
+			settings: { defaultAccountIds: ['c1'], profilePictureUrl: '' },
 			displayName: 'Bikash',
 			instanceName: TEST_ENV.APP_NAME,
 			offerPrereleases: false
@@ -100,7 +99,6 @@ describe('settings api', () => {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					mastoVisibility: 'private',
 					defaultAccountIds: ['c1'],
 					displayName: 'x'.repeat(81)
 				})
@@ -136,12 +134,12 @@ describe('settings api', () => {
 			request: new Request('http://localhost/api/settings', {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ mastoVisibility: 'unlisted' })
+				body: JSON.stringify({ defaultAccountIds: ['c2'] })
 			})
 		} as never)) as Response;
 		expect(partial.status).toBe(200);
 		const body = await partial.json();
-		expect(body.settings.mastoVisibility).toBe('unlisted');
+		expect(body.settings.defaultAccountIds).toEqual(['c2']);
 		expect(body.settings.profilePictureUrl).toBe('https://example.com/me.png');
 	});
 
@@ -162,7 +160,6 @@ describe('settings api', () => {
 		const setup = await patch({
 			displayName: 'Sudhir',
 			profilePictureUrl: 'https://example.com/sudhir.png',
-			mastoVisibility: 'direct',
 			defaultAccountIds: ['c9']
 		});
 		expect(setup.status).toBe(200);
@@ -173,7 +170,6 @@ describe('settings api', () => {
 		const renamedBody = await renamed.json();
 		expect(renamedBody.displayName).toBe('Sudhir R');
 		expect(renamedBody.settings).toEqual({
-			mastoVisibility: 'direct',
 			defaultAccountIds: ['c9'],
 			profilePictureUrl: 'https://example.com/sudhir.png'
 		});
@@ -184,7 +180,7 @@ describe('settings api', () => {
 		const clearedBody = await cleared.json();
 		expect(clearedBody.displayName).toBe('Sudhir R');
 		expect(clearedBody.settings.profilePictureUrl).toBe('');
-		expect(clearedBody.settings.mastoVisibility).toBe('direct');
+		expect(clearedBody.settings.defaultAccountIds).toEqual(['c9']);
 	});
 
 	it('stores and clears the instance name', async () => {
@@ -287,10 +283,10 @@ describe('settings api: time zone', () => {
 	});
 
 	it('still writes settings when the request carries one', async () => {
-		const res = await patch({ mastoVisibility: 'unlisted', timezone: 'Europe/Berlin' });
+		const res = await patch({ defaultAccountIds: ['c3'], timezone: 'Europe/Berlin' });
 		expect(res.status).toBe(200);
 		const row = await stored();
 		expect(row.timezone).toBe('Europe/Berlin');
-		expect(JSON.parse(row.settingsJson ?? '{}').mastoVisibility).toBe('unlisted');
+		expect(JSON.parse(row.settingsJson ?? '{}').defaultAccountIds).toEqual(['c3']);
 	});
 });

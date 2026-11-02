@@ -1,4 +1,4 @@
-import { and, eq, lt, ne } from 'drizzle-orm';
+import { and, asc, eq, lt, ne } from 'drizzle-orm';
 import {
 	isSessionIdle,
 	nextSessionExpiry,
@@ -8,13 +8,22 @@ import {
 	shouldUseSecureCookie
 } from '#lib/domain/session-cookie.js';
 import { randomHex } from '#lib/domain/bytes.js';
-import { parseProfileSettings } from '#lib/domain/profile-settings.js';
+import { parseProfileSettings, type OnboardingState } from '#lib/domain/profile-settings.js';
+
+export function sessionSettings(settingsJson: string | null | undefined) {
+	const settings = parseProfileSettings(settingsJson);
+	return {
+		profilePictureUrl: settings.profilePictureUrl,
+		...(settings.onboarding ? { onboarding: settings.onboarding } : {})
+	};
+}
+import { normalizeEmail } from '#lib/domain/credentials.js';
 import { hmacHex, verifyPassword } from './crypto';
 import { first, newId, type AppDb } from './db/client';
 import { sessions, users } from './db/schema';
 import type { AppEnv } from './env';
 
-export const SESSION_COOKIE = 'cog_session';
+export const SESSION_COOKIE = 'pe_session';
 
 export type SessionUser = {
 	id: string;
@@ -25,10 +34,13 @@ export type SessionUser = {
 	/** Filled by the session read. Omitted on hand-built callers (tests, machine stubs). */
 	displayName?: string | null;
 	profilePictureUrl?: string;
+	/** The setup guide's progress, read with the session; absent = never shown. */
+	onboarding?: OnboardingState;
 };
 
+/** A live session is signed in: there is no second factor to wait for. */
 export function isFullyVerified(user: SessionUser | null): boolean {
-	return Boolean(user && user.totpEnabled && user.mfaVerified);
+	return Boolean(user);
 }
 
 /** Session-shaped admin for Bearer API_TOKEN requests. Does not change the D1 user row. */
@@ -48,10 +60,6 @@ export function asMachineUser(admin: {
 		displayName: admin.displayName ?? null,
 		profilePictureUrl: parseProfileSettings(admin.settingsJson).profilePictureUrl
 	};
-}
-
-export function needsTotpEnroll(user: SessionUser | null): boolean {
-	return Boolean(user && !user.totpEnabled);
 }
 
 // Domain-separated HMAC: session tokens live in the `session:` domain so a
@@ -78,16 +86,40 @@ export async function passwordFingerprint(
 	return hmacHex(env.AUTH_SECRET, `pwd-fp:hash:${passwordHash ?? ''}`);
 }
 
-/** True while the instance has no account at all: before `npm run setup` wrote
- *  one into D1, or the login page's claim form (api/auth/claim) created it. */
+/** True while the instance has no account at all: the sign-in page then
+ *  offers to create the first one. */
 export async function needsSetup(db: AppDb): Promise<boolean> {
 	const row = await first(db.select({ id: users.id }).from(users).limit(1));
 	return !row;
 }
 
-/** The single account, or null before `npm run setup` created it. */
+/**
+ * The instance owner: the first account created. Others sign up beside it and
+ * share the scheduler, but only the owner manages what belongs to the whole
+ * instance — platform app credentials, updates, the app name.
+ */
 export async function getAdminUser(db: AppDb) {
-	return (await first(db.select().from(users).limit(1))) ?? null;
+	return (
+		(await first(db.select().from(users).orderBy(asc(users.createdAt), asc(users.id)).limit(1))) ??
+		null
+	);
+}
+
+export async function isOwner(db: AppDb, userId: string): Promise<boolean> {
+	const owner = await getAdminUser(db);
+	return Boolean(owner && owner.id === userId);
+}
+
+/** The account signing in with this address, matched as stored (lowercased). */
+export async function findUserByEmail(db: AppDb, email: string) {
+	return (
+		(await first(
+			db
+				.select()
+				.from(users)
+				.where(eq(users.email, normalizeEmail(email)))
+		)) ?? null
+	);
 }
 
 export async function createSession(
@@ -196,7 +228,7 @@ export async function getSessionUser(
 		totpEnabled: Boolean(row.totpEnabled),
 		mfaVerified: Boolean(row.mfaVerified),
 		displayName: row.displayName ?? null,
-		profilePictureUrl: parseProfileSettings(row.settingsJson).profilePictureUrl
+		...sessionSettings(row.settingsJson)
 	};
 	const maxAge = sessionMaxAgeSeconds(row.remember);
 	// Throttle lastSeenAt writes. Rows without one were rejected above.

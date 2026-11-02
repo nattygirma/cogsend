@@ -37,7 +37,7 @@ const DEFAULT_PDS = 'https://bsky.social';
 
 // Validate a user-supplied PDS host. Without this, an authenticated user can
 // make the server POST to an arbitrary host/port (`pdsHost` SSRF) and read
-// the error body. Mirrors the Mastodon instance check.
+// the error body.
 export function sanitizeBlueskyPdsHost(raw: string, allowLocal = false): string {
 	let u = raw.trim().replace(/\/$/, '');
 	if (!/^https?:\/\//i.test(u)) u = `https://${u}`;
@@ -575,8 +575,6 @@ export const blueskyProvider: PlatformProvider = {
 	capabilities: {
 		maxImages: 4,
 		maxImageBytes: BLUESKY_MAX_IMAGE_BYTES,
-		supportsCW: false,
-		supportsVisibility: false,
 		supportsThreads: true
 	},
 

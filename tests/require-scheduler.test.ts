@@ -8,7 +8,7 @@ const env = {
 };
 
 function req(header: string, value: string) {
-	return new Request('https://cogsend.internal/api/internal/tick', {
+	return new Request('https://posteasy.internal/api/internal/tick', {
 		headers: { [header]: value }
 	});
 }
@@ -24,7 +24,7 @@ describe('assertScheduler', () => {
 			assertScheduler(req('authorization', 'Bearer api-token-value-16'), env)
 		).not.toThrow();
 		expect(() =>
-			assertScheduler(req('x-cogsend-scheduler', 'sched-secret-value-0123456789abcdef'), env)
+			assertScheduler(req('x-posteasy-scheduler', 'sched-secret-value-0123456789abcdef'), env)
 		).not.toThrow();
 		expect(() => assertScheduler(req('authorization', 'Bearer auth-secret-value'), env)).toThrow(
 			/Unauthorized/
@@ -33,7 +33,7 @@ describe('assertScheduler', () => {
 
 	it('rejects a missing or wrong token', () => {
 		expect(() =>
-			assertScheduler(new Request('https://cogsend.internal/api/internal/tick'), env)
+			assertScheduler(new Request('https://posteasy.internal/api/internal/tick'), env)
 		).toThrow(/Unauthorized/);
 		expect(() => assertScheduler(req('authorization', 'Bearer nope'), env)).toThrow(/Unauthorized/);
 	});

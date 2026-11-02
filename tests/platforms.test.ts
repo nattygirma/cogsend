@@ -11,8 +11,8 @@ import {
 } from '#lib/domain/platforms.js';
 
 describe('platforms', () => {
-	it('recognizes the six platform ids', () => {
-		expect(isPlatformId('mastodon')).toBe(true);
+	it('recognizes the platform ids, and not removed ones', () => {
+		expect(isPlatformId('mastodon')).toBe(false);
 		expect(isPlatformId('bluesky')).toBe(true);
 		expect(isPlatformId('linkedin')).toBe(true);
 		expect(isPlatformId('threads')).toBe(true);
@@ -21,8 +21,7 @@ describe('platforms', () => {
 		expect(isPlatformId('twitter')).toBe(false);
 	});
 
-	it('mastodon, bluesky, x, and threads support threads', () => {
-		expect(supportsThreads('mastodon')).toBe(true);
+	it('bluesky, x, and threads support threads', () => {
 		expect(supportsThreads('bluesky')).toBe(true);
 		expect(supportsThreads('x')).toBe(true);
 		expect(supportsThreads('threads')).toBe(true);
@@ -33,25 +32,29 @@ describe('platforms', () => {
 	it('preview priority covers every platform exactly once', () => {
 		expect([...PREVIEW_PRIORITY].sort()).toEqual([
 			'bluesky',
+			'facebook',
 			'instagram',
 			'linkedin',
-			'mastodon',
 			'threads',
-			'x'
+			'tiktok',
+			'x',
+			'youtube'
 		]);
 	});
 
-	it('orders X first, then threads, instagram, linkedin, mastodon, bluesky', () => {
+	it('orders X first, then the Meta platforms, the video platforms, linkedin, bluesky', () => {
 		expect([...PLATFORM_ORDER]).toEqual([
 			'x',
 			'threads',
 			'instagram',
+			'facebook',
+			'youtube',
+			'tiktok',
 			'linkedin',
-			'mastodon',
 			'bluesky'
 		]);
 		expect(platformRank('x')).toBe(0);
-		expect(platformRank('bluesky')).toBe(5);
+		expect(platformRank('bluesky')).toBe(7);
 		expect(platformRank('unknown')).toBe(99);
 	});
 });
@@ -77,9 +80,9 @@ describe('displayHandle', () => {
 
 describe('displayHost', () => {
 	it('strips protocol and trailing slash', () => {
-		expect(displayHost('https://mastodon.social')).toBe('mastodon.social');
-		expect(displayHost('http://mastodon.social/')).toBe('mastodon.social');
-		expect(displayHost('mastodon.social')).toBe('mastodon.social');
+		expect(displayHost('https://social.example')).toBe('social.example');
+		expect(displayHost('http://social.example/')).toBe('social.example');
+		expect(displayHost('social.example')).toBe('social.example');
 	});
 
 	it('handles empty values', () => {
@@ -110,17 +113,17 @@ describe('accountLabel', () => {
 		expect(accountLabel(null, null)).toBe('');
 	});
 
-	it('qualifies mastodon usernames to @user@host', () => {
-		expect(accountLabel('TestUser', 'testuser', 'https://mastodon.social')).toBe(
-			'TestUser · @testuser@mastodon.social'
+	it('qualifies bare usernames to @user@host', () => {
+		expect(accountLabel('TestUser', 'testuser', 'https://social.example')).toBe(
+			'TestUser · @testuser@social.example'
 		);
-		expect(accountLabel('testuser', 'testuser', 'https://mastodon.social')).toBe(
-			'@testuser@mastodon.social'
+		expect(accountLabel('testuser', 'testuser', 'https://social.example')).toBe(
+			'@testuser@social.example'
 		);
 	});
 
 	it('leaves already-qualified handles alone', () => {
-		expect(accountLabel('Name', 'user@remote.social', 'https://mastodon.social')).toBe(
+		expect(accountLabel('Name', 'user@remote.social', 'https://social.example')).toBe(
 			'Name · user@remote.social'
 		);
 	});

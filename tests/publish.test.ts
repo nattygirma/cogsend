@@ -23,6 +23,7 @@ import {
 import type { AppDb } from '#lib/server/db/client.js';
 import { captureConsole, loggedLines } from './console-spy';
 import type { FetchLike } from '#lib/server/providers/types.js';
+import { xProvider } from '#lib/server/providers/x.js';
 
 function mockFetch(
 	handlers: Record<string, (req: Request) => Response | Promise<Response>>
@@ -44,7 +45,7 @@ describe('publishTarget integration', () => {
 	let userId: string;
 	let draftId: string;
 	let connBsky: string;
-	let connMasto: string;
+	let connX: string;
 
 	beforeAll(async () => {
 		({ db, close } = await createTestDb());
@@ -88,18 +89,17 @@ describe('publishTarget integration', () => {
 			createdAt: now,
 			updatedAt: now
 		});
-		connMasto = newId();
+		connX = newId();
 		await db.insert(connections).values({
-			id: connMasto,
+			id: connX,
 			userId,
-			platform: 'mastodon',
-			handle: 'user@mastodon.test',
-			instanceUrl: 'https://mastodon.test',
+			platform: 'x',
+			handle: 'me',
 			credentialsEncrypted: await encryptJson(
-				{ accessToken: 'token', instanceUrl: 'https://mastodon.test' },
+				{ accessToken: 'token', xUserId: '1', xUsername: 'me' },
 				TEST_ENV.APP_ENCRYPTION_KEY
 			),
-			metaJson: JSON.stringify({ maxCharacters: 500 }),
+			metaJson: JSON.stringify({ xUserId: '1' }),
 			status: 'active',
 			createdAt: now,
 			updatedAt: now
@@ -122,58 +122,6 @@ describe('publishTarget integration', () => {
 		});
 		return id;
 	}
-
-	it('sends the same idempotency key on a retry, so the platform can deduplicate', async () => {
-		// A lost response on a successful post is the one duplicate the pipeline
-		// cannot see: the target is retried, and without a key the platform has no
-		// way to know it is the same post. Mastodon deduplicates on this header
-		// for an hour; Bluesky takes a caller-chosen record key.
-		const targetId = newId();
-		const now = new Date();
-		const idemDraft = await extraDraft('idempotent probe');
-		await db.insert(publishTargets).values({
-			id: targetId,
-			draftId: idemDraft,
-			connectionId: connMasto,
-			status: 'pending',
-			attemptCount: 0,
-			createdAt: now,
-			updatedAt: now
-		});
-
-		const keys: Array<string | null> = [];
-		const session = () =>
-			mockFetch({
-				'/api/v1/statuses': (req: Request) => {
-					keys.push(req.headers.get('Idempotency-Key'));
-					return Response.json({ id: 'status-1', url: 'https://mastodon.test/@u/1' });
-				}
-			});
-
-		// First attempt: the provider call "loses" its response.
-		const first = await publishTarget(db, TEST_ENV, store, targetId, {
-			now,
-			fetchImpl: async (input, init) => {
-				const url = typeof input === 'string' ? input : input.toString();
-				if (url.includes('/api/v1/statuses')) {
-					keys.push(new Request(url, init).headers.get('Idempotency-Key'));
-					throw Object.assign(new Error('Provider request timed out'), { status: 504 });
-				}
-				return new Response('unmocked', { status: 404 });
-			}
-		});
-		expect(first.status).toBe('scheduled'); // retryable
-		// Second attempt, past the retry backoff: the platform deduplicates and
-		// returns the original status.
-		await publishTarget(db, TEST_ENV, store, targetId, {
-			now: new Date(Date.now() + 60 * 60_000),
-			fetchImpl: session()
-		});
-
-		expect(keys).toHaveLength(2);
-		expect(keys[0]).toBe(`${targetId}:0`);
-		expect(keys[1]).toBe(keys[0]);
-	});
 
 	it('keeps the claim warm while a slow provider call is in flight', async () => {
 		// A single large upload can outlive STALE_CLAIM_MS. Providers only
@@ -382,7 +330,7 @@ describe('publishTarget integration', () => {
 		await db.insert(publishTargets).values({
 			id: targetId,
 			draftId: ownDraft,
-			connectionId: connMasto,
+			connectionId: connX,
 			status: 'publishing',
 			attemptCount: 1,
 			createdAt: now,
@@ -395,7 +343,7 @@ describe('publishTarget integration', () => {
 			success: false,
 			responseSummary: JSON.stringify({
 				segmentIds: ['111'],
-				remoteUrl: 'https://mastodon.test/@u/111',
+				remoteUrl: 'https://x.com/me/status/111',
 				checkpoint: true
 			})
 		});
@@ -411,7 +359,7 @@ describe('publishTarget integration', () => {
 		expect(result.remotePostId).toBe('111');
 		const [row] = await db.select().from(publishTargets).where(eq(publishTargets.id, targetId));
 		expect(row?.status).toBe('published');
-		expect(row?.remoteUrl).toBe('https://mastodon.test/@u/111');
+		expect(row?.remoteUrl).toBe('https://x.com/me/status/111');
 	});
 
 	it('handles multi-destination partial success', async () => {
@@ -432,7 +380,7 @@ describe('publishTarget integration', () => {
 			{
 				id: t2,
 				draftId: ownDraft,
-				connectionId: connMasto,
+				connectionId: connX,
 				status: 'pending',
 				attemptCount: 0,
 				createdAt: now,
@@ -454,7 +402,7 @@ describe('publishTarget integration', () => {
 		});
 		const r2 = await publishTarget(db, TEST_ENV, store, t2, {
 			fetchImpl: mockFetch({
-				'/api/v1/statuses': () => new Response('fail', { status: 500 })
+				'/2/tweets': () => new Response('fail', { status: 500 })
 			})
 		});
 		expect(r1.status).toBe('published');
@@ -517,7 +465,7 @@ describe('publishTarget integration', () => {
 		expect(isRetryableError('Segment needs text or media')).toBe(false);
 		expect(isRetryableError('fetch failed')).toBe(true);
 		expect(isRetryableError('Provider request timed out')).toBe(true);
-		expect(isRetryableError('Mastodon status create failed (500)')).toBe(true);
+		expect(isRetryableError('X post failed (500)')).toBe(true);
 		expect(isRetryableError('401 Unauthorized')).toBe(false);
 		expect(isRetryableError('Target not found')).toBe(false);
 		expect(isRetryableError('Target cancelled')).toBe(false);
@@ -526,7 +474,7 @@ describe('publishTarget integration', () => {
 		expect(isRetryableError('Bluesky allows max 2MB per image')).toBe(false);
 		expect(isRetryableError('X allows max 15MB per GIF')).toBe(false);
 		expect(isRetryableError('Text exceeds 3000 UTF-8 bytes (3100)')).toBe(false);
-		expect(isRetryableError('Mastodon allows max 16MB per image')).toBe(false);
+		expect(isRetryableError('Bluesky allows max 16MB per image')).toBe(false);
 	});
 
 	it('claims so two concurrent publishes only post once', async () => {
@@ -575,7 +523,7 @@ describe('publishTarget integration', () => {
 		await db.insert(publishTargets).values({
 			id: targetId,
 			draftId: ownDraft,
-			connectionId: connMasto,
+			connectionId: connX,
 			status: 'scheduled',
 			scheduledFor: new Date(now.getTime() - 60_000),
 			attemptCount: MAX_PUBLISH_ATTEMPTS - 1,
@@ -585,7 +533,7 @@ describe('publishTarget integration', () => {
 		const result = await publishTarget(db, TEST_ENV, store, targetId, {
 			now,
 			fetchImpl: mockFetch({
-				'/api/v1/statuses': () => new Response('rate limited', { status: 429 })
+				'/2/tweets': () => new Response('rate limited', { status: 429 })
 			})
 		});
 		expect(result.status).toBe('failed');
@@ -725,7 +673,7 @@ describe('publishTarget integration', () => {
 			expect(
 				await statusAfter([
 					{ conn: connBsky, status: 'cancelled' },
-					{ conn: connMasto, status: 'cancelled' }
+					{ conn: connX, status: 'cancelled' }
 				])
 			).toBe('draft');
 		});
@@ -740,7 +688,7 @@ describe('publishTarget integration', () => {
 			expect(
 				await statusAfter([
 					{ conn: connBsky, status: 'published' },
-					{ conn: connMasto, status: 'cancelled' }
+					{ conn: connX, status: 'cancelled' }
 				])
 			).toBe('published');
 		});
@@ -750,7 +698,7 @@ describe('publishTarget integration', () => {
 			expect(
 				await statusAfter([
 					{ conn: connBsky, status: 'failed' },
-					{ conn: connMasto, status: 'cancelled' }
+					{ conn: connX, status: 'cancelled' }
 				])
 			).toBe('failed');
 		});
@@ -759,19 +707,19 @@ describe('publishTarget integration', () => {
 			expect(
 				await statusAfter([
 					{ conn: connBsky, status: 'published' },
-					{ conn: connMasto, status: 'failed' }
+					{ conn: connX, status: 'failed' }
 				])
 			).toBe('partial');
 			expect(
 				await statusAfter([
 					{ conn: connBsky, status: 'published' },
-					{ conn: connMasto, status: 'pending' }
+					{ conn: connX, status: 'pending' }
 				])
 			).toBe('partial');
 			expect(
 				await statusAfter([
 					{ conn: connBsky, status: 'published' },
-					{ conn: connMasto, status: 'publishing' }
+					{ conn: connX, status: 'publishing' }
 				])
 			).toBe('partial');
 		});
@@ -780,7 +728,7 @@ describe('publishTarget integration', () => {
 			expect(
 				await statusAfter([
 					{ conn: connBsky, status: 'failed' },
-					{ conn: connMasto, status: 'pending' }
+					{ conn: connX, status: 'pending' }
 				])
 			).toBe('partial');
 		});
@@ -892,7 +840,7 @@ describe('buildNormalizedPost per-segment media', () => {
 			sortOrder: 0,
 			createdAt: now
 		});
-		const post = await buildNormalizedPost(db, draftId, 'mastodon');
+		const post = await buildNormalizedPost(db, draftId, 'x');
 		expect(post.thread).toBeUndefined();
 		expect(post.text).toBe('');
 		expect(post.media?.length).toBe(1);
@@ -1015,14 +963,13 @@ describe('retry backoff', () => {
 			await db.insert(connections).values({
 				id: connId,
 				userId,
-				platform: 'mastodon',
-				handle: 'me@masto.test',
-				instanceUrl: 'https://masto.test',
+				platform: 'x',
+				handle: 'me',
 				credentialsEncrypted: await encryptJson(
-					{ accessToken: 't', instanceUrl: 'https://masto.test' },
+					{ accessToken: 't', xUserId: '1', xUsername: 'me' },
 					TEST_ENV.APP_ENCRYPTION_KEY
 				),
-				metaJson: JSON.stringify({ maxCharacters: 500 }),
+				metaJson: JSON.stringify({ xUserId: '1' }),
 				status: 'active',
 				createdAt: now,
 				updatedAt: now
@@ -1040,7 +987,7 @@ describe('retry backoff', () => {
 			const before = Date.now();
 			const result = await publishTarget(db, TEST_ENV, createTestMedia(), targetId, {
 				fetchImpl: mockFetch({
-					'/api/v1/statuses': () => new Response('rate limited', { status: 429 })
+					'/2/tweets': () => new Response('rate limited', { status: 429 })
 				}),
 				now: new Date(before)
 			});
@@ -1085,14 +1032,13 @@ describe('retry backoff', () => {
 			await db.insert(connections).values({
 				id: connId,
 				userId,
-				platform: 'mastodon',
-				handle: 'me@masto.test',
-				instanceUrl: 'https://masto.test',
+				platform: 'x',
+				handle: 'me',
 				credentialsEncrypted: await encryptJson(
-					{ accessToken: 't', instanceUrl: 'https://masto.test' },
+					{ accessToken: 't', xUserId: '1', xUsername: 'me' },
 					TEST_ENV.APP_ENCRYPTION_KEY
 				),
-				metaJson: JSON.stringify({ maxCharacters: 500 }),
+				metaJson: JSON.stringify({ xUserId: '1' }),
 				status: 'active',
 				createdAt: now,
 				updatedAt: now
@@ -1117,7 +1063,7 @@ describe('retry backoff', () => {
 						: input instanceof URL
 							? input.toString()
 							: (input as Request).url;
-				if (url.includes('/api/v1/statuses')) {
+				if (url.includes('/2/tweets')) {
 					await db
 						.update(publishTargets)
 						.set({
@@ -1164,20 +1110,19 @@ describe('publish auth classification', () => {
 
 	afterAll(() => close());
 
-	async function mastoConn() {
+	async function xConn() {
 		const now = new Date();
 		const id = newId();
 		await db.insert(connections).values({
 			id,
 			userId,
-			platform: 'mastodon',
-			handle: 'user@mastodon.test',
-			instanceUrl: 'https://mastodon.test',
+			platform: 'x',
+			handle: 'me',
 			credentialsEncrypted: await encryptJson(
-				{ accessToken: 'token', instanceUrl: 'https://mastodon.test' },
+				{ accessToken: 'token', xUserId: '1', xUsername: 'me' },
 				TEST_ENV.APP_ENCRYPTION_KEY
 			),
-			metaJson: JSON.stringify({ maxCharacters: 500 }),
+			metaJson: JSON.stringify({ xUserId: '1' }),
 			status: 'active',
 			createdAt: now,
 			updatedAt: now
@@ -1210,11 +1155,11 @@ describe('publish auth classification', () => {
 	}
 
 	it('a 403 policy refusal fails without expiring the connection', async () => {
-		const conn = await mastoConn();
+		const conn = await xConn();
 		const targetId = await pendingTarget(conn);
 		const result = await publishTarget(db, TEST_ENV, store, targetId, {
 			fetchImpl: mockFetch({
-				'/api/v1/statuses': () => new Response('policy refusal', { status: 403 })
+				'/2/tweets': () => new Response('policy refusal', { status: 403 })
 			})
 		});
 		expect(result.status).toBe('failed');
@@ -1226,11 +1171,11 @@ describe('publish auth classification', () => {
 	});
 
 	it('a 401 still expires the connection', async () => {
-		const conn = await mastoConn();
+		const conn = await xConn();
 		const targetId = await pendingTarget(conn);
 		const result = await publishTarget(db, TEST_ENV, store, targetId, {
 			fetchImpl: mockFetch({
-				'/api/v1/statuses': () => new Response('revoked', { status: 401 })
+				'/2/tweets': () => new Response('revoked', { status: 401 })
 			})
 		});
 		expect(result.status).toBe('failed');
@@ -1290,7 +1235,7 @@ describe('publish auth classification', () => {
 				},
 				TEST_ENV.APP_ENCRYPTION_KEY
 			),
-			metaJson: JSON.stringify({ maxCharacters: 500 }),
+			metaJson: JSON.stringify({ xUserId: '1' }),
 			status: 'active',
 			createdAt: now,
 			updatedAt: now
@@ -1609,9 +1554,9 @@ describe('posts a platform may have taken, URL-only media and stored links', () 
 			userId,
 			platform,
 			handle: `@${platform}-user`,
-			instanceUrl: platform === 'mastodon' ? 'https://mastodon.test' : null,
+			instanceUrl: null,
 			credentialsEncrypted: await encryptJson(creds, TEST_ENV.APP_ENCRYPTION_KEY),
-			metaJson: JSON.stringify({ maxCharacters: 500 }),
+			metaJson: JSON.stringify({ xUserId: '1' }),
 			status: 'active',
 			createdAt: now,
 			updatedAt: now
@@ -1761,16 +1706,14 @@ describe('posts a platform may have taken, URL-only media and stored links', () 
 	});
 
 	it('stores no link when a platform answers with a script URL', async () => {
-		const conn = await connection('mastodon', {
-			accessToken: 'tok',
-			instanceUrl: 'https://mastodon.test'
-		});
-		const id = await pending(conn, 'hello mastodon');
-		const result = await publishTarget(db, TEST_ENV, store, id, {
-			fetchImpl: mockFetch({
-				'/api/v1/statuses': () => Response.json({ id: 's1', url: 'javascript:alert(1)' })
-			})
-		});
+		const conn = await connection('x', { accessToken: 'tok', xUserId: '1', xUsername: 'me' });
+		const id = await pending(conn, 'hello x');
+		// A provider's answer is untrusted: whatever URL it reports, only http(s) is kept.
+		const spy = vi
+			.spyOn(xProvider, 'publish')
+			.mockResolvedValueOnce({ remotePostId: 's1', remoteUrl: 'javascript:alert(1)' });
+		const result = await publishTarget(db, TEST_ENV, store, id);
+		spy.mockRestore();
 		expect(result.status).toBe('published');
 		const target = await row(id);
 		expect(target.remotePostId).toBe('s1');

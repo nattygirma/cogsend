@@ -10,7 +10,7 @@ import { parseTimeZone } from '#lib/domain/time-zone.js';
 import { first } from '#lib/server/db/client.js';
 import { users } from '#lib/server/db/schema.js';
 import { fail, handleError, ok } from '#lib/server/http.js';
-import { requireScope, requireUser } from '#lib/server/require.js';
+import { requireOwner, requireScope, requireUser } from '#lib/server/require.js';
 import { readStoredAppName, rememberAppName } from '#lib/server/app-settings.js';
 import { readOfferPrereleases, setOfferPrereleases } from '#lib/server/release.js';
 
@@ -92,6 +92,7 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 		if (hasPrereleases && typeof offerPrereleases !== 'boolean') {
 			return fail('Invalid offerPrereleases', 400);
 		}
+		if (hasPrereleases || hasInstanceName) await requireOwner(locals.db, user);
 		if (hasPrereleases) {
 			// Like the instance name: an instance setting, not a user one.
 			await setOfferPrereleases(locals.db, offerPrereleases as boolean);

@@ -7,10 +7,10 @@ Settings → Instance and `npm run doctor` both say when a newer release is out,
 When a release is available, Settings → Instance shows **Update to vX.Y.Z from here**.
 
 1. Press **Create one** next to the token field. It opens Cloudflare's token page with the two permissions the update needs already chosen: Workers Scripts (edit) and Account Settings (read). Create the token and copy it.
-2. Paste it into the field, enter your CogSend password, and press **Install**.
+2. Paste it into the field, enter your PostEasy password, and press **Install**.
 3. Leave the page open until it reloads on the new version, usually under a minute.
 
-The password locks the token for next time: with **Remember it for later updates** ticked, CogSend keeps the token encrypted with a key made from your password, and the next update asks for the password alone, which your password manager fills. The key is not `APP_ENCRYPTION_KEY`, so someone holding your database and that key still cannot read the token. **Forget the saved token** removes it, and changing your password forgets it too: paste it once more on the next update. Untick the box and the token is used for that update only, and nothing is stored.
+The password locks the token for next time: with **Remember it for later updates** ticked, PostEasy keeps the token encrypted with a key made from your password, and the next update asks for the password alone, which your password manager fills. The key is not `APP_ENCRYPTION_KEY`, so someone holding your database and that key still cannot read the token. **Forget the saved token** removes it, and changing your password forgets it too: paste it once more on the next update. Untick the box and the token is used for that update only, and nothing is stored.
 
 The same token works for every update; delete it in Cloudflare whenever you want to revoke it.
 
@@ -41,7 +41,7 @@ npm run deploy:release
 
 That runs the test suite, the remote D1 migrations, the build and the deploy, one line per step; `npm run deploy:release -- --verbose` shows everything they said.
 
-Every deploy from a checkout is tagged with the checkout's version, and it refuses to replace a Worker that already runs a newer release. That happens when you updated from Settings and then deploy from an old checkout: without the check, the deploy would quietly roll the instance back. Pull first, or pass `--allow-downgrade` (`COGSEND_ALLOW_DOWNGRADE=1`) if the older version is what you want.
+Every deploy from a checkout is tagged with the checkout's version, and it refuses to replace a Worker that already runs a newer release. That happens when you updated from Settings and then deploy from an old checkout: without the check, the deploy would quietly roll the instance back. Pull first, or pass `--allow-downgrade` (`POSTEASY_ALLOW_DOWNGRADE=1`) if the older version is what you want.
 
 Deploying with `wrangler.personal.jsonc`? It replaces the committed config, so a binding or setting a release adds to `wrangler.jsonc` does not reach you by itself; `npm run doctor` lists anything yours is missing.
 
@@ -53,7 +53,7 @@ The button created a repository in your GitHub account and connected it to Worke
 
 1. The first time, press **Add the Update action to the repository**. GitHub opens a new file, `.github/workflows/update.yml`, already filled in: press **Commit changes**. The button cannot copy workflow files into the repository it creates, so this is once per install.
 2. Press **Update to vX.Y.Z on GitHub**, then **Run workflow**. Leave the tag empty for the latest release.
-3. The action checks the release and commits it, and Workers Builds deploys the commit within a couple of minutes. Reload CogSend to see the new version.
+3. The action checks the release and commits it, and Workers Builds deploys the commit within a couple of minutes. Reload PostEasy to see the new version.
 
 Keep Workers Builds connected: it is what deploys the update.
 
@@ -87,4 +87,4 @@ D1, R2, the Worker secrets and the app settings live in your Cloudflare account,
 - **The same upload as wrangler.** CI checks each bundle against what `wrangler deploy` itself would upload for that release, file by file, before attaching it.
 - **Your bindings and secrets carry over.** The new version gets exactly the bindings the running one has; the update checks that before anything serves it, and stops if they differ.
 - **A checked switch.** The new version answers a health check before it gets any traffic.
-- **The token.** It can edit every Worker on the account, because Cloudflare cannot narrow a token to one Worker. That is why a remembered token is locked with your password rather than the app's encryption key, why the browser never gets it back (an update opens it once and passes a one-update key between steps), and why the endpoints that take the password share the login's lockout. If you run other important Workers, consider keeping CogSend on an account of its own.
+- **The token.** It can edit every Worker on the account, because Cloudflare cannot narrow a token to one Worker. That is why a remembered token is locked with your password rather than the app's encryption key, why the browser never gets it back (an update opens it once and passes a one-update key between steps), and why the endpoints that take the password share the login's lockout. If you run other important Workers, consider keeping PostEasy on an account of its own.

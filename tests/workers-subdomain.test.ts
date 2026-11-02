@@ -152,10 +152,10 @@ describe('credentials for the API', () => {
 
 describe('names', () => {
 	it('suggests the person behind a new account, not its whole label', () => {
-		expect(suggestSubdomain("sam.lee@example.com's Account", 'cogsend')).toBe('sam-lee');
-		expect(suggestSubdomain("Acme Corp's Account", 'cogsend')).toBe('acme-corp');
-		expect(suggestSubdomain(null, 'cogsend')).toBe('cogsend');
-		expect(suggestSubdomain('!!!', 'cogsend')).toBe('cogsend');
+		expect(suggestSubdomain("sam.lee@example.com's Account", 'posteasy')).toBe('sam-lee');
+		expect(suggestSubdomain("Acme Corp's Account", 'posteasy')).toBe('acme-corp');
+		expect(suggestSubdomain(null, 'posteasy')).toBe('posteasy');
+		expect(suggestSubdomain('!!!', 'posteasy')).toBe('posteasy');
 	});
 
 	it('accepts only what Cloudflare accepts', () => {

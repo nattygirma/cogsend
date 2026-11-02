@@ -1,6 +1,7 @@
 import type { PlatformId } from '#lib/domain/platforms.js';
 import { PROCESSING_MARK } from '#lib/domain/video-rules.js';
 import type { PublicMediaVariant } from '../public-media';
+import type { TikTokOptions, YouTubeOptions } from '#lib/domain/platform-options.js';
 export type { PlatformId } from '#lib/domain/platforms.js';
 export { PLATFORM_IDS, isPlatformId } from '#lib/domain/platforms.js';
 export { PROCESSING_MARK };
@@ -38,15 +39,8 @@ export interface NormalizedPost {
 	media?: MediaAttachment[];
 	thread?: NormalizedPost[];
 	options?: {
-		visibility?: 'public' | 'unlisted' | 'private' | 'direct';
-		spoilerText?: string;
-		langs?: string[];
-		poll?: {
-			options: string[];
-			expiresIn: number;
-			multiple?: boolean;
-			hideTotals?: boolean;
-		};
+		youtube?: YouTubeOptions;
+		tiktok?: TikTokOptions;
 	};
 }
 
@@ -94,6 +88,12 @@ export interface ConnectionCredentials {
 	xUserId?: string;
 	/** X handle without @ (for permalinks) */
 	xUsername?: string;
+	/** Facebook: the Page posted to; `accessToken` is that Page's own token. */
+	pageId?: string;
+	/** YouTube: the channel uploads go to. */
+	channelId?: string;
+	/** TikTok: the account's open_id. */
+	tiktokOpenId?: string;
 	/** Zernio-backed accounts: the API key and the Zernio SocialAccount id. */
 	zernioApiKey?: string;
 	zernioAccountId?: string;
@@ -116,12 +116,11 @@ export interface ConnectionMeta {
 	xSubscription?: string;
 	longPosts?: boolean;
 	provider?: 'zernio';
-	/** Mastodon: the instance's video limits (`configuration.media_attachments`). */
-	videoSizeLimit?: number;
-	videoMatrixLimit?: number;
-	videoFrameRateLimit?: number;
 	zernioAccountId?: string;
 	zernioProfileId?: string;
+	pageId?: string;
+	channelId?: string;
+	tiktokOpenId?: string;
 }
 
 export type FetchLike = typeof fetch;
@@ -357,8 +356,6 @@ export interface PlatformProvider {
 	capabilities: {
 		maxImages: number;
 		maxImageBytes: number;
-		supportsCW: boolean;
-		supportsVisibility: boolean;
 		supportsThreads: boolean;
 	};
 	validate(content: NormalizedPost, meta?: ConnectionMeta): ValidationIssue[];
@@ -369,9 +366,6 @@ export interface PlatformProvider {
 		fetchImpl?: FetchLike,
 		opts?: {
 			resume?: PublishResume;
-			/** Allow localhost/private Mastodon hosts. True only for a local
-			 *  instance — see #lib/domain/app-url. */
-			allowLocalHosts?: boolean;
 			/** A public URL for the stored object, or for the JPEG kept beside
 			 *  it (`jpeg`: an image's JPEG copy; `cover`: a video's cover). */
 			mediaUrlFor?: (storageKey: string, variant?: PublicMediaVariant) => Promise<string> | string;
@@ -414,7 +408,7 @@ export interface PlatformProvider {
 	 * known-expired AND no refresh path exists (missing refresh token or
 	 * OAuth client). Returns a human reconnect reason, or null when a
 	 * publish attempt is still worthwhile. Providers without refreshable
-	 * short-lived tokens (Mastodon, Bluesky) omit this.
+	 * short-lived tokens (Bluesky) omit this.
 	 */
 	refreshImpossibleReason?(creds: ConnectionCredentials): string | null;
 }

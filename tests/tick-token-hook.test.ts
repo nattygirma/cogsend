@@ -67,10 +67,10 @@ describe('internal api authorization', () => {
 		bearer?: string
 	): Promise<{ bypassed: boolean; status: number; body: string }> {
 		let bypassed = false;
-		const url = new URL(`https://cogsend.example.com${path}`);
+		const url = new URL(`https://posteasy.example.com${path}`);
 		useWorkerEnv({
 			DB: binding,
-			APP_URL: 'https://cogsend.example.com',
+			APP_URL: 'https://posteasy.example.com',
 			APP_ENCRYPTION_KEY: 'feedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedface',
 			SCHEDULER_SECRET,
 			API_TOKEN,

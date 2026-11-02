@@ -151,8 +151,8 @@ test('a post opened from Posts goes back there once scheduled', async ({ page })
 	// proves the app is live.
 	await clickUntilVisible(
 		page,
-		page.getByRole('button', { name: 'Workspace menu' }),
-		page.getByRole('menu').first()
+		page.getByRole('button', { name: 'Profile menu' }),
+		page.locator('#profile-menu')
 	);
 	await page.keyboard.press('Escape');
 	await expect(page.getByRole('menu')).toHaveCount(0);

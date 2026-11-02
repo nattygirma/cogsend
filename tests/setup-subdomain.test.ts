@@ -74,13 +74,13 @@ async function fakeApi(subdomain: string | null) {
 /** A scratch checkout whose `npx` is a signed-in wrangler, and whose `npm`
  *  fails, so a run that gets as far as the build stops there. */
 function scratch() {
-	const created = mkdtempSync(join(tmpdir(), 'cogsend-subdomain-'));
+	const created = mkdtempSync(join(tmpdir(), 'posteasy-subdomain-'));
 	dir = created;
 	cpSync(join(process.cwd(), 'scripts'), join(created, 'scripts'), { recursive: true });
 	cpSync(join(process.cwd(), 'wrangler.jsonc'), join(created, 'wrangler.jsonc'));
 	writeFileSync(
 		join(created, 'package.json'),
-		'{\n\t"name": "cogsend",\n\t"version": "0.0.0"\n}\n'
+		'{\n\t"name": "posteasy",\n\t"version": "0.0.0"\n}\n'
 	);
 	writeFileSync(
 		join(created, '.dev.vars'),
@@ -95,7 +95,7 @@ const { appendFileSync } = require('node:fs');
 const args = process.argv.slice(2);
 appendFileSync(${JSON.stringify(join(created, 'calls.log'))}, JSON.stringify(args) + '\\n');
 if (process.env.WRANGLER_LOG === 'debug' && args.includes('secret')) {
-	console.error('GET https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/workers/scripts/cogsend/secrets');
+	console.error('GET https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/workers/scripts/posteasy/secrets');
 	process.exit(1);
 }
 if (args.includes('whoami')) {

@@ -19,8 +19,8 @@ To start another post mid-thought, press **Write** at the top right. It saves th
 
 Each card is one post, with its own character counter and its own images. The
 counter uses the strictest limit among the accounts you picked, counted the way
-that platform counts: graphemes for most, while Mastodon and X count every link
-as 23 characters, and X also counts CJK characters and each emoji as 2.
+that platform counts: graphemes for most, while X counts every link as 23
+characters, and CJK characters and each emoji as 2.
 
 - **+ Thread** adds a card; the × on a card removes it.
 - Type `---` in a card to split it there. The text after the marker moves into a
@@ -33,7 +33,7 @@ as 23 characters, and X also counts CJK characters and each emoji as 2.
 LinkedIn and Instagram have no threads: a thread sent there is flattened into one post. The
 limits for every platform are in [OAuth apps → Platforms](oauth-apps.md#platforms).
 
-An X account on a paid plan can post up to 25,000 characters in one post ([how CogSend knows](accounts.md#long-posts-on-x)). The counter still follows the strictest account you picked, so adding a free X account holds the whole post to 280. X shows about the first 280 characters of a long post and folds the rest behind **Show more**, and the card says so once the text passes that point. If X refuses a long post, it fails without a retry and that account drops back to 280; the message says how to turn long posts on again.
+An X account on a paid plan can post up to 25,000 characters in one post ([how PostEasy knows](accounts.md#long-posts-on-x)). The counter still follows the strictest account you picked, so adding a free X account holds the whole post to 280. X shows about the first 280 characters of a long post and folds the rest behind **Show more**, and the card says so once the text passes that point. If X refuses a long post, it fails without a retry and that account drops back to 280; the message says how to turn long posts on again.
 
 ## Images and alt text
 
@@ -64,11 +64,11 @@ A URL in a card shows the link preview it will produce, while you write.
 
 A card takes one video (MP4, MOV or WebM) and nothing else beside it; a thread can have a video on each card. Your browser prepares it before it uploads: a file every platform already takes goes up as it is, and anything else, such as a phone's HEVC video, a 4K clip or a frame rate over 60, is converted to MP4 (H.264 with AAC sound) at most 1920 pixels on the long edge. The card shows the video at its own shape, with **Reading**, **Converting** and **Uploading** and the progress along its bottom edge, and **Cancel** stops it. Once it is up, the video shows its cover with a play button and its length, and loads only when you press play. Videos up to 300 MB go up in parts, so a slow connection only resends the part that failed. Leave the page while a video is still uploading and the browser asks first, since the upload stops with it. A browser that can't convert the file says so; export it as MP4 (H.264) and attach it again.
 
-When every selected platform takes the video, nothing more is shown. When one doesn't, a line under the video says why, one line per platform: X takes 2:20 unless the account has X Premium, Threads 5 minutes, Bluesky 10, Instagram 15, LinkedIn 30. **Uncheck** on the line drops that platform's accounts, and the accounts button in the dock and the account itself carry a red dot until it is resolved. Publish and Schedule stop on the first platform that would refuse it; trim the video or uncheck that account. A Mastodon account is held to the limits its server reports, which CogSend reads when you connect the account and again every day, so a server that raises its limits is followed within a day.
+When every selected platform takes the video, nothing more is shown. When one doesn't, a line under the video says why, one line per platform: X takes 2:20 unless the account has X Premium, Threads 5 minutes, Bluesky 10, Instagram 15, LinkedIn 30. **Uncheck** on the line drops that platform's accounts, and the accounts button in the dock and the account itself carry a red dot until it is resolved. Publish and Schedule stop on the first platform that would refuse it; trim the video or uncheck that account.
 
-**COVER**, among the buttons on the video, picks the frame shown before it plays: scrub to a moment and **Use this frame**, or **Upload image**. Mastodon, LinkedIn and Instagram show it; X, Threads and Bluesky choose their own frame. Until you pick one, the frame one second in is the cover, and it is also what **Posts** shows. **ALT** describes the video, as for an image.
+**COVER**, among the buttons on the video, picks the frame shown before it plays: scrub to a moment and **Use this frame**, or **Upload image**. LinkedIn and Instagram show it; X, Threads and Bluesky choose their own frame. Until you pick one, the frame one second in is the cover, and it is also what **Posts** shows. **ALT** describes the video, as for an image.
 
-Platforms process a video before it can be posted, which can take minutes. CogSend uploads and waits for up to 20 seconds of the publish, then hands the rest to the next [tick](scheduling.md): the result says the platform "is processing the video" and that it publishes on its own, and **Posts** marks it **Processing**. A large video to X or LinkedIn is sent over several ticks the same way, carrying on from the last part sent. So closing or reloading the tab right after **Publish** loses nothing. Waiting uses none of the five attempts. A video still not ready after 45 minutes fails, and **Retry** starts it again.
+Platforms process a video before it can be posted, which can take minutes. PostEasy uploads and waits for up to 20 seconds of the publish, then hands the rest to the next [tick](scheduling.md): the result says the platform "is processing the video" and that it publishes on its own, and **Posts** marks it **Processing**. A large video to X or LinkedIn is sent over several ticks the same way, carrying on from the last part sent. So closing or reloading the tab right after **Publish** loses nothing. Waiting uses none of the five attempts. A video still not ready after 45 minutes fails, and **Retry** starts it again.
 
 ## Quote posts on X
 
@@ -89,9 +89,6 @@ text for that platform alone — shorter for X, longer for LinkedIn — without
 touching the others. An override tab is unlinked from Global from then on; its
 reset button re-syncs it to the Global text.
 
-With a Mastodon account selected, **Mastodon Options** sets the visibility
-(Public, Unlisted, Followers, Direct) and an optional content warning.
-
 ## Choosing destinations
 
 The accounts button in the dock (**N selected**) opens the list of connected
@@ -101,7 +98,7 @@ you fix it.
 
 ## Publish now, or schedule
 
-**Publish** hands the draft to every selected account and empties the composer at once, so you can start the next post while it goes out. The result arrives as a message wherever you are in the app, updated as each account answers ("Published to Mastodon · still sending to Threads") and ending with **Published to 3 destinations**, or which account failed and why, with a link to the post in **Posts**. A failure also puts a red dot on the menu at the top left, beside **Posts**, until you open it. By default Publish asks first, with a **Confirm Post** step; tick **Publish
+**Publish** hands the draft to every selected account and empties the composer at once, so you can start the next post while it goes out. The result arrives as a message wherever you are in the app, updated as each account answers ("Published to Bluesky · still sending to Threads") and ending with **Published to 3 destinations**, or which account failed and why, with a link to the post in **Posts**. A failure also puts a red dot on the menu at the top left, beside **Posts**, until you open it. By default Publish asks first, with a **Confirm Post** step; tick **Publish
 without asking next time** to skip it in this browser, and turn the question back
 on under **Settings → Preferences → Ask for confirmation before publishing**.
 **Cmd/Ctrl + Enter** publishes from the keyboard.

@@ -13,7 +13,7 @@ import {
  *
  * Built from the same data as the setup dialog, with this deployment's exact
  * redirect URI, so the agent has nothing to guess. Two rules are the point of
- * it: the credentials go straight into CogSend's own form and never into the
+ * it: the credentials go straight into PostEasy's own form and never into the
  * chat, and the agent hands control back at every step that is the person's to
  * take (signing in, verifying a phone, paying, solving a CAPTCHA).
  */

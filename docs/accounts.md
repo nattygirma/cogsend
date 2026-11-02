@@ -3,19 +3,15 @@
 **Accounts** lists every connected account and how to add another. **Connect new**
 opens the platform picker.
 
-## Mastodon and Bluesky
+## Bluesky
 
-These two connect with what you already have:
+Bluesky connects with what you already have: enter your handle and an **app
+password**, which you create in Bluesky under Settings → Privacy and security →
+App passwords. Never use your main password.
 
-- **Mastodon** — enter your instance's address and approve CogSend on your
-  instance. The app registers itself there; there is nothing to create first.
-- **Bluesky** — enter your handle and an **app password**, which you create in
-  Bluesky under Settings → Privacy and security → App passwords. Never use your
-  main password.
+## LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X
 
-## LinkedIn, Threads, Instagram and X
-
-These four need a developer app of your own before they can connect, because the
+These need a developer app of your own before they can connect, because the
 platform issues the client id and secret the Worker uses. Until one is set up, the
 picker shows the platform with a **Needs setup** badge, and choosing it shows that
 platform's steps — the redirect URI to register and a form for the app's
@@ -29,14 +25,16 @@ dashboard; reload the page once they are on the Worker.
 
 Instagram connects only a Business or Creator account; a personal account is refused with a note on switching its type in Instagram's settings.
 
+Facebook connects Pages: every Page you grant while signing in becomes its own account, and a Page added later needs **Connect new** again. YouTube connects the channel of the Google account you sign in with; while the Google app is in Testing, it needs **Reconnect** every 7 days. TikTok posts only privately until its app passes TikTok's audit.
+
 If you would rather not set up an app, you can connect these through
 [Zernio](zernio.md) instead.
 
 ## Long posts on X
 
-An X account connected directly shows whether it can post long: **Long posts on, up to 25,000 characters** or **Long posts off, 280 characters**, and where that came from. CogSend asks X for the account's plan when you connect it and when you press **Check plan**, and any paid plan (Basic, Premium or Premium+) turns long posts on.
+An X account connected directly shows whether it can post long: **Long posts on, up to 25,000 characters** or **Long posts off, 280 characters**, and where that came from. PostEasy asks X for the account's plan when you connect it and when you press **Check plan**, and any paid plan (Basic, Premium or Premium+) turns long posts on.
 
-Some accounts that can post long, such as Verified Organizations, report no plan, so **Turn on** and **Turn off** let you decide. **Use what X reports** goes back to the plan. A reconnect keeps your choice. If X refuses a long post, CogSend turns long posts off for that account; turn them back on if it does have a paid plan.
+Some accounts that can post long, such as Verified Organizations, report no plan, so **Turn on** and **Turn off** let you decide. **Use what X reports** goes back to the plan. A reconnect keeps your choice. If X refuses a long post, PostEasy turns long posts off for that account; turn them back on if it does have a paid plan.
 
 X accounts connected through [Zernio](zernio.md) stay at 280, since Zernio's X route stops there.
 

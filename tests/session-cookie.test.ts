@@ -73,12 +73,12 @@ describe('secure cookie on a local-network dev server', () => {
 	});
 
 	it('still marks it Secure for a real host in a production build', () => {
-		expect(shouldUseSecureCookie({ isProduction: true, requestHost: 'cogsend.example.com' })).toBe(
+		expect(shouldUseSecureCookie({ isProduction: true, requestHost: 'posteasy.example.com' })).toBe(
 			true
 		);
-		expect(shouldUseSecureCookie({ isProduction: false, requestHost: 'cogsend.example.com' })).toBe(
-			false
-		);
+		expect(
+			shouldUseSecureCookie({ isProduction: false, requestHost: 'posteasy.example.com' })
+		).toBe(false);
 	});
 });
 

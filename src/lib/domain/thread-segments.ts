@@ -1,4 +1,4 @@
-import { PREVIEW_PRIORITY } from './platforms';
+import { PREVIEW_PRIORITY, type PlatformId } from './platforms';
 export const THREAD_DELIMITER = '\n---\n';
 
 export function splitThreadSegments(body: string): string[] {
@@ -78,8 +78,7 @@ export function removeSegment(segments: string[], index: number): string[] {
 	return segments.filter((_, i) => i !== index);
 }
 
-export type PreviewPlatform =
-	'mastodon' | 'bluesky' | 'linkedin' | 'threads' | 'instagram' | 'x' | 'generic';
+export type PreviewPlatform = PlatformId | 'generic';
 
 export type PreviewIdentity = {
 	platform: PreviewPlatform;
@@ -92,23 +91,28 @@ export type PreviewModel = {
 	platform: PreviewIdentity['platform'];
 	identity: PreviewIdentity;
 	segments: string[];
-	charLimits: { max: number; mode: 'grapheme' | 'mastodon-weighted' };
+	charLimits: { max: number; mode: 'grapheme' };
 };
 
 const FALLBACK_HANDLES: Record<string, string> = {
-	mastodon: '@you@mastodon.social',
 	bluesky: 'you.bsky.social',
 	linkedin: 'you',
 	threads: '@you',
 	instagram: 'you',
+	facebook: 'Your Page',
+	youtube: 'Your channel',
+	tiktok: '@you',
 	x: '@you'
 };
 
-const PREVIEW_LIMITS: Record<string, { max: number; mode: 'grapheme' | 'mastodon-weighted' }> = {
+const PREVIEW_LIMITS: Record<string, { max: number; mode: 'grapheme' }> = {
 	bluesky: { max: 300, mode: 'grapheme' },
 	linkedin: { max: 3000, mode: 'grapheme' },
 	threads: { max: 500, mode: 'grapheme' },
 	instagram: { max: 2200, mode: 'grapheme' },
+	facebook: { max: 63206, mode: 'grapheme' },
+	youtube: { max: 5000, mode: 'grapheme' },
+	tiktok: { max: 2200, mode: 'grapheme' },
 	x: { max: 280, mode: 'grapheme' }
 };
 
@@ -121,7 +125,6 @@ export function buildPreviewModel(opts: {
 		handle?: string | null;
 		avatarUrl?: string | null;
 	}>;
-	mastodonMax?: number;
 }): PreviewModel {
 	const segments = splitThreadSegments(opts.body);
 	let plat: PreviewPlatform;
@@ -149,7 +152,7 @@ export function buildPreviewModel(opts: {
 		platform: plat,
 		identity,
 		segments,
-		charLimits: preset ?? { max: opts.mastodonMax ?? 500, mode: 'mastodon-weighted' }
+		charLimits: preset ?? { max: 500, mode: 'grapheme' }
 	};
 }
 

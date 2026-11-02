@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { createTestMedia } from '#lib/server/db/test.js';
 import { blueskyProvider } from '#lib/server/providers/bluesky.js';
 import { linkedinProvider } from '#lib/server/providers/linkedin.js';
-import { mastodonInstanceLimits, mastodonProvider } from '#lib/server/providers/mastodon.js';
 import { threadsProvider } from '#lib/server/providers/threads.js';
 import { xProvider } from '#lib/server/providers/x.js';
 import { pollVideo } from '#lib/server/providers/video.js';
@@ -457,109 +456,6 @@ describe('Bluesky video', () => {
 		);
 		expect(result.remotePostId).toBeTruthy();
 		expect(n.net.calls.some((u) => u.includes('jobId=job-9'))).toBe(true);
-	});
-});
-
-describe('Mastodon video', () => {
-	const creds = { accessToken: 'tok', instanceUrl: 'https://example.social' };
-
-	function mastodonNetwork(polls: number[]) {
-		const uploads: FormData[] = [];
-		const statuses: Record<string, unknown>[] = [];
-		const net = fakeNetwork({
-			'/api/v2/media': async (req) => {
-				expect(req.headers.get('content-length')).toBeTruthy();
-				uploads.push(await req.formData());
-				return Response.json({ id: 'm1' }, { status: 202 });
-			},
-			'/api/v1/media/m1': () => new Response('{}', { status: polls.shift() ?? 200 }),
-			'/api/v1/statuses': async (req) => {
-				statuses.push(await req.json());
-				return Response.json({ id: 's1', url: 'https://example.social/@me/1' });
-			}
-		});
-		return { ...net, uploads, statuses };
-	}
-
-	it('streams the video with its cover, parks while it transcodes, then posts', async () => {
-		const { store, bytes, video } = await storedVideo(5000, JPEG);
-		const n = mastodonNetwork([206, 200]);
-		n.net.left = 7;
-		const err = await parked(
-			mastodonProvider.publish({ text: 'clip', media: [video] }, creds, undefined, n.fetchImpl, {
-				mediaReader: store as never,
-				callsLeft: n.callsLeft
-			})
-		);
-		expect(err.pending?.state).toEqual({ mediaId: 'm1' });
-		const form = n.uploads[0];
-		const file = form.get('file') as File;
-		expect(Buffer.from(await file.arrayBuffer()).equals(Buffer.from(bytes))).toBe(true);
-		expect(form.get('description')).toBe('a clip');
-		const thumb = form.get('thumbnail') as File;
-		expect(Buffer.from(await thumb.arrayBuffer()).equals(Buffer.from(JPEG))).toBe(true);
-
-		n.net.left = Infinity;
-		const result = await mastodonProvider.publish(
-			{ text: 'clip', media: [video] },
-			creds,
-			undefined,
-			n.fetchImpl,
-			{ mediaReader: store as never, resume: resumeFrom(err) }
-		);
-		expect(result.remotePostId).toBe('s1');
-		expect(n.uploads).toHaveLength(1);
-		expect(n.statuses[0].media_ids).toEqual(['m1']);
-	});
-
-	it("checks a video against the instance's own limits", () => {
-		const video = {
-			mime: 'video/mp4',
-			size: 60_000_000,
-			width: 1920,
-			height: 1080,
-			video: { durationMs: 10_000, videoCodec: 'avc', fps: 30 }
-		};
-		expect(mastodonProvider.validate({ text: 'x', media: [video] })).toEqual([]);
-		expect(
-			mastodonProvider
-				.validate({ text: 'x', media: [video] }, { videoSizeLimit: 40_000_000 })
-				.map((i) => i.message)
-		).toEqual(['Mastodon takes videos up to 40 MB — this one is 60 MB']);
-	});
-
-	it('reads the video limits the instance reports', async () => {
-		const { fetchImpl } = fakeNetwork({
-			'/api/v2/instance': () =>
-				Response.json({
-					configuration: {
-						statuses: { max_characters: 1000 },
-						media_attachments: {
-							video_size_limit: 103_809_024,
-							video_matrix_limit: 8_294_400,
-							video_frame_rate_limit: 120
-						}
-					}
-				})
-		});
-		expect(await mastodonInstanceLimits('https://example.social', fetchImpl)).toEqual({
-			maxCharacters: 1000,
-			videoSizeLimit: 103_809_024,
-			videoMatrixLimit: 8_294_400,
-			videoFrameRateLimit: 120
-		});
-	});
-
-	it('says nothing rather than guess when the instance does not answer, or leaves a limit out', async () => {
-		const down = fakeNetwork({ '/api/v2/instance': () => new Response('', { status: 503 }) });
-		expect(await mastodonInstanceLimits('https://example.social', down.fetchImpl)).toBeNull();
-		const older = fakeNetwork({
-			'/api/v2/instance': () =>
-				Response.json({ configuration: { statuses: { max_characters: 5000 } } })
-		});
-		expect(await mastodonInstanceLimits('https://example.social', older.fetchImpl)).toEqual({
-			maxCharacters: 5000
-		});
 	});
 });
 

@@ -13,7 +13,7 @@ import { fetchXPostPreview } from '#lib/server/x-post-preview.js';
  * Composer preview for the standard link-card flow: first URL per segment,
  * suppressed client-side when that segment has media. Publish re-fetches the
  * card server-side (Bluesky external, LinkedIn article), adding an X post's
- * page image, which this preview skips to stay fast; Mastodon/Threads unfurl
+ * page image, which this preview skips to stay fast; Threads unfurls
  * server-side and need no payload.
  *
  * An X post link also carries `xPost` (author, text, date) for the composer's

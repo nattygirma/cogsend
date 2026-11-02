@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { githubUpdateTarget } from '#lib/domain/github-update.js';
 import { handleError, ok } from '#lib/server/http.js';
-import { requireSession } from '#lib/server/require.js';
+import { requireOwner, requireSession } from '#lib/server/require.js';
 import { savedTokenStatus } from '#lib/server/updater/saved-token.js';
 import { jobExpired, readJob, readPrevious, readTarget } from '#lib/server/updater/state.js';
 
@@ -11,7 +11,7 @@ import { jobExpired, readJob, readPrevious, readTarget } from '#lib/server/updat
  */
 export const GET: RequestHandler = async ({ locals }) => {
 	try {
-		requireSession(locals.user, locals.authMethod);
+		await requireOwner(locals.db, requireSession(locals.user, locals.authMethod));
 		const [job, previous, target, savedToken] = await Promise.all([
 			readJob(locals.db),
 			readPrevious(locals.db),
@@ -26,12 +26,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 				? previous
 				: null;
 		const env = locals.bindings;
-		const install = env?.COGSEND_INSTALL === 'button' ? 'button' : 'other';
+		const install = env?.POSTEASY_INSTALL === 'button' ? 'button' : 'other';
 		return ok({
 			version: __APP_VERSION__,
 			install,
 			github:
-				install === 'button' ? githubUpdateTarget(env?.COGSEND_REPO, env?.COGSEND_BRANCH) : null,
+				install === 'button' ? githubUpdateTarget(env?.POSTEASY_REPO, env?.POSTEASY_BRANCH) : null,
 			target,
 			savedToken,
 			previous: rollback,

@@ -1,18 +1,25 @@
 <script lang="ts">
 	import './layout.css';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll, preloadData, pushState } from '$app/navigation';
 	import { page } from '$app/state';
 	import {
 		Settings,
 		LogOut,
-		ChevronDown,
-		PenLine,
-		Calendar,
+		ChevronsUpDown,
+		CalendarDays,
 		Users,
-		ChartColumn
+		ChartColumn,
+		LayoutDashboard,
+		ListChecks,
+		Code,
+		Menu,
+		Plus,
+		UserRound,
+		Rocket,
+		X
 	} from '@lucide/svelte';
-	import { onMount } from 'svelte';
-	import { fly } from 'svelte/transition';
+	import { onMount, type ComponentProps } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
 	import favicon from '#lib/assets/favicon.svg';
 	import faviconDark from '#lib/assets/favicon-dark.svg';
 	import logoGlyph from '#lib/assets/logo-glyph.svg';
@@ -21,6 +28,9 @@
 	import { menuNav } from '#lib/components/menu-nav.js';
 	import { publishActivity } from '#lib/components/publish-tracker.svelte.js';
 	import Toast from '#lib/components/Toast.svelte';
+	import ComposerModal from '#lib/components/compose/ComposerModal.svelte';
+	import OnboardingModal from '#lib/components/onboarding/OnboardingModal.svelte';
+	import { onboardingAutoOpens } from '#lib/domain/profile-settings.js';
 	import {
 		markUpdateSeen,
 		noteRelease,
@@ -29,13 +39,29 @@
 	} from '#lib/components/update-notice.svelte.js';
 	import { browserTimeZone } from '#lib/domain/time-zone.js';
 
-	let workspaceTrigger: HTMLButtonElement | null = $state(null);
 	let profileTrigger: HTMLButtonElement | null = $state(null);
 
 	let { children, data } = $props();
 
-	let showWorkspaceDropdown = $state(false);
 	let showProfileDropdown = $state(false);
+	let showMobileNav = $state(false);
+
+	const NAV = [
+		{ href: '/', label: 'Dashboard', icon: LayoutDashboard },
+		{ href: '/calendar', label: 'Calendar', icon: CalendarDays },
+		{ href: '/posts', label: 'Posts', icon: ListChecks },
+		{ href: '/accounts', label: 'Accounts', icon: Users },
+		{ href: '/insights', label: 'Insights', icon: ChartColumn }
+	];
+	const NAV_SECONDARY = [
+		{ href: '/settings', label: 'Settings', icon: Settings },
+		{ href: '/api', label: 'API & MCP', icon: Code }
+	];
+
+	function isActive(href: string): boolean {
+		const path = page.url.pathname;
+		return href === '/' ? path === '/' : path === href || path.startsWith(`${href}/`);
+	}
 
 	const userEmail: string | null = $derived(data.user?.email ?? null);
 	const displayName: string | null = $derived(data.displayName ?? null);
@@ -44,25 +70,94 @@
 	// Initials stay underneath the picture. A failed URL (and only that URL)
 	// drops the image; the next URL is tried again.
 	let failedAvatarSrc = $state<string | null>(null);
-	const isLoginRoute = $derived(page.url.pathname.startsWith('/login'));
+	const isLoginRoute = $derived(
+		page.url.pathname.startsWith('/login') || page.url.pathname.startsWith('/signup')
+	);
 	// A preview link looks the same to its owner as to whoever it was sent to.
 	const isShareRoute = $derived(page.url.pathname.startsWith('/p/'));
 
-	// Write starts a new post. On the compose page it only shows while a post
-	// is open there, and before the editor has mounted the URL is the guess.
-	const showWrite = $derived(
-		page.url.pathname !== '/compose' ||
-			(composeSession.active ? composeSession.hasContent : page.url.searchParams.has('id'))
+	// The composer is a modal over the page the person was on. Opened from a
+	// link, it takes the compose URL without leaving that page (shallow
+	// routing), so Back closes it and the page behind keeps its state; the
+	// compose route itself opens it over an empty canvas.
+	const composerOpen = $derived(Boolean(page.state.composer) || page.url.pathname === '/compose');
+	// The compose route's data, from the link that opened the modal or from
+	// the route itself, under the names the editor takes.
+	const composerData = $derived.by((): ComponentProps<typeof ComposerModal>['data'] => {
+		const d = (page.state.composer ?? page.data) as Record<string, unknown>;
+		return {
+			initialConnections: (d.connections ?? []) as ComposerProps['initialConnections'],
+			initialSettings: (d.settings ?? null) as ComposerProps['initialSettings'],
+			initialDraft: (d.draft ?? null) as ComposerProps['initialDraft'],
+			displayName: (d.displayName ?? null) as string | null,
+			canMakeJpegCopies: Boolean(d.canMakeJpegCopies)
+		};
+	});
+	type ComposerProps = ComponentProps<typeof ComposerModal>['data'];
+
+	async function openComposer(href: string) {
+		const result = await preloadData(href);
+		if (result.type === 'loaded' && result.status === 200) {
+			pushState(href, { composer: result.data as Record<string, unknown>, composerHref: href });
+		} else {
+			await goto(href);
+		}
+	}
+
+	// The setup guide opens by itself for an account that has not finished or
+	// closed it (a new sign-up, or one coming back from a connect it started),
+	// and on demand from the dashboard or the profile menu (?onboarding).
+	let guideClosed = $state(false);
+	const guideRequested = $derived(page.url.searchParams.has('onboarding'));
+	const guideOpen = $derived(
+		Boolean(userEmail) &&
+			!isLoginRoute &&
+			!isShareRoute &&
+			!composerOpen &&
+			(guideRequested || (!guideClosed && onboardingAutoOpens(data.onboarding)))
 	);
 
-	// On the compose page a new post is the editor's job: it saves the open
-	// one first. A modified click still opens a fresh tab the browser's way.
-	function startNewPost(event: MouseEvent) {
-		if (page.url.pathname !== '/compose' || !composeSession.startNew) return;
-		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-			return;
+	async function closeGuide() {
+		guideClosed = true;
+		if (guideRequested) {
+			const params = new URLSearchParams(page.url.search);
+			params.delete('onboarding');
+			const query = params.toString();
+			await goto(`${page.url.pathname}${query ? `?${query}` : ''}`, { replaceState: true });
+		}
+		await invalidateAll();
+	}
+
+	async function finishGuide(target: 'compose' | 'dashboard') {
+		await closeGuide();
+		if (target === 'compose') await openComposer('/compose');
+		else if (page.url.pathname !== '/') await goto('/');
+	}
+
+	async function closeComposer() {
+		await composeSession.flush?.();
+		if (page.state.composer) history.back();
+		else await goto('/');
+	}
+
+	// Every link to the compose page opens the modal instead of navigating,
+	// wherever it is (sidebar, dashboard, calendar, posts). Inside the open
+	// composer the editor handles its own links.
+	function interceptComposeLinks(event: MouseEvent) {
+		if (event.defaultPrevented || event.button !== 0) return;
+		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		const anchor = (event.target as HTMLElement | null)?.closest('a');
+		if (!anchor?.href) return;
+		const url = new URL(anchor.href, window.location.href);
+		if (url.origin !== window.location.origin || url.pathname !== '/compose') return;
 		event.preventDefault();
-		composeSession.startNew();
+		showMobileNav = false;
+		if (composerOpen) {
+			if (!url.searchParams.has('id') && composeSession.startNew) composeSession.startNew();
+			else void goto(url.pathname + url.search);
+			return;
+		}
+		void openComposer(url.pathname + url.search);
 	}
 
 	// Insights counts days in the account's zone, and nothing else knows it: the
@@ -71,7 +166,7 @@
 	onMount(() => {
 		const user = data.user;
 		const zone = browserTimeZone();
-		if (!user?.totpEnabled || !user.mfaVerified || !zone || zone === user.timezone) return;
+		if (!user || !zone || zone === user.timezone) return;
 		void fetch('/api/settings', {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
@@ -86,8 +181,8 @@
 	onMount(readUpdateSeen);
 	$effect(() => {
 		const user = data.user;
-		// Keyed on verification too: finishing 2FA does not reload the layout either.
-		const key = user ? `${user.id}:${user.mfaVerified}` : null;
+		// Keyed on the user: signing in does not reload the layout.
+		const key = user ? user.id : null;
 		if (!key || key === releaseAskedFor) return;
 		releaseAskedFor = key;
 		void fetch('/api/release')
@@ -101,6 +196,10 @@
 	async function logout() {
 		showProfileDropdown = false;
 		logoutError = null;
+		if (data.appkeep) {
+			window.location.href = '/_altstack/logout';
+			return;
+		}
 		try {
 			const res = await fetch('/api/auth/logout', { method: 'POST' });
 			if (!res.ok) throw new Error(`Logout failed (${res.status})`);
@@ -120,9 +219,6 @@
 	// Close dropdowns when clicking outside
 	function handleOutsideClick(event: MouseEvent) {
 		const target = event.target as HTMLElement;
-		if (!target.closest('.workspace-dropdown-container')) {
-			showWorkspaceDropdown = false;
-		}
 		if (!target.closest('.profile-dropdown-container')) {
 			showProfileDropdown = false;
 		}
@@ -130,8 +226,8 @@
 
 	function handleMenuKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
-			showWorkspaceDropdown = false;
 			showProfileDropdown = false;
+			showMobileNav = false;
 		}
 	}
 </script>
@@ -140,7 +236,7 @@
 	<title>{data.appName} — write & schedule</title>
 	<meta
 		name="description"
-		content="Minimal social scheduler for Mastodon, Bluesky, LinkedIn, Threads, Instagram, and X"
+		content="Social media scheduler for X, Instagram, Facebook, YouTube, TikTok, LinkedIn, Threads and Bluesky"
 	/>
 	<link rel="icon" href={favicon} type="image/svg+xml" />
 	<link rel="icon" href={faviconDark} type="image/svg+xml" media="(prefers-color-scheme: dark)" />
@@ -148,6 +244,7 @@
 </svelte:head>
 
 <svelte:window onclick={handleOutsideClick} onkeydown={handleMenuKeydown} />
+<svelte:document onclickcapture={interceptComposeLinks} />
 <a
 	href="#main-content"
 	class="sr-only z-50 rounded-full bg-stone-900 px-4 py-2 text-sm font-bold text-white focus:not-sr-only focus:fixed focus:top-4 focus:left-4"
@@ -157,303 +254,262 @@
 {#if isLoginRoute || isShareRoute || !userEmail}
 	{@render children()}
 {:else}
-	<div class="min-h-dvh bg-stone-50 font-sans text-stone-900 selection:bg-stone-200">
-		<!-- TOP NAVIGATION (Floating Header) -->
+	<div class="min-h-dvh bg-canvas font-sans text-stone-900 selection:bg-indigo-100">
+		<!-- Mobile top bar -->
 		<header
-			class="pointer-events-none fixed top-0 right-0 left-0 z-40 mx-auto flex w-full max-w-[800px] items-center justify-between px-4 py-6 sm:px-6"
+			class="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-stone-200 bg-white/90 px-4 backdrop-blur lg:hidden"
 		>
-			<!-- Page content scrolls under the floating pills; this scrim keeps it legible. -->
-			<div
-				class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-28 bg-gradient-to-b from-stone-50 from-40% via-stone-50/80 to-transparent"
-				aria-hidden="true"
-			></div>
-			<!-- landmark for AT: header is banner, nav gives primary pages -->
-			<!-- LEFT: Workspace Dropdown (Pointer events re-enabled) -->
-			<nav aria-label="Primary" class="workspace-dropdown-container pointer-events-auto relative">
+			<button
+				type="button"
+				class="btn btn-ghost btn-sm -ml-2 px-2"
+				aria-label="Open navigation"
+				aria-expanded={showMobileNav}
+				onclick={() => (showMobileNav = true)}
+			>
+				<Menu class="h-5 w-5" />
+			</button>
+			<img src={logoGlyph} alt="" class="h-6 w-6" aria-hidden="true" />
+			<span class="font-semibold tracking-tight">{data.appName}</span>
+			<a href="/compose" data-testid="write-new-post-mobile" class="btn btn-primary btn-sm ml-auto"
+				><Plus class="h-4 w-4" /> New post</a
+			>
+		</header>
+
+		{#if showMobileNav}
+			<button
+				type="button"
+				class="fixed inset-0 z-40 bg-stone-900/30 lg:hidden"
+				aria-label="Close navigation"
+				onclick={() => (showMobileNav = false)}
+				transition:fade={{ duration: 150 }}
+			></button>
+		{/if}
+
+		<!-- Sidebar -->
+		<aside
+			class="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-stone-200 bg-white transition-transform duration-200 lg:translate-x-0 {showMobileNav
+				? 'translate-x-0'
+				: '-translate-x-full'}"
+			aria-label="Sidebar"
+		>
+			<div class="flex h-16 items-center gap-2.5 px-5">
+				<img src={logoGlyph} alt="" class="h-7 w-7" aria-hidden="true" />
+				<span class="text-[15px] font-semibold tracking-tight">{data.appName}</span>
 				<button
 					type="button"
-					class="group flex items-center gap-3 rounded-full border border-stone-200/80 bg-white px-2.5 py-2 shadow-[0_4px_20px_-8px_rgb(28_25_23/0.08)] transition-all hover:border-stone-300 hover:shadow-[0_4px_24px_-8px_rgb(28_25_23/0.12)] focus:outline-none"
-					bind:this={workspaceTrigger}
-					onclick={() => (showWorkspaceDropdown = !showWorkspaceDropdown)}
-					aria-haspopup="menu"
-					aria-expanded={showWorkspaceDropdown}
-					aria-controls="workspace-menu"
-					aria-label={publishActivity.unseenFailure
-						? 'Workspace menu — a post failed to publish'
-						: 'Workspace menu'}
+					class="btn btn-ghost btn-sm ml-auto px-2 lg:hidden"
+					aria-label="Close navigation"
+					onclick={() => (showMobileNav = false)}
 				>
-					<img src={logoGlyph} alt="" class="h-7 w-7 p-1" aria-hidden="true" />
-					<span class="text-[14px] font-extrabold tracking-tight text-stone-900"
-						>{data.appName}</span
-					>
-					<ChevronDown
-						class="mr-1 h-4 w-4 text-stone-500 transition-transform {showWorkspaceDropdown
-							? 'rotate-180'
-							: ''}"
-					/>
+					<X class="h-4 w-4" />
 				</button>
-				{#if publishActivity.unseenFailure}
-					<span
-						class="pointer-events-none absolute top-0 right-0 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white"
-						aria-hidden="true"
-						data-testid="publish-failure-dot"
-					></span>
-				{/if}
+			</div>
 
-				<!-- NAVIGATION DROPDOWN -->
-				{#if showWorkspaceDropdown}
-					<div
-						id="workspace-menu"
-						class="absolute top-14 left-0 z-50 w-56 origin-top-left rounded-[1.5rem] border border-stone-200/80 bg-white p-2 shadow-[0_16px_40px_-12px_rgb(28_25_23/0.15)]"
-						transition:fly={{ y: -5, duration: 200, opacity: 0 }}
-						role="menu"
-						use:menuNav={{
-							trigger: workspaceTrigger,
-							onEscape: () => (showWorkspaceDropdown = false)
-						}}
+			<div class="px-3 pb-3">
+				<a href="/compose" class="btn btn-primary w-full" data-testid="write-new-post-sidebar">
+					<Plus class="h-4 w-4" /> New post
+				</a>
+			</div>
+
+			<nav aria-label="Primary" class="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
+				<p
+					class="px-3 pt-1 pb-2 text-[11px] font-semibold tracking-[0.12em] text-stone-400 uppercase"
+				>
+					Workspace
+				</p>
+				{#each NAV as item (item.href)}
+					{@const on = isActive(item.href)}
+					<a
+						href={item.href}
+						onclick={() => (showMobileNav = false)}
+						aria-current={on ? 'page' : undefined}
+						class="group flex h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium transition-colors {on
+							? 'bg-accent-soft text-accent-ink'
+							: 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}"
 					>
-						<a
-							href="/compose"
-							class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-colors {page
-								.url.pathname === '/compose'
-								? 'bg-stone-900 text-white shadow-md'
-								: 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'}"
-							onclick={(event) => {
-								showWorkspaceDropdown = false;
-								startNewPost(event);
-							}}
-							role="menuitem"
-						>
-							<PenLine
-								class="h-4 w-4 {page.url.pathname === '/compose' ? 'text-white' : 'text-stone-500'}"
-							/> Compose
-						</a>
-						<a
-							href="/posts"
-							class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-colors {page
-								.url.pathname === '/posts'
-								? 'bg-stone-900 text-white shadow-md'
-								: 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'}"
-							onclick={() => (showWorkspaceDropdown = false)}
-							role="menuitem"
-						>
-							<Calendar
-								class="h-4 w-4 {page.url.pathname === '/posts' ? 'text-white' : 'text-stone-500'}"
-							/> Posts
-							{#if publishActivity.unseenFailure}
-								<span class="ml-auto h-2 w-2 rounded-full bg-red-500" aria-hidden="true"></span>
-								<span class="sr-only">— a post failed to publish</span>
-							{/if}
-						</a>
-						<a
-							href="/insights"
-							class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-colors {page
-								.url.pathname === '/insights'
-								? 'bg-stone-900 text-white shadow-md'
-								: 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'}"
-							onclick={() => (showWorkspaceDropdown = false)}
-							role="menuitem"
-						>
-							<ChartColumn
-								class="h-4 w-4 {page.url.pathname === '/insights'
-									? 'text-white'
-									: 'text-stone-500'}"
-							/> Insights
-						</a>
-						<a
-							href="/accounts"
-							class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-colors {page
-								.url.pathname === '/accounts'
-								? 'bg-stone-900 text-white shadow-md'
-								: 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'}"
-							onclick={() => (showWorkspaceDropdown = false)}
-							role="menuitem"
-						>
-							<Users
-								class="h-4 w-4 {page.url.pathname === '/accounts'
-									? 'text-white'
-									: 'text-stone-500'}"
-							/> Accounts
-						</a>
-					</div>
-				{/if}
+						<item.icon
+							class="h-[18px] w-[18px] {on
+								? 'text-accent'
+								: 'text-stone-400 group-hover:text-stone-600'}"
+						/>
+						<span class="flex-1">{item.label}</span>
+						{#if item.href === '/posts' && publishActivity.unseenFailure}
+							<span
+								class="h-2 w-2 rounded-full bg-rose-500"
+								aria-hidden="true"
+								data-testid="publish-failure-dot"
+							></span>
+							<span class="sr-only">— a post failed to publish</span>
+						{/if}
+					</a>
+				{/each}
+
+				<p
+					class="px-3 pt-5 pb-2 text-[11px] font-semibold tracking-[0.12em] text-stone-400 uppercase"
+				>
+					Configure
+				</p>
+				{#each NAV_SECONDARY as item (item.href)}
+					{@const on = isActive(item.href)}
+					<a
+						href={item.href}
+						onclick={() => (showMobileNav = false)}
+						aria-current={on ? 'page' : undefined}
+						class="group flex h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium transition-colors {on
+							? 'bg-accent-soft text-accent-ink'
+							: 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}"
+					>
+						<item.icon
+							class="h-[18px] w-[18px] {on
+								? 'text-accent'
+								: 'text-stone-400 group-hover:text-stone-600'}"
+						/>
+						<span class="flex-1">{item.label}</span>
+						{#if item.href === '/settings' && showUpdateDot}
+							<span
+								class="h-2 w-2 rounded-full bg-amber-500"
+								aria-hidden="true"
+								data-testid="update-dot"
+							></span>
+						{/if}
+					</a>
+				{/each}
 			</nav>
 
-			<!-- RIGHT: Write Action & Profile (Pointer events re-enabled) -->
-			<div class="pointer-events-auto flex items-center gap-3">
-				<!-- Write: hidden only on an empty composer, where it would do nothing -->
-				{#if showWrite}
-					<a
-						href="/compose"
-						data-testid="write-new-post"
-						onclick={startNewPost}
-						class="flex h-11 w-11 items-center justify-center gap-2 rounded-full bg-stone-900 text-[13px] font-bold text-white shadow-[0_4px_16px_-4px_rgb(28_25_23/0.3)] transition-all hover:bg-stone-800 hover:shadow-[0_4px_20px_-4px_rgb(28_25_23/0.4)] sm:h-auto sm:w-auto sm:px-5 sm:py-2.5"
+			<!-- Signed-in user -->
+			<div class="profile-dropdown-container relative border-t border-stone-200 p-3">
+				<button
+					type="button"
+					class="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-stone-100"
+					onclick={() => (showProfileDropdown = !showProfileDropdown)}
+					aria-haspopup="menu"
+					aria-expanded={showProfileDropdown}
+					aria-controls="profile-menu"
+					aria-label={showUpdateDot ? 'Profile menu, update available' : 'Profile menu'}
+					bind:this={profileTrigger}
+				>
+					<span
+						class="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft text-[12px] font-semibold text-accent-ink"
+						aria-hidden="true"
 					>
-						<PenLine class="h-4 w-4" />
-						<span class="sr-only sm:not-sr-only">Write</span>
-					</a>
-				{/if}
-
-				<!-- Profile Dropdown Container -->
-				<div class="profile-dropdown-container relative">
-					<button
-						type="button"
-						class="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-stone-200/80 bg-white shadow-[0_4px_20px_-8px_rgb(28_25_23/0.08)] transition-all hover:border-stone-300 hover:shadow-[0_4px_24px_-8px_rgb(28_25_23/0.12)] focus:outline-none"
-						onclick={() => (showProfileDropdown = !showProfileDropdown)}
-						aria-haspopup="menu"
-						aria-expanded={showProfileDropdown}
-						bind:this={profileTrigger}
-						aria-controls="profile-menu"
-						aria-label={showUpdateDot ? 'Profile menu, update available' : 'Profile menu'}
-						title={userEmail}
-					>
-						<span
-							class="flex h-full w-full items-center justify-center bg-stone-200 text-[11px] font-bold text-stone-700"
-							aria-hidden="true"
-						>
-							{initialsOf(displayName, userEmail)}
-						</span>
+						{initialsOf(displayName, userEmail)}
 						{#if avatarSrc && failedAvatarSrc !== avatarSrc}
 							<img
 								src={avatarSrc}
 								alt=""
-								aria-hidden="true"
 								referrerpolicy="no-referrer"
 								class="absolute inset-0 h-full w-full object-cover"
 								onerror={() => (failedAvatarSrc = avatarSrc)}
 							/>
 						{/if}
-					</button>
-					{#if showUpdateDot}
-						<span
-							class="pointer-events-none absolute top-0 right-0 h-3 w-3 rounded-full bg-amber-500 ring-2 ring-white"
-							aria-hidden="true"
-							data-testid="update-dot"
-						></span>
-					{/if}
-
-					<!-- PROFILE DROPDOWN -->
-					{#if showProfileDropdown}
-						<div
-							id="profile-menu"
-							class="absolute top-14 right-0 z-50 w-56 origin-top-right rounded-[1.5rem] border border-stone-200/80 bg-white p-2 shadow-[0_16px_40px_-12px_rgb(28_25_23/0.15)]"
-							transition:fly={{ y: -5, duration: 200, opacity: 0 }}
-							role="menu"
-							aria-label="Profile"
-							use:menuNav={{
-								trigger: profileTrigger,
-								onEscape: () => (showProfileDropdown = false)
-							}}
+					</span>
+					<span class="min-w-0 flex-1">
+						<span class="block truncate text-[13px] font-semibold text-stone-900"
+							>{displayName?.trim() || userEmail}</span
 						>
-							<div class="mb-1 border-b border-stone-100 px-3 py-3">
-								{#if displayName?.trim()}
-									<p class="truncate text-[13px] font-extrabold text-stone-900">
-										{displayName.trim()}
-									</p>
-									<p
-										class="mt-0.5 truncate text-[11px] font-medium text-stone-500"
-										title={userEmail}
-									>
-										{userEmail}
-									</p>
-								{:else}
-									<p class="truncate text-[13px] font-extrabold text-stone-900" title={userEmail}>
-										{userEmail}
-									</p>
-								{/if}
-							</div>
+						{#if displayName?.trim()}
+							<span class="block truncate text-[12px] text-stone-500">{userEmail}</span>
+						{/if}
+					</span>
+					<ChevronsUpDown class="h-4 w-4 shrink-0 text-stone-400" />
+				</button>
 
-							<div class="mt-1 p-1">
-								{#if updateNotice.tag}
-									<a
-										href="/settings#instance"
-										class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-bold text-stone-600 transition-colors hover:bg-stone-50 hover:text-stone-900"
-										onclick={() => {
-											showProfileDropdown = false;
-											markUpdateSeen();
-										}}
-										role="menuitem"
-										data-testid="update-menu-item"
-									>
-										<span class="mx-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden="true"
-										></span>
-										{updateNotice.tag} is available
-									</a>
-								{/if}
-								<a
-									href="/settings"
-									class="flex items-center justify-between rounded-xl px-3 py-2.5 text-[13px] font-bold transition-colors {page
-										.url.pathname === '/settings'
-										? 'bg-stone-900 text-white shadow-md'
-										: 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'}"
-									onclick={() => (showProfileDropdown = false)}
-									role="menuitem"
-								>
-									<div class="flex items-center gap-3">
-										<Settings
-											class="h-4 w-4 {page.url.pathname === '/settings'
-												? 'text-white'
-												: 'text-stone-500'}"
-										/> Settings
-									</div>
-								</a>
-
-								<a
-									href="/api"
-									class="flex items-center justify-between rounded-xl px-3 py-2.5 text-[13px] font-bold transition-colors {page
-										.url.pathname === '/api'
-										? 'bg-stone-900 text-white shadow-md'
-										: 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'}"
-									onclick={() => (showProfileDropdown = false)}
-									role="menuitem"
-								>
-									<div class="flex items-center gap-3">
-										<PenLine
-											class="h-4 w-4 {page.url.pathname === '/api'
-												? 'text-white'
-												: 'text-stone-500'}"
-										/> API docs
-									</div>
-								</a>
-							</div>
-
-							<div class="mx-2 my-1 h-px bg-stone-100"></div>
-
-							<div class="p-1">
-								<button
-									type="button"
-									class="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-bold text-stone-600 transition-colors hover:bg-stone-50 hover:text-stone-900"
-									onclick={logout}
-									role="menuitem"
-								>
-									<LogOut class="h-4 w-4 text-stone-500" /> Log out
-								</button>
-								{#if logoutError}
-									<p
-										class="px-3 pb-2 text-[11px] font-medium text-red-600"
-										data-testid="logout-error"
-									>
-										{logoutError}
-									</p>
-								{/if}
-							</div>
-						</div>
-					{/if}
-				</div>
+				{#if showProfileDropdown}
+					<div
+						id="profile-menu"
+						class="absolute right-3 bottom-full left-3 z-50 mb-2 rounded-xl border border-stone-200 bg-white p-1.5 shadow-[0_16px_40px_-12px_rgb(28_25_23/0.2)]"
+						transition:fly={{ y: 5, duration: 150, opacity: 0 }}
+						role="menu"
+						aria-label="Profile"
+						use:menuNav={{
+							trigger: profileTrigger,
+							onEscape: () => (showProfileDropdown = false)
+						}}
+					>
+						{#if updateNotice.tag}
+							<a
+								href="/settings#instance"
+								class="flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-100"
+								onclick={() => {
+									showProfileDropdown = false;
+									markUpdateSeen();
+								}}
+								role="menuitem"
+								data-testid="update-menu-item"
+							>
+								<span class="mx-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden="true"
+								></span>
+								{updateNotice.tag} is available
+							</a>
+						{/if}
+						<a
+							href="/account"
+							class="flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-100"
+							onclick={() => (showProfileDropdown = false)}
+							role="menuitem"
+						>
+							<UserRound class="h-4 w-4 text-stone-400" /> Account
+						</a>
+						<a
+							href="/settings"
+							class="flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-100"
+							onclick={() => (showProfileDropdown = false)}
+							role="menuitem"
+						>
+							<Settings class="h-4 w-4 text-stone-400" /> Settings
+						</a>
+						<a
+							href="{page.url.pathname}?onboarding=1"
+							class="flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-100"
+							onclick={() => {
+								showProfileDropdown = false;
+								guideClosed = false;
+							}}
+							role="menuitem"
+						>
+							<Rocket class="h-4 w-4 text-stone-400" /> Setup guide
+						</a>
+						<div class="my-1 h-px bg-stone-100"></div>
+						<button
+							type="button"
+							class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-stone-700 hover:bg-stone-100"
+							onclick={logout}
+							role="menuitem"
+						>
+							<LogOut class="h-4 w-4 text-stone-400" /> Sign out
+						</button>
+						{#if logoutError}
+							<p class="px-3 pb-2 text-[11px] font-medium text-rose-600" data-testid="logout-error">
+								{logoutError}
+							</p>
+						{/if}
+					</div>
+				{/if}
 			</div>
-		</header>
+		</aside>
 
-		<!-- MAIN CONTENT AREA
-		     No z-index on <main> on purpose: a stacking context here would trap
-		     page dialogs (z-40/z-50) below the fixed header, so modal overlays
-		     would show the header pills and scrim floating above them. -->
+		<!-- No z-index on <main>: a stacking context here would trap page
+		     dialogs below the sidebar. -->
 		<main
 			id="main-content"
 			tabindex="-1"
-			class="relative mx-auto flex min-h-dvh w-full max-w-[800px] flex-col px-6 pt-32 pb-20 focus:outline-none"
+			class="relative min-h-dvh px-4 py-8 focus:outline-none sm:px-8 lg:ml-64 lg:px-10 lg:py-10"
 		>
-			{@render children()}
+			<div class="mx-auto w-full max-w-6xl">
+				{@render children()}
+			</div>
 		</main>
 	</div>
+{/if}
+{#if composerOpen && userEmail && !isShareRoute}
+	<ComposerModal data={composerData} onClose={() => void closeComposer()} />
+{/if}
+{#if guideOpen}
+	<OnboardingModal
+		initial={data.onboarding && !data.onboarding.done ? data.onboarding : { step: 1, done: true }}
+		isOwner={Boolean(data.isOwner)}
+		onClose={() => void closeGuide()}
+		onFinish={(target) => void finishGuide(target)}
+	/>
 {/if}
 <Toast />

@@ -186,7 +186,7 @@ async function postMcp(
 	if (method === 'tools/call' && typeof params.name === 'string') {
 		headers.set('mcp-name', params.name);
 	}
-	const request = new Request('https://cogsend.example/api/mcp', {
+	const request = new Request('https://posteasy.example/api/mcp', {
 		method: 'POST',
 		headers,
 		body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params: wireParams })
@@ -285,7 +285,7 @@ describe('MCP route', () => {
 	});
 
 	it('enforces JSON content type before the subscription-stream guard', async () => {
-		const request = new Request('https://cogsend.example/api/mcp', {
+		const request = new Request('https://posteasy.example/api/mcp', {
 			method: 'POST',
 			headers: { 'content-type': 'text/plain', accept: 'application/json, text/event-stream' },
 			body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'subscriptions/listen' })
@@ -504,7 +504,7 @@ describe('MCP route', () => {
 
 	it('returns 405 for GET and DELETE without issuing session IDs', async () => {
 		for (const handler of [GET, DELETE]) {
-			const response = await handler(requestEvent(new Request('https://cogsend.example/api/mcp')));
+			const response = await handler(requestEvent(new Request('https://posteasy.example/api/mcp')));
 			expect(response.status).toBe(405);
 			expect(response.headers.get('allow')).toBe('POST');
 			expect(response.headers.get('mcp-session-id')).toBeNull();

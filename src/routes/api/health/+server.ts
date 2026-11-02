@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		const account = await first(locals.db.select({ id: users.id }).from(users).limit(1));
 		return json({
 			ok: true,
-			service: 'cogsend',
+			service: 'posteasy',
 			version: __APP_VERSION__,
 			time: new Date().toISOString(),
 			account: { created: Boolean(account) }

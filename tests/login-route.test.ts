@@ -4,9 +4,9 @@ import type { AppDb } from '#lib/server/db/client.js';
 import { POST as login } from '../src/routes/api/auth/login/+server';
 
 /**
- * The password gate is keyed on the single admin row, so it must only advance
- * for attempts against the real admin identity. Otherwise anyone could lock the
- * owner out of a self-hosted instance with eight guesses at a made-up address.
+ * The password gate is keyed on the account signing in, so it must only advance
+ * for attempts against a real account. Otherwise anyone could lock a user out
+ * with eight guesses at a made-up address.
  */
 function attempt(db: AppDb, email: string, password: string) {
 	return login({
@@ -37,7 +37,7 @@ describe('login gate', () => {
 		for (let i = 0; i < 10; i++) {
 			const res = await attempt(db, 'nobody@example.com', 'whatever');
 			expect(res.status).toBe(401);
-			expect((await res.json()).error).toBe('Invalid credentials');
+			expect((await res.json()).error).toBe('Invalid email or password');
 		}
 
 		// The real credentials still work, i.e. the gate was never advanced.
@@ -49,7 +49,7 @@ describe('login gate', () => {
 		for (let i = 0; i < 7; i++) {
 			const res = await attempt(db, TEST_ADMIN.email, 'wrong-password');
 			expect(res.status).toBe(401);
-			expect((await res.json()).error).toBe('Invalid credentials');
+			expect((await res.json()).error).toBe('Invalid email or password');
 		}
 
 		const eighth = await attempt(db, TEST_ADMIN.email, 'wrong-password');
@@ -103,7 +103,7 @@ describe('login gate by client address', () => {
 		const wrongEmail = await errorsFor('198.51.100.7', 'nobody@example.com', 'whatever', 8);
 		const wrongPassword = await errorsFor('198.51.100.8', TEST_ADMIN.email, 'wrong', 8);
 		expect(wrongEmail).toEqual(wrongPassword);
-		expect(wrongEmail.slice(0, 7).every((e) => e === 'Invalid credentials')).toBe(true);
+		expect(wrongEmail.slice(0, 7).every((e) => e === 'Invalid email or password')).toBe(true);
 		expect(wrongEmail[7]).toMatch(/Too many attempts/);
 
 		// The locked address stays locked, even with the right credentials…
@@ -118,7 +118,7 @@ describe('login gate by client address', () => {
 		// More addresses than the account-wide cap, one made-up email each.
 		for (let i = 1; i <= 45; i++) {
 			const res = await attemptFrom(db, `192.0.2.${i}`, 'nobody@example.com', 'whatever');
-			expect((await res.json()).error).toBe('Invalid credentials');
+			expect((await res.json()).error).toBe('Invalid email or password');
 		}
 		const owner = await attemptFrom(db, '203.0.113.9', TEST_ADMIN.email, TEST_ADMIN.password);
 		expect(owner.status).toBe(200);

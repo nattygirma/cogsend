@@ -14,12 +14,12 @@
  *    that it reaches the account this checkout last deployed to, and refuses
  *    when it does not; a deploy records that account. See
  *    ./lib/target-account.mjs. A script that already checked says so through
- *    COGSEND_TARGET_CHECKED, so its calls are not each checked again.
+ *    POSTEASY_TARGET_CHECKED, so its calls are not each checked again.
  * 4. Cron quota: a deploy that Cloudflare refuses only because the account has
  *    no cron-trigger slot left (free plan: five per account) is retried once
  *    with the trigger removed, so the Worker still ships and the build is not
  *    marked failed. The outcome is recorded in D1 for the app and
- *    `npm run doctor` to read. COGSEND_STRICT_CRON=1 opts out of the retry.
+ *    `npm run doctor` to read. POSTEASY_STRICT_CRON=1 opts out of the retry.
  * 5. Release tag: a deploy is tagged `v<package version>`, and refuses to
  *    replace a Worker already running a newer tag (one updated from Settings,
  *    say) unless given --allow-downgrade. See ./lib/deployed-version.mjs.
@@ -60,7 +60,7 @@ const PERSONAL_CONFIG = 'wrangler.personal.jsonc';
 const ACCOUNT_ID = /^[0-9a-f]{32}$/;
 /** The D1 note is metadata: give it a minute, then carry on regardless. The
  *  environment override exists so a test can shrink it. */
-const NOTE_TIMEOUT_MS = Number(process.env.COGSEND_NOTE_TIMEOUT_MS) || 60_000;
+const NOTE_TIMEOUT_MS = Number(process.env.POSTEASY_NOTE_TIMEOUT_MS) || 60_000;
 // `--verbose` and `--allow-downgrade` are ours, not wrangler's: they are
 // stripped before the command line is built, so
 // `node scripts/wrangler.mjs deploy --verbose` works too.
@@ -87,7 +87,7 @@ if (LOCAL_VERSION && args[0] === 'deploy' && !hasFlag('--tag')) {
 }
 const allowDowngrade =
 	rawArgs.includes('--allow-downgrade') ||
-	['1', 'true', 'yes'].includes((process.env.COGSEND_ALLOW_DOWNGRADE ?? '').toLowerCase());
+	['1', 'true', 'yes'].includes((process.env.POSTEASY_ALLOW_DOWNGRADE ?? '').toLowerCase());
 
 const configArgs =
 	!existsSync(PERSONAL_CONFIG) || hasFlag('-c', '--config') ? [] : ['--config', PERSONAL_CONFIG];
@@ -256,7 +256,9 @@ async function noteCronState(value) {
 
 const isDeploy = args[0] === 'deploy';
 const isDryRun = hasFlag('--dry-run');
-const strict = ['1', 'true', 'yes'].includes((process.env.COGSEND_STRICT_CRON ?? '').toLowerCase());
+const strict = ['1', 'true', 'yes'].includes(
+	(process.env.POSTEASY_STRICT_CRON ?? '').toLowerCase()
+);
 
 const alreadyChecked = process.env[CHECKED_ENV];
 let targetAccount = ACCOUNT_ID.test(alreadyChecked ?? '') ? alreadyChecked : null;

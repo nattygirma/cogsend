@@ -10,6 +10,12 @@ declare global {
 	const __APP_VERSION__: string;
 
 	namespace App {
+		interface PageState {
+			/** The compose page's data, when the composer opens over another page. */
+			composer?: Record<string, unknown>;
+			/** The compose link that opened it: the editor's URL while it is open. */
+			composerHref?: string;
+		}
 		interface Locals {
 			db: AppDb;
 			env: AppEnv;

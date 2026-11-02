@@ -17,7 +17,7 @@ describe('local instance detection', () => {
 		for (const url of ['http://localhost:5173', 'http://127.0.0.1:8787', 'http://[::1]:3000']) {
 			expect(isLocalAppUrl(url)).toBe(true);
 		}
-		for (const url of ['https://cogsend.example.com', '', null, 'not a url']) {
+		for (const url of ['https://posteasy.example.com', '', null, 'not a url']) {
 			expect(isLocalAppUrl(url)).toBe(false);
 		}
 	});
@@ -30,13 +30,13 @@ describe('local instance detection', () => {
 		expect(isLocalRequestHost('192.168.1.20:5173')).toBe(true);
 		expect(isLocalRequestHost('10.0.0.5')).toBe(true);
 		expect(isLocalRequestHost('172.20.3.4')).toBe(true);
-		for (const host of ['cogsend.example.com', 'cogsend.acct.workers.dev', '172.32.0.1']) {
+		for (const host of ['posteasy.example.com', 'posteasy.acct.workers.dev', '172.32.0.1']) {
 			expect(isLocalRequestHost(host)).toBe(false);
 		}
 	});
 
 	it('treats only a non-local configured value as pinned', () => {
-		expect(isPinnedAppUrl('https://cogsend.acct.workers.dev')).toBe(true);
+		expect(isPinnedAppUrl('https://posteasy.acct.workers.dev')).toBe(true);
 		for (const value of ['http://localhost:5173', '', undefined, null, 'not a url']) {
 			expect(isPinnedAppUrl(value)).toBe(false);
 		}
@@ -44,31 +44,31 @@ describe('local instance detection', () => {
 });
 
 describe('resolveAppUrl', () => {
-	const request = { requestUrl: 'https://cogsend.acct.workers.dev/login' };
+	const request = { requestUrl: 'https://posteasy.acct.workers.dev/login' };
 
 	it('keeps a pinned APP_URL, whatever the request came in on', () => {
-		expect(resolveAppUrl({ ...request, configured: 'https://cogsend.example.com/' })).toEqual({
-			url: 'https://cogsend.example.com',
+		expect(resolveAppUrl({ ...request, configured: 'https://posteasy.example.com/' })).toEqual({
+			url: 'https://posteasy.example.com',
 			source: 'configured'
 		});
 		expect(
 			resolveAppUrl({
 				requestUrl: 'http://192.168.1.20:5173/',
-				configured: 'https://cogsend.example.com'
+				configured: 'https://posteasy.example.com'
 			})
-		).toEqual({ url: 'https://cogsend.example.com', source: 'configured' });
+		).toEqual({ url: 'https://posteasy.example.com', source: 'configured' });
 	});
 
 	it('adopts the request origin when APP_URL is unset', () => {
 		expect(resolveAppUrl(request)).toEqual({
-			url: 'https://cogsend.acct.workers.dev',
+			url: 'https://posteasy.acct.workers.dev',
 			source: 'request'
 		});
 	});
 
 	it('adopts the request origin over the localhost value .dev.vars.example ships', () => {
 		expect(resolveAppUrl({ ...request, configured: 'http://localhost:5173/' })).toEqual({
-			url: 'https://cogsend.acct.workers.dev',
+			url: 'https://posteasy.acct.workers.dev',
 			source: 'request'
 		});
 	});
@@ -85,15 +85,15 @@ describe('resolveAppUrl', () => {
 	it('never adopts the wrapper\u2019s internal host', () => {
 		expect(
 			resolveAppUrl({
-				requestUrl: 'https://cogsend.internal/api/internal/tick',
-				stored: 'https://cogsend.acct.workers.dev'
+				requestUrl: 'https://posteasy.internal/api/internal/tick',
+				stored: 'https://posteasy.acct.workers.dev'
 			})
-		).toEqual({ url: 'https://cogsend.acct.workers.dev', source: 'stored' });
+		).toEqual({ url: 'https://posteasy.acct.workers.dev', source: 'stored' });
 	});
 	it('reports nothing rather than the internal host when nothing is known', () => {
 		// A cron tick on a deployment nobody has opened yet: an internal URL in
 		// an email or a media link would be worse than no link at all.
-		expect(resolveAppUrl({ requestUrl: 'https://cogsend.internal/api/internal/tick' })).toEqual({
+		expect(resolveAppUrl({ requestUrl: 'https://posteasy.internal/api/internal/tick' })).toEqual({
 			url: '',
 			source: 'none'
 		});
@@ -122,8 +122,8 @@ describe('resolveAppUrl', () => {
 	});
 
 	it('falls back to the remembered origin when there is no request', () => {
-		expect(resolveAppUrl({ stored: 'https://cogsend.acct.workers.dev/' })).toEqual({
-			url: 'https://cogsend.acct.workers.dev',
+		expect(resolveAppUrl({ stored: 'https://posteasy.acct.workers.dev/' })).toEqual({
+			url: 'https://posteasy.acct.workers.dev',
 			source: 'stored'
 		});
 	});

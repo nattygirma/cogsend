@@ -17,7 +17,7 @@ describe('zernio platform mapping', () => {
 		expect(fromZernioPlatform('twitter')).toBe('x');
 		expect(fromZernioPlatform('bluesky')).toBe('bluesky');
 		expect(fromZernioPlatform('instagram')).toBe('instagram');
-		// Zernio also does TikTok, Facebook, …: CogSend has no editor for them.
+		// Zernio also does TikTok, Facebook, …: PostEasy has no editor for them.
 		expect(fromZernioPlatform('tiktok')).toBeNull();
 	});
 

@@ -10,20 +10,18 @@ import {
 describe('parseProfileSettings', () => {
 	it('falls back on garbage', () => {
 		expect(parseProfileSettings(null)).toEqual({
-			mastoVisibility: 'public',
 			defaultAccountIds: [],
 			profilePictureUrl: ''
 		});
 		expect(parseProfileSettings('not json')).toEqual({
-			mastoVisibility: 'public',
 			defaultAccountIds: [],
 			profilePictureUrl: ''
 		});
-		expect(
-			parseProfileSettings({ mastoVisibility: 'nonsense', defaultAccountIds: [1, 2] })
-		).toEqual({ mastoVisibility: 'public', defaultAccountIds: [], profilePictureUrl: '' });
+		expect(parseProfileSettings({ defaultAccountIds: [1, 2] })).toEqual({
+			defaultAccountIds: [],
+			profilePictureUrl: ''
+		});
 		expect(parseProfileSettings({ profilePictureUrl: 'javascript:alert(1)' })).toEqual({
-			mastoVisibility: 'public',
 			defaultAccountIds: [],
 			profilePictureUrl: ''
 		});
@@ -31,7 +29,6 @@ describe('parseProfileSettings', () => {
 
 	it('keeps valid values from string or object', () => {
 		const want = {
-			mastoVisibility: 'private' as const,
 			defaultAccountIds: ['a', 'b'],
 			profilePictureUrl: ''
 		};
@@ -43,28 +40,26 @@ describe('parseProfileSettings', () => {
 describe('normalizeProfileSettings', () => {
 	it('rejects bad payloads', () => {
 		expect(normalizeProfileSettings(null).ok).toBe(false);
-		expect(normalizeProfileSettings({ mastoVisibility: 'everywhere' }).ok).toBe(false);
 		expect(normalizeProfileSettings({ defaultAccountIds: 'x' }).ok).toBe(false);
 		expect(normalizeProfileSettings({ defaultAccountIds: new Array(51).fill('x') }).ok).toBe(false);
 	});
 
 	it('accepts partial payloads', () => {
-		const r = normalizeProfileSettings({ mastoVisibility: 'unlisted' });
+		const r = normalizeProfileSettings({ defaultAccountIds: ['a'] });
 		expect(r).toEqual({
 			ok: true,
-			settings: { mastoVisibility: 'unlisted', defaultAccountIds: [], profilePictureUrl: '' }
+			settings: { defaultAccountIds: ['a'], profilePictureUrl: '' }
 		});
 	});
 
 	it('accepts https profile URLs and empty', () => {
 		expect(normalizeProfileSettings({ profilePictureUrl: '' })).toEqual({
 			ok: true,
-			settings: { mastoVisibility: 'public', defaultAccountIds: [], profilePictureUrl: '' }
+			settings: { defaultAccountIds: [], profilePictureUrl: '' }
 		});
 		expect(normalizeProfileSettings({ profilePictureUrl: 'https://example.com/a.png' })).toEqual({
 			ok: true,
 			settings: {
-				mastoVisibility: 'public',
 				defaultAccountIds: [],
 				profilePictureUrl: 'https://example.com/a.png'
 			}

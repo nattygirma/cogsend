@@ -32,9 +32,9 @@ import { readDevVars } from '../scripts/lib/dev-vars.mjs';
  * output, and the CLI only prints them.
  */
 const goodConfig = {
-	name: 'cogsend',
-	d1_databases: [{ binding: 'DB', database_name: 'cogsend', database_id: '' }],
-	r2_buckets: [{ binding: 'MEDIA', bucket_name: 'cogsend-media' }],
+	name: 'posteasy',
+	d1_databases: [{ binding: 'DB', database_name: 'posteasy', database_id: '' }],
+	r2_buckets: [{ binding: 'MEDIA', bucket_name: 'posteasy-media' }],
 	triggers: { crons: ['* * * * *'] }
 };
 
@@ -42,7 +42,7 @@ const ids = (checks: { id: string }[]) => checks.map((c) => c.id);
 
 /**
  * The platforms that need an app registered at the provider are optional:
- * a deployment without them still connects Mastodon and Bluesky. So the line
+ * a deployment without them still connects Bluesky. So the line
  * says what is possible, and must never look like a warning — a fresh install
  * runs doctor on a clean checkout, where a yellow line would read as a defect.
  */
@@ -51,7 +51,7 @@ describe('platform credentials', () => {
 		const check = platformVerdict(['APP_ENCRYPTION_KEY']);
 		expect(check.status).toBe('ok');
 		expect(check.label).toBe('LinkedIn, Threads, Instagram, X: no app credentials (optional)');
-		expect(check.detail).toBe('Mastodon and Bluesky can be connected');
+		expect(check.detail).toBe('Bluesky can be connected');
 		expect(check.fix).toMatch(/oauth-apps\.md/);
 	});
 
@@ -124,15 +124,15 @@ describe('config checks', () => {
 
 describe('command output parsing', () => {
 	it('reads the D1 list and returns [] for junk', () => {
-		expect(parseD1List(JSON.stringify([{ name: 'cogsend', uuid: 'abc' }]))).toHaveLength(1);
+		expect(parseD1List(JSON.stringify([{ name: 'posteasy', uuid: 'abc' }]))).toHaveLength(1);
 		expect(parseD1List('boom')).toEqual([]);
 	});
 
 	it('finds a bucket name in the table output without matching substrings', () => {
-		const table = 'name           creation_date\ncogsend-media  2026-01-01\n';
-		expect(bucketWasListed(table, 'cogsend-media')).toBe(true);
-		expect(bucketWasListed(table, 'cogsend')).toBe(false);
-		expect(bucketWasListed('', 'cogsend-media')).toBe(false);
+		const table = 'name           creation_date\nposteasy-media  2026-01-01\n';
+		expect(bucketWasListed(table, 'posteasy-media')).toBe(true);
+		expect(bucketWasListed(table, 'posteasy')).toBe(false);
+		expect(bucketWasListed('', 'posteasy-media')).toBe(false);
 	});
 
 	it('counts unapplied migrations', () => {
@@ -235,8 +235,8 @@ describe('update check', () => {
 	const cloneRemotes =
 		'origin\thttps://github.com/deepakness/cogsend.git (fetch)\norigin\thttps://github.com/deepakness/cogsend.git (push)';
 	const forkRemotes =
-		'origin\thttps://github.com/me/cogsend.git (fetch)\nupstream\thttps://github.com/deepakness/cogsend.git (fetch)';
-	const copyRemotes = 'origin\thttps://github.com/me/cogsend-demo.git (fetch)';
+		'origin\thttps://github.com/me/posteasy.git (fetch)\nupstream\thttps://github.com/deepakness/cogsend.git (fetch)';
+	const copyRemotes = 'origin\thttps://github.com/me/posteasy-demo.git (fetch)';
 
 	it('reads the install shape from the remotes', () => {
 		expect(installShape(cloneRemotes)).toBe('clone');
@@ -248,17 +248,17 @@ describe('update check', () => {
 		expect(installShape('origin\tgit@github.com:deepakness/cogsend.git (fetch)')).toBe('clone');
 		expect(
 			installShape(
-				'origin\tgit@github.com:me/cogsend.git (fetch)\nupstream\tgit@github.com:deepakness/cogsend.git (fetch)'
+				'origin\tgit@github.com:me/posteasy.git (fetch)\nupstream\tgit@github.com:deepakness/cogsend.git (fetch)'
 			)
 		).toBe('fork');
 		expect(installShape('origin\tssh://git@github.com/deepakness/cogsend.git (fetch)')).toBe(
 			'clone'
 		);
-		// The new home, and an owner that only ends in "cogsend".
+		// The new home, and an owner that only ends in "posteasy".
 		expect(installShape('origin\thttps://github.com/cogsend/cogsend.git (fetch)')).toBe('clone');
 		expect(
 			installShape(
-				'origin\tgit@github.com:me/cogsend.git (fetch)\nupstream\tgit@github.com:cogsend/cogsend.git (fetch)'
+				'origin\tgit@github.com:me/posteasy.git (fetch)\nupstream\tgit@github.com:cogsend/cogsend.git (fetch)'
 			)
 		).toBe('fork');
 		expect(installShape('origin\thttps://github.com/notcogsend/cogsend.git (fetch)')).toBe('copy');
@@ -362,13 +362,13 @@ describe('report', () => {
 describe('dev vars parsing', () => {
 	it('reads values from the committed fixture', () => {
 		const values = readDevVars('tests/e2e/fixtures/dev.vars');
-		expect(values.get('APP_NAME')).toBe('CogSend');
+		expect(values.get('APP_NAME')).toBe('PostEasy');
 		expect(values.get('APP_ENCRYPTION_KEY')).toMatch(/^deadbeef/);
-		expect(values.get('SKIP_TOTP')).toBe('1');
+		expect(values.has('SKIP_TOTP')).toBe(false);
 	});
 
 	it('strips quotes and trailing comments, and keeps a blank value empty', () => {
-		const file = join(tmpdir(), `cogsend-doctor-${process.pid}.vars`);
+		const file = join(tmpdir(), `posteasy-doctor-${process.pid}.vars`);
 		writeFileSync(
 			file,
 			[
@@ -492,20 +492,20 @@ describe('login verdict', () => {
 describe('config drift', () => {
 	const committed = {
 		$schema: './node_modules/wrangler/config-schema.json',
-		name: 'cogsend',
+		name: 'posteasy',
 		compatibility_date: '2026-08-17',
 		compatibility_flags: ['nodejs_als'],
 		version_metadata: { binding: 'CF_VERSION_METADATA' },
 		ratelimits: [{ name: 'AUTH_RATE_LIMITER', namespace_id: '1001' }],
-		d1_databases: [{ binding: 'DB', database_name: 'cogsend', database_id: '' }],
-		r2_buckets: [{ binding: 'MEDIA', bucket_name: 'cogsend-media' }]
+		d1_databases: [{ binding: 'DB', database_name: 'posteasy', database_id: '' }],
+		r2_buckets: [{ binding: 'MEDIA', bucket_name: 'posteasy-media' }]
 	};
 
 	it('says nothing is missing when the personal config has it all, under its own names', () => {
 		const personal = {
 			...committed,
 			$schema: undefined,
-			name: 'my-cogsend',
+			name: 'my-posteasy',
 			d1_databases: [{ binding: 'DB', database_name: 'mine', database_id: 'abc' }],
 			r2_buckets: [{ binding: 'MEDIA', bucket_name: 'my-media' }],
 			compatibility_date: '2026-09-01'
@@ -517,7 +517,7 @@ describe('config drift', () => {
 
 	it('lists every key, binding, date and flag the personal config lacks', () => {
 		const personal = {
-			name: 'my-cogsend',
+			name: 'my-posteasy',
 			compatibility_date: '2025-01-01',
 			compatibility_flags: [],
 			d1_databases: [{ binding: 'DB', database_name: 'mine', database_id: 'abc' }],

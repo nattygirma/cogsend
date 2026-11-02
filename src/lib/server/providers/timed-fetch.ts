@@ -2,7 +2,7 @@ import type { FetchLike } from './types';
 
 /** JSON/API calls. Hung providers must fail well before STALE_CLAIM_MS (15m). */
 export const PROVIDER_FETCH_TIMEOUT_MS = 15_000;
-/** Media byte uploads (Mastodon 16MB, LinkedIn 8MB video) need a longer budget. */
+/** Media byte uploads (LinkedIn 8MB video) need a longer budget. */
 export const PROVIDER_UPLOAD_TIMEOUT_MS = 60_000;
 
 function isUploadRequest(init?: RequestInit): boolean {

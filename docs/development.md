@@ -8,7 +8,7 @@ Clone it — your fork works too — then:
 
 ```sh
 git clone https://github.com/cogsend/cogsend.git
-cd cogsend
+cd posteasy
 npm install
 cp .dev.vars.example .dev.vars
 npm run db:seed:local
@@ -27,11 +27,8 @@ you can remember; `--reset` replaces an existing local account). It applies the
 local migrations first, so `npm run db:migrate:local` is only needed on its own
 when you add a migration.
 
-The first sign-in asks you to enrol an authenticator (Google Authenticator or any
-TOTP app); save the backup codes. Set `SKIP_TOTP=1` in `.dev.vars` to skip that
-while developing — it is honored only while the instance resolves to a localhost
-URL, so it can never weaken a deployment. Remove it and restart to go back to
-real 2FA.
+More accounts can sign up at http://localhost:5173/signup; the first account is
+the workspace owner.
 
 `npm run dev` ticks due posts every 30 seconds automatically, and
 `npm run doctor` reports what it finds — locally or against a deployment — with
@@ -44,7 +41,6 @@ what to do about it.
 | `npm test`                        | vitest unit + integration tests                      |
 | `npx playwright install chromium` | once: the e2e suite drives a real browser            |
 | `npm run test:e2e`                | Playwright suite against a local build of the Worker |
-| `npm run test:e2e:totp`           | the same suite with 2FA required (CI runs this too)  |
 | `npm run check`                   | svelte-check                                         |
 | `npm run lint`                    | prettier --check + eslint                            |
 | `npm run build`                   | production worker + wrapped scheduled handler        |
@@ -54,8 +50,8 @@ a newly published advisory can fail a build that passes locally, so run it befor
 pushing a dependency change. `npm run format` fixes formatting.
 
 CI splits that into two jobs. `check` runs the audit, lint, svelte-check, the unit
-suite and the build; the browser suites run as a matrix, the main one and the TOTP
-one on separate runners at the same time. A push that only touches documentation
+suite and the build; the browser suite runs as a matrix of three shards on separate
+runners at the same time. A push that only touches documentation
 skips the browser suites — prose cannot break them — while `check` always runs,
 because `tests/platform-setup.test.ts` reads `docs/oauth-apps.md`. Pushing a tag
 starts no run at all: the commit it points at was already tested by the branch
@@ -66,8 +62,7 @@ your `npm run dev` data is never touched, and it creates its own account there
 (`scripts/seed-local.mjs`, run by the Playwright config) rather than borrowing
 yours. Its environment comes from `tests/e2e/fixtures/dev.vars`, passed to
 Wrangler with `--env-file`, so your `.dev.vars` is never read or changed and
-every machine runs the same configuration as CI. `npm run test:e2e:totp` passes
-a temporary copy without `SKIP_TOTP`.
+every machine runs the same configuration as CI.
 
 The suite is one serial journey, not independent tests: the first spec signs in
 and later ones rely on what it left behind. So `npx playwright test -g "<a later

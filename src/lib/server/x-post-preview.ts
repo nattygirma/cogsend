@@ -1,6 +1,6 @@
 /**
  * Author and text of an X post, for the composer's quote card and for the link
- * cards CogSend builds when it publishes an X link to Bluesky or LinkedIn.
+ * cards PostEasy builds when it publishes an X link to Bluesky or LinkedIn.
  *
  * x.com serves a server only "Name (@handle) on X", so this asks X's oEmbed
  * endpoint instead: official, free and keyless, unlike the API's post lookup,

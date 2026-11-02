@@ -24,9 +24,10 @@ async function signIn(page: Page) {
 	await page.goto('/compose');
 	if (/\/login$/.test(new URL(page.url()).pathname)) {
 		await page.getByLabel('Email').fill(E2E_ACCOUNT.email);
-		await page.getByLabel('Password').fill(E2E_ACCOUNT.password);
+		await page.getByLabel('Password', { exact: true }).fill(E2E_ACCOUNT.password);
 		await page.getByRole('button', { name: 'Sign in' }).click();
-		await expect(page).toHaveURL(/\/compose$/, { timeout: 20000 });
+		await expect(page).toHaveURL(/\/$/, { timeout: 20000 });
+		await page.goto('/compose');
 	}
 }
 
@@ -102,6 +103,8 @@ async function selectX(page: Page) {
 
 async function selectAccount(page: Page, title: string) {
 	const account = page.locator(`button[title="${title}"]`);
+	// The account avatars render with the page; clicks before hydration are lost.
+	await waitForLiveComposer(page);
 	await clickUntilVisible(page, page.getByTestId('destinations-toggle'), account);
 	if ((await account.getAttribute('aria-pressed')) !== 'true') await account.click();
 	await expect(account).toHaveAttribute('aria-pressed', 'true');
@@ -414,7 +417,7 @@ test('on a phone the picker opens fully on screen, clear of the bottom bar', asy
 	await expect.poll(async () => (await picker.boundingBox())!.height).toBeGreaterThan(250);
 	// It used to open upwards from the first card and run off the top of the page.
 	const list = (await picker.boundingBox())!;
-	const bar = (await page.getByTestId('destinations-toggle').boundingBox())!;
+	const bar = (await page.getByTestId('compose-action-bar').boundingBox())!;
 	expect(list.y).toBeGreaterThanOrEqual(0);
 	expect(list.y + list.height).toBeLessThanOrEqual(bar.y);
 	expect(list.x).toBeGreaterThanOrEqual(0);
@@ -436,7 +439,7 @@ test('on a phone the picker under the last card scrolls clear of the bottom bar'
 	await expect
 		.poll(async () => {
 			const list = (await picker.boundingBox())!;
-			const bar = (await page.getByTestId('destinations-toggle').boundingBox())!;
+			const bar = (await page.getByTestId('compose-action-bar').boundingBox())!;
 			return list.y >= 0 && list.y + list.height <= bar.y;
 		})
 		.toBe(true);

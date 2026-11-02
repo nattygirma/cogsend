@@ -34,12 +34,9 @@ export interface OAuthCallbackOptions {
 	platform: PlatformId;
 	/**
 	 * Marker the connect route stored in `oauth_pending.instance_url`, used to
-	 * tell this provider's pending rows apart. Mastodon stores the real
-	 * instance URL there instead, so it passes none.
+	 * tell this provider's pending rows apart.
 	 */
 	pendingMarker?: string;
-	/** Also match an existing row on its instance URL (one row per instance). */
-	matchInstanceUrl?: boolean;
 	/**
 	 * The `meta` key holding the platform's own account id. Reconnecting
 	 * matches on it first, so an account whose handle changed revives its row
@@ -56,12 +53,13 @@ export interface OAuthCallbackOptions {
 		incoming: Record<string, unknown>,
 		existing: Record<string, unknown>
 	): Record<string, unknown>;
+	/** One account, or several when one sign-in grants many (Facebook Pages). */
 	complete(input: {
 		pending: PendingRow;
 		code: string;
 		db: AppDb;
 		env: AppEnv;
-	}): Promise<CallbackExchange>;
+	}): Promise<CallbackExchange | CallbackExchange[]>;
 }
 
 /**
@@ -78,6 +76,55 @@ export function findExistingConnection<
 		if (byId) return byId;
 	}
 	return candidates.find((c) => (c.handle ?? '') === handle);
+}
+
+/** Keep one row per account: revive the stored one, or add it. */
+async function upsertConnection(
+	db: AppDb,
+	env: AppEnv,
+	userId: string,
+	opts: OAuthCallbackOptions,
+	exchanged: CallbackExchange
+): Promise<void> {
+	const encrypted = await encryptJson(exchanged.credentials, env.APP_ENCRYPTION_KEY);
+	const now = new Date();
+	const data = {
+		displayName: exchanged.displayName || exchanged.handle || null,
+		handle: exchanged.handle || null,
+		avatarUrl: exchanged.avatarUrl || null,
+		...(exchanged.instanceUrl !== undefined ? { instanceUrl: exchanged.instanceUrl } : {}),
+		credentialsEncrypted: encrypted,
+		metaJson: JSON.stringify(exchanged.meta),
+		status: 'active' as const,
+		updatedAt: now
+	};
+	const candidates = await db
+		.select()
+		.from(connections)
+		.where(and(eq(connections.userId, userId), eq(connections.platform, opts.platform)));
+	const existing = findExistingConnection(
+		candidates,
+		exchanged.handle || '',
+		opts.accountIdKey ? exchanged.meta[opts.accountIdKey] : undefined,
+		opts.accountIdKey
+	);
+	if (existing) {
+		const meta = opts.reconcileMeta
+			? opts.reconcileMeta(exchanged.meta, parseJson(existing.metaJson, {}))
+			: exchanged.meta;
+		await db
+			.update(connections)
+			.set({ ...data, metaJson: JSON.stringify(meta) })
+			.where(eq(connections.id, existing.id));
+	} else {
+		await db.insert(connections).values({
+			id: newId(),
+			userId,
+			platform: opts.platform,
+			...data,
+			createdAt: now
+		});
+	}
 }
 
 /**
@@ -122,53 +169,9 @@ export function createOAuthCallback(opts: OAuthCallbackOptions): RequestHandler 
 		}
 
 		try {
-			const exchanged = await opts.complete({ pending, code, db: locals.db, env: locals.env });
-			const encrypted = await encryptJson(exchanged.credentials, locals.env.APP_ENCRYPTION_KEY);
-			const now = new Date();
-			const data = {
-				displayName: exchanged.displayName || exchanged.handle || null,
-				handle: exchanged.handle || null,
-				avatarUrl: exchanged.avatarUrl || null,
-				...(exchanged.instanceUrl !== undefined ? { instanceUrl: exchanged.instanceUrl } : {}),
-				credentialsEncrypted: encrypted,
-				metaJson: JSON.stringify(exchanged.meta),
-				status: 'active' as const,
-				updatedAt: now
-			};
-			const candidates = await locals.db
-				.select()
-				.from(connections)
-				.where(
-					and(
-						eq(connections.userId, pending.userId),
-						eq(connections.platform, opts.platform),
-						...(opts.matchInstanceUrl
-							? [eq(connections.instanceUrl, exchanged.instanceUrl || '')]
-							: [])
-					)
-				);
-			const existing = findExistingConnection(
-				candidates,
-				exchanged.handle || '',
-				opts.accountIdKey ? exchanged.meta[opts.accountIdKey] : undefined,
-				opts.accountIdKey
-			);
-			if (existing) {
-				const meta = opts.reconcileMeta
-					? opts.reconcileMeta(exchanged.meta, parseJson(existing.metaJson, {}))
-					: exchanged.meta;
-				await locals.db
-					.update(connections)
-					.set({ ...data, metaJson: JSON.stringify(meta) })
-					.where(eq(connections.id, existing.id));
-			} else {
-				await locals.db.insert(connections).values({
-					id: newId(),
-					userId: pending.userId,
-					platform: opts.platform,
-					...data,
-					createdAt: now
-				});
+			const result = await opts.complete({ pending, code, db: locals.db, env: locals.env });
+			for (const exchanged of Array.isArray(result) ? result : [result]) {
+				await upsertConnection(locals.db, locals.env, pending.userId, opts, exchanged);
 			}
 			await locals.db.delete(oauthPending).where(eq(oauthPending.id, pending.id));
 			redirect(302, `${appUrl}/accounts?connected=${opts.platform}`, toAppOrigin(appUrl));

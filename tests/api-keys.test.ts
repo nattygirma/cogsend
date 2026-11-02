@@ -47,9 +47,9 @@ describe('api keys', () => {
 	it('rejects non-key formats without hashing or querying', async () => {
 		expect(isApiKeyFormat(null)).toBe(false);
 		expect(isApiKeyFormat('')).toBe(false);
-		expect(isApiKeyFormat('Bearer cog_abc')).toBe(false);
-		expect(isApiKeyFormat('cog_short')).toBe(false);
-		expect(isApiKeyFormat('cog_' + 'zz'.repeat(32))).toBe(false);
+		expect(isApiKeyFormat('Bearer pe_abc')).toBe(false);
+		expect(isApiKeyFormat('pe_short')).toBe(false);
+		expect(isApiKeyFormat('pe_' + 'zz'.repeat(32))).toBe(false);
 		expect(isApiKeyFormat('token_' + 'a'.repeat(64))).toBe(false);
 		expect(await verifyApiKey(db, 'not-a-key')).toBeNull();
 		expect(await verifyApiKey(db, null)).toBeNull();
@@ -60,7 +60,7 @@ describe('api keys', () => {
 
 		const first = await rotateApiKey(db, userId);
 		expect(isApiKeyFormat(first.raw)).toBe(true);
-		expect(first.raw.startsWith('cog_')).toBe(true);
+		expect(first.raw.startsWith('pe_')).toBe(true);
 		expect(first.prefix).toBe(first.raw.slice(0, 12));
 
 		// Raw key verifies; the stored value is a hash, not the key.

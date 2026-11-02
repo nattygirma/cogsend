@@ -5,9 +5,9 @@ test.beforeEach(async ({ page }) => {
 	await page.goto('/compose');
 	if (/\/login$/.test(page.url().replace(/^https?:\/\/[^/]+/, ''))) {
 		await page.getByLabel('Email').fill(E2E_ACCOUNT.email);
-		await page.getByLabel('Password').fill(E2E_ACCOUNT.password);
+		await page.getByLabel('Password', { exact: true }).fill(E2E_ACCOUNT.password);
 		await page.getByRole('button', { name: 'Sign in' }).click();
-		await expect(page).toHaveURL(/\/compose$/, { timeout: 20000 });
+		await expect(page).toHaveURL(/\/$/, { timeout: 20000 });
 	}
 });
 
@@ -20,25 +20,30 @@ const activeLabel = (page: import('@playwright/test').Page) =>
 	});
 
 test('menus take arrow keys and hand focus back to their trigger', async ({ page }) => {
+	// A real "update available" line would come first in the menu; this spec is about keys.
+	await page.route('**/api/release*', (route) =>
+		route.fulfill({
+			json: { current: '0.0.0', latest: null, updateAvailable: false, checkedAt: null }
+		})
+	);
 	await page.goto('/posts');
-	const trigger = page.getByRole('button', { name: 'Workspace menu' });
-	const menu = page.getByRole('menu').first();
+	const trigger = page.getByRole('button', { name: 'Profile menu' });
+	const menu = page.locator('#profile-menu');
 	await clickUntilVisible(page, trigger, menu);
 
 	// Opening moves focus into the menu, and arrows walk the items.
-	await expect.poll(() => activeLabel(page)).toContain('Compose');
+	await expect.poll(() => activeLabel(page)).toContain('Account');
 	await page.keyboard.press('ArrowDown');
-	await expect.poll(() => activeLabel(page)).toContain('Posts');
+	await expect.poll(() => activeLabel(page)).toContain('Settings');
 	await page.keyboard.press('ArrowUp');
-	await expect.poll(() => activeLabel(page)).toContain('Compose');
+	await expect.poll(() => activeLabel(page)).toContain('Account');
 	await page.keyboard.press('End');
-	const last = await activeLabel(page);
-	expect(last).not.toContain('Compose');
+	await expect.poll(() => activeLabel(page)).toContain('Sign out');
 
 	// Escape closes and restores focus, instead of dropping it on <body>.
 	await page.keyboard.press('Escape');
 	await expect(menu).toBeHidden();
-	await expect.poll(() => activeLabel(page)).toBe('Workspace menu');
+	await expect.poll(() => activeLabel(page)).toBe('Profile menu');
 });
 
 test('the connect dialog traps Tab and restores focus on close', async ({ page }) => {
@@ -67,8 +72,8 @@ test('a posts tab keeps focus on itself when it switches the list', async ({ pag
 	await page.goto('/posts');
 	// Opening the menu proves the app is hydrated: before that, a tab click is
 	// a full page load, which resets focus by design.
-	const trigger = page.getByRole('button', { name: 'Workspace menu' });
-	await clickUntilVisible(page, trigger, page.getByRole('menu').first());
+	const trigger = page.getByRole('button', { name: 'Profile menu' });
+	await clickUntilVisible(page, trigger, page.locator('#profile-menu'));
 	await page.keyboard.press('Escape');
 
 	// Focus is read once the switch has rendered and SvelteKit has finished

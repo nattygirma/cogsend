@@ -7,8 +7,6 @@
  * renders attachments instead of a link card in that case:
  * - Bluesky: one `embed` per post (images XOR external), official client
  *   drops the card when images are attached.
- * - Mastodon: server generates PreviewCard from OG tags; web UI hides the
- *   card when `media_attachments` is non-empty.
  * - Threads: no LINK attachment type; URL in `text` unfurls inline, image
  *   occupies the attachment slot.
  * - LinkedIn: `content` is a one-of (article XOR images/video); image posts
@@ -59,7 +57,7 @@ export function previewDomain(url: string): string | null {
 
 /**
  * A link that is safe to store and render as an `href`: http(s) only. A post's
- * permalink comes from the platform's own answer (a Mastodon instance, Zernio),
+ * permalink comes from the platform's own answer (Zernio, for one),
  * and a `javascript:` value there would run in this origin when clicked.
  */
 export function safeHttpUrl(value: unknown): string | null {

@@ -1,5 +1,5 @@
 // A path after the short link (zernio.link/cogsend/pricing) does not resolve, so
-// each Zernio page CogSend links to has its own short link in the Dub partner
+// each Zernio page PostEasy links to has its own short link in the Dub partner
 // dashboard, and a new page needs one created there first.
 const ZERNIO_LINKS = {
 	'/': 'https://zernio.link/cogsend',
@@ -14,9 +14,9 @@ export function zernioLink({
 	placement: string;
 }): string {
 	const url = new URL(ZERNIO_LINKS[path]);
-	url.searchParams.set('utm_source', 'cogsend');
+	url.searchParams.set('utm_source', 'posteasy');
 	url.searchParams.set('utm_medium', 'sponsorship');
-	url.searchParams.set('utm_campaign', 'cogsend-integration');
+	url.searchParams.set('utm_campaign', 'posteasy-integration');
 	url.searchParams.set('utm_content', placement);
 	return url.toString();
 }

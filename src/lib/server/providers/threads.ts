@@ -396,8 +396,6 @@ export const threadsProvider: PlatformProvider = {
 	capabilities: {
 		maxImages: THREADS_MAX_IMAGES,
 		maxImageBytes: THREADS_MAX_IMAGE_BYTES,
-		supportsCW: false,
-		supportsVisibility: false,
 		supportsThreads: true
 	},
 

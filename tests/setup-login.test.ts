@@ -52,13 +52,13 @@ function scratch({
 	loginFails?: boolean;
 	profileAccount?: string | null;
 } = {}) {
-	const created = mkdtempSync(join(tmpdir(), 'cogsend-login-'));
+	const created = mkdtempSync(join(tmpdir(), 'posteasy-login-'));
 	dir = created;
 	cpSync(join(process.cwd(), 'scripts'), join(created, 'scripts'), { recursive: true });
 	cpSync(join(process.cwd(), 'wrangler.jsonc'), join(created, 'wrangler.jsonc'));
 	writeFileSync(
 		join(created, 'package.json'),
-		'{\n\t"name": "cogsend",\n\t"version": "0.0.0"\n}\n'
+		'{\n\t"name": "posteasy",\n\t"version": "0.0.0"\n}\n'
 	);
 	writeFileSync(
 		join(created, '.dev.vars'),
@@ -95,14 +95,14 @@ appendFileSync(${JSON.stringify(join(created, 'calls.log'))}, JSON.stringify(arg
 const state = ${JSON.stringify(state)};
 if (process.env.WRANGLER_LOG === 'debug' && args.includes('secret')) {
 	const account = ${JSON.stringify(profileAccount)};
-	if (account) console.error('GET https://api.cloudflare.com/client/v4/accounts/' + account + '/workers/scripts/cogsend/secrets');
+	if (account) console.error('GET https://api.cloudflare.com/client/v4/accounts/' + account + '/workers/scripts/posteasy/secrets');
 	else console.error('✘ [ERROR] Not logged in.');
 	process.exit(1);
 }
 if (args.includes('whoami')) {${whoamiBranch}
 }
 if (args.includes('login')) { ${loginFails ? 'process.exit(1);' : "writeFileSync(state, 'signed-in'); process.exit(0);"} }
-if (args.includes('d1') && args.includes('list')) { console.log(JSON.stringify([{ name: 'cogsend', uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }])); process.exit(0); }
+if (args.includes('d1') && args.includes('list')) { console.log(JSON.stringify([{ name: 'posteasy', uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }])); process.exit(0); }
 if (args.includes('secret') && args.includes('list')) { console.log(JSON.stringify([{ name: 'APP_ENCRYPTION_KEY' }])); process.exit(0); }
 process.exit(0);
 `

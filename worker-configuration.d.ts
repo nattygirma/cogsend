@@ -72,17 +72,17 @@ interface Env {
 	CF_VERSION_METADATA?: { id: string; tag: string; timestamp: string };
 	/** "button" on an instance deployed from the Deploy to Cloudflare button's
 	 *  repository: Settings then offers updating through that repository. */
-	COGSEND_INSTALL?: string;
+	POSTEASY_INSTALL?: string;
 	/** The button install's GitHub repository (owner/repo) and branch, recorded
-	 *  by its deploy script; Settings links to its "Update CogSend" Action. */
-	COGSEND_REPO?: string;
-	COGSEND_BRANCH?: string;
+	 *  by its deploy script; Settings links to its "Update PostEasy" Action. */
+	POSTEASY_REPO?: string;
+	POSTEASY_BRANCH?: string;
 	/** Optional public origin. Left unset (or left at localhost), the app adopts
 	 *  the origin of each request and remembers the first authenticated one;
 	 *  set it to pin a custom domain. See $lib/domain/app-url. */
 	APP_URL?: string;
 	/** Instance display name shown in the UI, when not overridden in
-	 *  Settings → Instance (which is stored in D1). Defaults to "CogSend". */
+	 *  Settings → Instance (which is stored in D1). Defaults to "PostEasy". */
 	APP_NAME?: string;
 	/** The only secret a deployment must bring: it encrypts the stored provider
 	 *  tokens, and AUTH_SECRET/SCHEDULER_SECRET are derived from it. */
@@ -103,6 +103,13 @@ interface Env {
 	THREADS_APP_SECRET?: string;
 	INSTAGRAM_APP_ID?: string;
 	INSTAGRAM_APP_SECRET?: string;
+	FACEBOOK_APP_ID?: string;
+	FACEBOOK_APP_SECRET?: string;
+	FACEBOOK_CONFIG_ID?: string;
+	YOUTUBE_CLIENT_ID?: string;
+	YOUTUBE_CLIENT_SECRET?: string;
+	TIKTOK_CLIENT_KEY?: string;
+	TIKTOK_CLIENT_SECRET?: string;
 	X_CLIENT_ID?: string;
 	X_CLIENT_SECRET?: string;
 	/** Local-dev only: skips 2FA. Honored only while the resolved URL is a

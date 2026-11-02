@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { zernioLink } from '#lib/domain/zernio-links.js';
 
 describe('zernioLink', () => {
-	it('sends a plain link through the CogSend short link, tagged with the UTMs and placement', () => {
+	it('sends a plain link through the PostEasy short link, tagged with the UTMs and placement', () => {
 		const url = new URL(zernioLink({ placement: 'readme-sponsor' }));
 		expect(url.origin + url.pathname).toBe('https://zernio.link/cogsend');
-		expect(url.searchParams.get('utm_source')).toBe('cogsend');
+		expect(url.searchParams.get('utm_source')).toBe('posteasy');
 		expect(url.searchParams.get('utm_medium')).toBe('sponsorship');
-		expect(url.searchParams.get('utm_campaign')).toBe('cogsend-integration');
+		expect(url.searchParams.get('utm_campaign')).toBe('posteasy-integration');
 		expect(url.searchParams.get('utm_content')).toBe('readme-sponsor');
 	});
 

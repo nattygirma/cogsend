@@ -5,9 +5,10 @@ test.beforeEach(async ({ page }) => {
 	await page.goto('/compose');
 	if (/\/login$/.test(new URL(page.url()).pathname)) {
 		await page.getByLabel('Email').fill(E2E_ACCOUNT.email);
-		await page.getByLabel('Password').fill(E2E_ACCOUNT.password);
+		await page.getByLabel('Password', { exact: true }).fill(E2E_ACCOUNT.password);
 		await page.getByRole('button', { name: 'Sign in' }).click();
-		await expect(page).toHaveURL(/\/compose$/, { timeout: 20000 });
+		await expect(page).toHaveURL(/\/$/, { timeout: 20000 });
+		await page.goto('/compose');
 	}
 });
 
@@ -116,9 +117,12 @@ test('leaving a failed draft starts a clean composer', async ({ page }) => {
 	await page.goto(`/compose?id=${MISS_ID}`);
 	await expect(page.getByTestId('draft-load-error')).toBeVisible({ timeout: 20000 });
 
-	// Workspace menu → Compose is a client-side navigation to the same route.
-	await page.getByRole('button', { name: 'Workspace menu' }).click();
-	await page.getByRole('menuitem', { name: 'Compose' }).click();
+	// Closing the composer and starting a new post from the sidebar is a
+	// client-side navigation back to the compose page.
+	await page.getByRole('button', { name: 'Close composer' }).click();
+	await expect(page).toHaveURL(/\/$/);
+	await page.getByTestId('write-new-post-sidebar').click();
+	await expect(page).toHaveURL(/\/compose$/);
 	await expect(page.getByTestId('draft-load-error')).toBeHidden({ timeout: 20000 });
 
 	await page.unroute(`**/api/drafts/${MISS_ID}`);

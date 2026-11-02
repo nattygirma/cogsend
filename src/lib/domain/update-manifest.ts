@@ -19,7 +19,7 @@ const span = { offset: z.number().int().nonnegative() };
 
 const manifestSchema = z.object({
 	format: z.literal(MANIFEST_FORMAT),
-	name: z.literal('cogsend'),
+	name: z.literal('posteasy'),
 	version,
 	tag: z.string().regex(/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/),
 	createdAt: z.string(),
@@ -28,7 +28,7 @@ const manifestSchema = z.object({
 	schemaChange: z.boolean(),
 	notes: z.string().nullable(),
 	pack: z.object({
-		file: z.string().regex(/^cogsend-[0-9A-Za-z.-]+\.pack$/),
+		file: z.string().regex(/^posteasy-[0-9A-Za-z.-]+\.pack$/),
 		size: z.number().int().positive(),
 		sha256: hex(64)
 	}),
@@ -165,7 +165,7 @@ export function updateBlockers(
 	return blockers;
 }
 
-/** Bindings every CogSend Worker has, whatever its config. The release script
+/** Bindings every PostEasy Worker has, whatever its config. The release script
  *  writes the same list as each manifest's `requiredBindings`. */
 export const CORE_BINDINGS: readonly { name: string; type: string }[] = [
 	{ name: 'DB', type: 'd1' },
@@ -202,7 +202,7 @@ export const UPDATE_TOKEN_PERMISSIONS = [
 export const UPDATE_TOKEN_URL =
 	'https://dash.cloudflare.com/?to=/:account/api-tokens' +
 	`&permissionGroupKeys=${encodeURIComponent(JSON.stringify(UPDATE_TOKEN_PERMISSIONS))}` +
-	`&name=${encodeURIComponent('CogSend updater')}`;
+	`&name=${encodeURIComponent('PostEasy updater')}`;
 
 /**
  * The claims of an upload-session JWT. Cloudflare uses them to tell an

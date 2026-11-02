@@ -17,7 +17,7 @@ import type { AppEnv } from './env';
 import { qrSvg } from './qr';
 import { assertAuthGateOpen, clearAuthGate, recordAuthGateFailure } from './auth-gate';
 
-export const MFA_COOKIE = 'cog_mfa';
+export const MFA_COOKIE = 'pe_mfa';
 export const MFA_MAX_AGE = 10 * 60;
 export const MFA_MAX_FAILURES = 8;
 

@@ -1,9 +1,10 @@
 import { isZernioConnection } from '#lib/domain/zernio.js';
 import { blueskyProvider } from './bluesky';
+import { facebookProvider } from './facebook';
 import { instagramProvider } from './instagram';
 import { linkedinProvider } from './linkedin';
-import { mastodonProvider } from './mastodon';
 import { threadsProvider } from './threads';
+import { tiktokProvider } from './tiktok';
 export {
 	instagramProvider,
 	instagramAuthorizeUrl,
@@ -12,15 +13,18 @@ export {
 	PERSONAL_ACCOUNT_MESSAGE
 } from './instagram';
 import { xProvider } from './x';
+import { youtubeProvider } from './youtube';
 import { zernioProviderFor } from './zernio';
 import type { PlatformId, PlatformProvider } from './types';
 
 const providers: Record<PlatformId, PlatformProvider> = {
 	bluesky: blueskyProvider,
-	mastodon: mastodonProvider,
 	linkedin: linkedinProvider,
 	threads: threadsProvider,
 	instagram: instagramProvider,
+	facebook: facebookProvider,
+	youtube: youtubeProvider,
+	tiktok: tiktokProvider,
 	x: xProvider
 };
 
@@ -48,14 +52,6 @@ export * from './types';
 export { zernioProviderFor, buildZernioPostBody, ZERNIO_MAX_POLLS } from './zernio';
 export { providerFetch, timedFetch } from './timed-fetch';
 export { blueskyProvider, blueskyCreateSession, buildLinkFacets } from './bluesky';
-export {
-	mastodonProvider,
-	mastodonRegisterApp,
-	mastodonAuthorizeUrl,
-	mastodonVerifyCredentials,
-	mastodonExchangeCode,
-	sanitizeMastodonInstanceUrl
-} from './mastodon';
 export {
 	linkedinProvider,
 	linkedinAuthorizeUrl,
@@ -87,3 +83,24 @@ export {
 	X_MAX_IMAGES,
 	X_MAX_IMAGE_BYTES
 } from './x';
+export {
+	facebookProvider,
+	facebookAuthorizeUrl,
+	facebookExchangeCode,
+	facebookVerify
+} from './facebook';
+export {
+	tiktokProvider,
+	tiktokAuthorizeUrl,
+	tiktokExchangeCode,
+	tiktokVerify,
+	tiktokCreatorInfo,
+	TIKTOK_MAX_CAPTION
+} from './tiktok';
+export {
+	youtubeProvider,
+	youtubeAuthorizeUrl,
+	youtubeExchangeCode,
+	youtubeVerify,
+	youtubeVideoUrl
+} from './youtube';

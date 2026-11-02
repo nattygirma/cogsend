@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { envFromPlatform } from '#lib/server/env.js';
 import { deriveSecrets } from '#lib/server/derived-secrets.js';
 import { TEST_ENV } from '#lib/server/db/test.js';
+import { PLATFORM_SECRET_NAMES } from '#lib/domain/platform-setup.js';
 
 /**
  * `envFromPlatform` is the only path a real Worker takes to its configuration
@@ -12,7 +13,7 @@ describe('envFromPlatform', () => {
 
 	it('reads the Worker bindings, ignoring non-string entries', async () => {
 		const env = await envFromPlatform({
-			APP_URL: 'https://cogsend.example',
+			APP_URL: 'https://posteasy.example',
 			APP_NAME: 'My Scheduler',
 			APP_ENCRYPTION_KEY: TEST_ENV.APP_ENCRYPTION_KEY,
 			AUTH_SECRET: TEST_ENV.AUTH_SECRET,
@@ -21,15 +22,44 @@ describe('envFromPlatform', () => {
 			MEDIA: { get: () => {} }
 		});
 
-		expect(env.APP_URL).toBe('https://cogsend.example');
+		expect(env.APP_URL).toBe('https://posteasy.example');
 		expect(env.APP_NAME).toBe('My Scheduler');
 		expect(env.skipTotp).toBe(false);
+	});
+
+	it('reads every OAuth secret the setup panel asks for', async () => {
+		// A secret missing from the loader still shows as "Needs setup" after the
+		// operator uploads it, which is what happened when platforms were added.
+		const bindings = Object.fromEntries(PLATFORM_SECRET_NAMES.map((name) => [name, `v-${name}`]));
+		const env = (await envFromPlatform({
+			APP_URL: 'https://posteasy.example',
+			APP_ENCRYPTION_KEY: TEST_ENV.APP_ENCRYPTION_KEY,
+			AUTH_SECRET: TEST_ENV.AUTH_SECRET,
+			...bindings
+		})) as unknown as Record<string, unknown>;
+		for (const name of PLATFORM_SECRET_NAMES)
+			expect([name, env[name]]).toEqual([name, `v-${name}`]);
+	});
+
+	it('treats a setting left blank as unset, wherever it is read from', async () => {
+		// appkeep passes every declared setting, blank ones as "", and on Workers
+		// process.env mirrors the bindings: neither may fail the schema.
+		vi.stubEnv('LINKEDIN_CLIENT_ID', '');
+		const env = await envFromPlatform({
+			APP_URL: 'https://posteasy.example',
+			APP_ENCRYPTION_KEY: TEST_ENV.APP_ENCRYPTION_KEY,
+			AUTH_SECRET: TEST_ENV.AUTH_SECRET,
+			LINKEDIN_CLIENT_ID: '',
+			NOTIFY_EMAIL: ''
+		});
+		expect(env.LINKEDIN_CLIENT_ID).toBeUndefined();
+		expect(env.NOTIFY_EMAIL).toBeUndefined();
 	});
 
 	it('falls back to the process environment for anything the binding omits', async () => {
 		vi.stubEnv('SCHEDULER_SECRET', 'from-process-env-at-least-32-chars');
 		const env = await envFromPlatform({
-			APP_URL: 'https://cogsend.example',
+			APP_URL: 'https://posteasy.example',
 			APP_ENCRYPTION_KEY: TEST_ENV.APP_ENCRYPTION_KEY,
 			AUTH_SECRET: TEST_ENV.AUTH_SECRET
 		});
@@ -40,7 +70,7 @@ describe('envFromPlatform', () => {
 	it('treats an empty binding value as absent so the fallback applies', async () => {
 		vi.stubEnv('APP_NAME', 'from-process-env');
 		const env = await envFromPlatform({
-			APP_URL: 'https://cogsend.example',
+			APP_URL: 'https://posteasy.example',
 			APP_NAME: '',
 			APP_ENCRYPTION_KEY: TEST_ENV.APP_ENCRYPTION_KEY,
 			AUTH_SECRET: TEST_ENV.AUTH_SECRET
@@ -52,7 +82,7 @@ describe('envFromPlatform', () => {
 	it('still fails closed on an example secret for a real deployment', async () => {
 		await expect(
 			envFromPlatform({
-				APP_URL: 'https://cogsend.example',
+				APP_URL: 'https://posteasy.example',
 				APP_ENCRYPTION_KEY: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
 				AUTH_SECRET: 'dev-auth-secret-change-me'
 			})
@@ -108,7 +138,7 @@ describe('derived secrets', () => {
 		await expect(
 			envFromPlatform({
 				...base,
-				APP_URL: 'https://cogsend.acct.workers.dev',
+				APP_URL: 'https://posteasy.acct.workers.dev',
 				APP_ENCRYPTION_KEY: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
 			})
 		).rejects.toThrow(/APP_ENCRYPTION_KEY must not be an example value/);
@@ -125,18 +155,18 @@ describe('APP_URL resolution', () => {
 
 	it('adopts the request origin when APP_URL is unset', async () => {
 		const env = await envFromPlatform(secrets, {
-			requestUrl: 'https://cogsend.acct.workers.dev/login'
+			requestUrl: 'https://posteasy.acct.workers.dev/login'
 		});
-		expect(env.APP_URL).toBe('https://cogsend.acct.workers.dev');
+		expect(env.APP_URL).toBe('https://posteasy.acct.workers.dev');
 		expect(env.appUrlSource).toBe('request');
 	});
 
 	it('replaces a localhost APP_URL on a real host, and stays strict about example secrets', async () => {
 		const env = await envFromPlatform(
 			{ ...secrets, APP_URL: 'http://localhost:5173' },
-			{ requestUrl: 'https://cogsend.acct.workers.dev/' }
+			{ requestUrl: 'https://posteasy.acct.workers.dev/' }
 		);
-		expect(env.APP_URL).toBe('https://cogsend.acct.workers.dev');
+		expect(env.APP_URL).toBe('https://posteasy.acct.workers.dev');
 		expect(env.appUrlSource).toBe('request');
 		await expect(
 			envFromPlatform(
@@ -145,26 +175,26 @@ describe('APP_URL resolution', () => {
 					APP_URL: 'http://localhost:5173',
 					APP_ENCRYPTION_KEY: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
 				},
-				{ requestUrl: 'https://cogsend.acct.workers.dev/' }
+				{ requestUrl: 'https://posteasy.acct.workers.dev/' }
 			)
 		).rejects.toThrow(/APP_ENCRYPTION_KEY must not be an example value/);
 	});
 
 	it('keeps a pinned APP_URL over the request origin', async () => {
 		const env = await envFromPlatform(
-			{ ...secrets, APP_URL: 'https://cogsend.example.com' },
-			{ requestUrl: 'https://cogsend.acct.workers.dev/' }
+			{ ...secrets, APP_URL: 'https://posteasy.example.com' },
+			{ requestUrl: 'https://posteasy.acct.workers.dev/' }
 		);
-		expect(env.APP_URL).toBe('https://cogsend.example.com');
+		expect(env.APP_URL).toBe('https://posteasy.example.com');
 		expect(env.appUrlSource).toBe('configured');
 	});
 
 	it('uses the remembered origin when the wrapper calls itself', async () => {
 		const env = await envFromPlatform(secrets, {
-			requestUrl: 'https://cogsend.internal/api/internal/tick',
-			storedAppUrl: 'https://cogsend.acct.workers.dev'
+			requestUrl: 'https://posteasy.internal/api/internal/tick',
+			storedAppUrl: 'https://posteasy.acct.workers.dev'
 		});
-		expect(env.APP_URL).toBe('https://cogsend.acct.workers.dev');
+		expect(env.APP_URL).toBe('https://posteasy.acct.workers.dev');
 		expect(env.appUrlSource).toBe('stored');
 	});
 });

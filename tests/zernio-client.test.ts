@@ -132,7 +132,7 @@ describe('zernio client', () => {
 	});
 
 	it('words a duplicate rejection and a refused key so the Posts page cannot mistranslate them', () => {
-		// humanizeError reads "already scheduled" as CogSend's own schedule clash
+		// humanizeError reads "already scheduled" as PostEasy's own schedule clash
 		// and "403" as a platform policy refusal; Zernio's refusals must not
 		// land on either sentence.
 		const dup = zernioHttpError(

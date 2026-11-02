@@ -1,7 +1,7 @@
-# Installs a CogSend release into this repository; Workers Builds then deploys
+# Installs a PostEasy release into this repository; Workers Builds then deploys
 # the commit, the same way it deployed this copy in the first place.
 #
-# Actions → Update CogSend → Run workflow. Leave the tag empty for the latest
+# Actions → Update PostEasy → Run workflow. Leave the tag empty for the latest
 # release. Every file is checked against the release's signature first
 # (lib/update-from-release.mjs), and a mismatch stops before anything is
 # committed.
@@ -11,8 +11,8 @@
 # then installs patch releases (1.15.0 → 1.15.1); anything bigger still waits
 # for Run workflow.
 #
-# Version 2 of this file, from CogSend 1.15.0.
-name: Update CogSend
+# Version 2 of this file, from PostEasy 1.15.0.
+name: Update PostEasy
 
 on:
   workflow_dispatch:
@@ -32,7 +32,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: update-cogsend
+  group: update-posteasy
   cancel-in-progress: false
 
 jobs:
@@ -82,5 +82,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898283+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit --quiet -m "CogSend $TAG"
+          git commit --quiet -m "PostEasy $TAG"
           git push --quiet

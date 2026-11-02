@@ -33,9 +33,9 @@ describe('admin:reset', RUNS_A_SCRIPT, () => {
 
 	/** `accountEmail: null` stands for an instance with no account yet. */
 	function scratch(accountEmail: string | null, { failRead = false } = {}) {
-		const created = mkdtempSync(join(tmpdir(), 'cogsend-admin-'));
+		const created = mkdtempSync(join(tmpdir(), 'posteasy-admin-'));
 		dir = created;
-		writeFileSync(join(created, 'wrangler.jsonc'), '{\n\t"name": "cogsend"\n}\n');
+		writeFileSync(join(created, 'wrangler.jsonc'), '{\n\t"name": "posteasy"\n}\n');
 		const bin = join(created, 'bin');
 		mkdirSync(bin);
 		const rows = accountEmail ? `[{ "email": ${JSON.stringify(accountEmail)} }]` : '[]';

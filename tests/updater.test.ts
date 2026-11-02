@@ -11,6 +11,20 @@ import {
 } from '../scripts/lib/release-bundle.mjs';
 import { SubrequestBudget } from '#lib/server/budget.js';
 import { createTestDb, TEST_ENV, type TestDb } from '#lib/server/db/test.js';
+import { users } from '#lib/server/db/schema.js';
+import type { AppDb } from '#lib/server/db/client.js';
+
+/** Updates are the workspace owner's: the first account in the database. */
+async function seedOwner(db: AppDb, id = 'u', joinedLater = 0) {
+	const now = new Date(Date.now() + joinedLater);
+	await db.insert(users).values({
+		id,
+		email: `${id}@example.com`,
+		passwordHash: 'x',
+		createdAt: now,
+		updatedAt: now
+	});
+}
 import { cloudflareApi } from '#lib/server/updater/cloudflare-api.js';
 import { updaterContext } from '#lib/server/updater/context.js';
 import {
@@ -47,7 +61,7 @@ import { GET as statusGET } from '../src/routes/api/update/+server';
  */
 const TOKEN = 'cf-token-that-must-never-leak-0123456789';
 const ACCOUNT = 'acc0123456789abcdef0123456789abcd';
-const SCRIPT = 'cogsend';
+const SCRIPT = 'posteasy';
 const OLD = '11111111-1111-4111-8111-111111111111';
 const NEW = '22222222-2222-4222-8222-222222222222';
 const TAG = 'v1.13.0';
@@ -55,7 +69,7 @@ const BASE = `https://github.com/cogsend/cogsend/releases/download/${TAG}`;
 
 const OLD_BINDINGS = [
 	{ name: 'DB', type: 'd1', id: 'db-id' },
-	{ name: 'MEDIA', type: 'r2_bucket', bucket_name: 'cogsend-media' },
+	{ name: 'MEDIA', type: 'r2_bucket', bucket_name: 'posteasy-media' },
 	{
 		name: 'AUTH_RATE_LIMITER',
 		type: 'ratelimit',
@@ -64,7 +78,7 @@ const OLD_BINDINGS = [
 	},
 	{ name: 'ASSETS', type: 'assets' },
 	{ name: 'CF_VERSION_METADATA', type: 'version_metadata' },
-	{ name: 'COGSEND_INSTALL', type: 'plain_text', text: 'button' },
+	{ name: 'POSTEASY_INSTALL', type: 'plain_text', text: 'button' },
 	{ name: 'APP_ENCRYPTION_KEY', type: 'secret_text' }
 ];
 
@@ -164,7 +178,7 @@ function world(bundle: Bundle) {
 			state.deployments = [{ id: `d-${state.deployCalls.length}`, versions: body.versions }];
 			return respond({ id: 'd-new', versions: body.versions });
 		}
-		// Another Worker on the account, which is not CogSend.
+		// Another Worker on the account, which is not PostEasy.
 		if (path.endsWith('/scripts/other/deployments')) {
 			return respond({
 				deployments: [{ id: 'd-x', versions: [{ version_id: 'other-v', percentage: 100 }] }]
@@ -176,7 +190,7 @@ function world(bundle: Bundle) {
 				resources: { bindings: [{ name: 'CACHE', type: 'kv_namespace' }] }
 			});
 		}
-		const versionMatch = /\/scripts\/cogsend\/versions\/([0-9a-f-]+)$/.exec(path);
+		const versionMatch = /\/scripts\/posteasy\/versions\/([0-9a-f-]+)$/.exec(path);
 		if (versionMatch) {
 			const v = state.versions.get(versionMatch[1]);
 			return v ? respond(v) : respond('no such version', 404);
@@ -257,7 +271,7 @@ describe('in-app updater', () => {
 	let w: ReturnType<typeof world>;
 
 	beforeAll(() => {
-		dir = mkdtempSync(join(tmpdir(), 'cogsend-updater-'));
+		dir = mkdtempSync(join(tmpdir(), 'posteasy-updater-'));
 		const assets = join(dir, 'assets');
 		mkdirSync(join(assets, '_app/immutable'), { recursive: true });
 		for (let i = 0; i < 5; i++)
@@ -297,7 +311,7 @@ describe('in-app updater', () => {
 			store,
 			fetchImpl: w.fetchImpl,
 			budget,
-			host: 'cogsend.me.workers.dev',
+			host: 'posteasy.me.workers.dev',
 			runningVersionId: OLD,
 			currentVersion: '1.12.3',
 			trustedKeys: keys,
@@ -328,7 +342,7 @@ describe('in-app updater', () => {
 		expect(await readTarget(test.db)).toEqual({ accountId: ACCOUNT, scriptName: SCRIPT });
 	});
 
-	it("without version metadata, accepts only a Worker that has CogSend's bindings", async () => {
+	it("without version metadata, accepts only a Worker that has PostEasy's bindings", async () => {
 		const noMetadata = ctx({ runningVersionId: null, host: 'social.example.com' });
 		await expect(stepTarget(noMetadata, { scriptName: 'other' })).rejects.toThrow(
 			/not the Worker serving this page/
@@ -378,7 +392,7 @@ describe('in-app updater', () => {
 			'AUTH_RATE_LIMITER',
 			'ASSETS',
 			'CF_VERSION_METADATA',
-			'COGSEND_INSTALL'
+			'POSTEASY_INSTALL'
 		]);
 		expect(upload.metadata.bindings.find((b) => b.name === 'DB')).toEqual(OLD_BINDINGS[0]);
 		expect(upload.modules.get('_worker.js')).toEqual({
@@ -477,7 +491,7 @@ describe('in-app updater', () => {
 			stepPrepare(ctx({ trustedKeys: [{ id: 'test', publicKey: publicKeyOf(other) }] }), {
 				tag: TAG
 			})
-		).rejects.toThrow(/not signed by a CogSend release key/);
+		).rejects.toThrow(/not signed by a PostEasy release key/);
 		expect(await readJob(test.db)).toBeNull();
 		expect(store.keys()).toEqual([]);
 	});
@@ -563,7 +577,9 @@ describe('in-app updater', () => {
 		expect((await stepPrepare(ctx({ now: later }), { tag: TAG })).phase).toBe('prepared');
 	});
 
-	it('only answers a verified browser session, and never echoes the token', async () => {
+	it('only answers the owner in a browser session, and never echoes the token', async () => {
+		await seedOwner(test.db);
+		await seedOwner(test.db, 'member', 1000);
 		const call = (locals: Record<string, unknown>, body: unknown) =>
 			stepPOST({
 				params: { step: 'target' },
@@ -584,13 +600,9 @@ describe('in-app updater', () => {
 		const user = { id: 'u', email: 'a@b', timezone: 'UTC', totpEnabled: true, mfaVerified: true };
 		expect((await call({ user, authMethod: 'bearer' }, { token: TOKEN })).status).toBe(401);
 		expect(
-			(
-				await call(
-					{ user: { ...user, mfaVerified: false }, authMethod: 'session' },
-					{ token: TOKEN }
-				)
-			).status
-		).toBe(401);
+			(await call({ user: { ...user, id: 'member' }, authMethod: 'session' }, { token: TOKEN }))
+				.status
+		).toBe(403);
 		const missing = await call({ user, authMethod: 'session' }, {});
 		expect(missing.status).toBe(400);
 		// A failing step (no R2 here) must not hand the token back.
@@ -603,6 +615,7 @@ describe('in-app updater', () => {
 describe('update status', () => {
 	it('offers Roll back only while the version the update installed still serves', async () => {
 		const test = await createTestDb();
+		await seedOwner(test.db);
 		const user = { id: 'u', email: 'a@b', timezone: 'UTC', totpEnabled: true, mfaVerified: true };
 		const status = async (running: string | null) => {
 			const res = (await statusGET({
@@ -639,6 +652,7 @@ describe('update status', () => {
 describe('update status for a Deploy-button install', () => {
 	it('names the GitHub repository to update through, for button installs only', async () => {
 		const test = await createTestDb();
+		await seedOwner(test.db);
 		const user = { id: 'u', email: 'a@b', timezone: 'UTC', totpEnabled: true, mfaVerified: true };
 		const github = async (env: Record<string, string>) => {
 			const res = (await statusGET({
@@ -648,14 +662,14 @@ describe('update status for a Deploy-button install', () => {
 		};
 		expect(
 			await github({
-				COGSEND_INSTALL: 'button',
-				COGSEND_REPO: 'me/cogsend',
-				COGSEND_BRANCH: 'main'
+				POSTEASY_INSTALL: 'button',
+				POSTEASY_REPO: 'me/posteasy',
+				POSTEASY_BRANCH: 'main'
 			})
-		).toEqual({ repo: 'me/cogsend', branch: 'main' });
-		expect(await github({ COGSEND_INSTALL: 'button' })).toBeNull();
-		expect(await github({ COGSEND_REPO: 'me/cogsend' })).toBeNull();
-		expect(await github({ COGSEND_INSTALL: 'button', COGSEND_REPO: '../../evil' })).toBeNull();
+		).toEqual({ repo: 'me/posteasy', branch: 'main' });
+		expect(await github({ POSTEASY_INSTALL: 'button' })).toBeNull();
+		expect(await github({ POSTEASY_REPO: 'me/posteasy' })).toBeNull();
+		expect(await github({ POSTEASY_INSTALL: 'button', POSTEASY_REPO: '../../evil' })).toBeNull();
 	});
 });
 
@@ -671,7 +685,7 @@ describe('updater context', () => {
 			const ctx = updaterContext(
 				{
 					locals: { db: null, budget: new SubrequestBudget(), bindings: { MEDIA: {} } } as never,
-					url: new URL('https://cogsend.example')
+					url: new URL('https://posteasy.example')
 				},
 				TOKEN
 			);

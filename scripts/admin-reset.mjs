@@ -82,7 +82,7 @@ function wrangler(args, opts = {}) {
 }
 
 async function main() {
-	console.log(`CogSend admin reset${DRY ? ' (dry run — nothing will be changed)' : ''}`);
+	console.log(`PostEasy admin reset${DRY ? ' (dry run — nothing will be changed)' : ''}`);
 	// Removed because workerd rejects PBKDF2 counts above 100,000: the old 600k
 	// option wrote a hash the Worker could never verify.
 	if (has('--strong-kdf')) {

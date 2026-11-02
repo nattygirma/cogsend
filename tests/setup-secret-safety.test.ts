@@ -62,7 +62,7 @@ describe('reading the Worker secret list', () => {
 			run: () => ({
 				status: 1,
 				stderr:
-					'ERROR Worker "cogsend" not found.\n\n  If this is a new Worker, run `wrangler deploy` first to create it.'
+					'ERROR Worker "posteasy" not found.\n\n  If this is a new Worker, run `wrangler deploy` first to create it.'
 			})
 		});
 		expect(result.ok).toBe(true);
@@ -92,13 +92,13 @@ describe('npm run setup, with a secret list it cannot read', () => {
 	 * to run the real thing without touching this repository.
 	 */
 	function scratch(npxBody: string) {
-		const created = mkdtempSync(join(tmpdir(), 'cogsend-setup-'));
+		const created = mkdtempSync(join(tmpdir(), 'posteasy-setup-'));
 		dir = created;
 		cpSync(join(process.cwd(), 'scripts'), join(created, 'scripts'), { recursive: true });
 		cpSync(join(process.cwd(), 'wrangler.jsonc'), join(created, 'wrangler.jsonc'));
 		writeFileSync(
 			join(created, 'package.json'),
-			'{\n\t"name": "cogsend",\n\t"version": "0.0.0"\n}\n'
+			'{\n\t"name": "posteasy",\n\t"version": "0.0.0"\n}\n'
 		);
 		writeFileSync(
 			join(created, '.dev.vars'),
@@ -143,7 +143,7 @@ ${npxBody}
 	it('stops instead of uploading a new key', () => {
 		const { root, bin } = scratch(`
 if (args.includes('whoami')) { console.log(${JSON.stringify(ACCOUNT_JSON)}); process.exit(0); }
-if (args.includes('d1') && args.includes('list')) { console.log(JSON.stringify([{ name: 'cogsend', uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }])); process.exit(0); }
+if (args.includes('d1') && args.includes('list')) { console.log(JSON.stringify([{ name: 'posteasy', uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }])); process.exit(0); }
 if (args.includes('secret') && args.includes('list')) { console.error('ERROR could not reach the Cloudflare API'); process.exit(1); }
 process.exit(0);
 `);
@@ -159,7 +159,7 @@ process.exit(0);
 		const { root, bin } = scratch(`
 if (args.includes('whoami')) { console.log(${JSON.stringify(ACCOUNT_JSON)}); process.exit(0); }
 if (args.includes('secret') && args.includes('list')) { console.log(JSON.stringify([{ name: 'APP_ENCRYPTION_KEY' }])); process.exit(0); }
-if (args.includes('d1') && args.includes('list')) { console.log(JSON.stringify([{ name: 'cogsend', uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }])); process.exit(0); }
+if (args.includes('d1') && args.includes('list')) { console.log(JSON.stringify([{ name: 'posteasy', uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }])); process.exit(0); }
 if (args.includes('d1') && args.includes('execute')) { console.log(JSON.stringify([{ results: [{ email: 'me@example.com' }], success: true, meta: {} }])); process.exit(0); }
 process.exit(0);
 `);
@@ -174,15 +174,15 @@ process.exit(0);
 		const { root, bin } = scratch(`
 if (args.includes('whoami')) { console.log(${JSON.stringify(ACCOUNT_JSON)}); process.exit(0); }
 if (args.includes('secret') && args.includes('list')) { console.log(JSON.stringify([{ name: 'APP_ENCRYPTION_KEY' }])); process.exit(0); }
-if (args.includes('d1') && args.includes('list')) { console.log(JSON.stringify([{ name: 'cogsend-demo', uuid: '${uuid}' }])); process.exit(0); }
+if (args.includes('d1') && args.includes('list')) { console.log(JSON.stringify([{ name: 'posteasy-demo', uuid: '${uuid}' }])); process.exit(0); }
 if (args.includes('d1') && args.includes('execute')) { console.log(JSON.stringify([{ results: [{ email: 'me@example.com' }], success: true, meta: {} }])); process.exit(0); }
 process.exit(0);
 `);
-		runSetup(root, bin, ['--skip-deploy', '--db', 'cogsend-demo']);
+		runSetup(root, bin, ['--skip-deploy', '--db', 'posteasy-demo']);
 		const config = readFileSync(join(root, 'wrangler.personal.jsonc'), 'utf8');
 		// Both, and they agree: the id binds the database, the name is what every
 		// command's output shows.
-		expect(config).toContain(`"database_name": "cogsend-demo"`);
+		expect(config).toContain(`"database_name": "posteasy-demo"`);
 		expect(config).toContain(`"database_id": "${uuid}"`);
 	});
 });

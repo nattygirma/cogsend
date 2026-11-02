@@ -1,12 +1,16 @@
-export type PlatformId = 'mastodon' | 'bluesky' | 'linkedin' | 'threads' | 'instagram' | 'x';
+export type PlatformId =
+	'bluesky' | 'linkedin' | 'threads' | 'instagram' | 'facebook' | 'youtube' | 'tiktok' | 'x';
 
-/** Canonical display order everywhere: X first, then Threads, Instagram, LinkedIn, Mastodon, Bluesky. */
+/** Canonical display order everywhere: X first, then the Meta platforms, the
+ *  video platforms, LinkedIn, Bluesky. */
 export const PLATFORM_ORDER: PlatformId[] = [
 	'x',
 	'threads',
 	'instagram',
+	'facebook',
+	'youtube',
+	'tiktok',
 	'linkedin',
-	'mastodon',
 	'bluesky'
 ];
 
@@ -23,8 +27,10 @@ export const PREVIEW_PRIORITY: PlatformId[] = [
 	'x',
 	'threads',
 	'instagram',
+	'facebook',
+	'youtube',
+	'tiktok',
 	'linkedin',
-	'mastodon',
 	'bluesky'
 ];
 
@@ -37,18 +43,18 @@ export function platformRank(platform: string): number {
 /** Whether a platform supports multi-post threads (mirrors provider capabilities). */
 export function supportsThreads(platform: string): boolean {
 	if (!isPlatformId(platform)) return true;
-	return (
-		platform === 'mastodon' || platform === 'bluesky' || platform === 'x' || platform === 'threads'
-	);
+	return platform === 'bluesky' || platform === 'x' || platform === 'threads';
 }
 
 export function platformName(p: string): string {
 	if (p === 'linkedin') return 'LinkedIn';
+	if (p === 'youtube') return 'YouTube';
+	if (p === 'tiktok') return 'TikTok';
 	if (p === 'x') return 'X';
 	return p.charAt(0).toUpperCase() + p.slice(1);
 }
 
-/** "Threads, Mastodon and Bluesky". */
+/** "Threads, LinkedIn and Bluesky". */
 export function platformNames(platforms: string[]): string {
 	const names = platforms.map((p) => platformName(p));
 	if (names.length <= 1) return names[0] ?? '';
@@ -74,7 +80,7 @@ export function displayHost(url: string | null | undefined): string {
 /**
  * One-line account label (`Name · handle`). Duplicates collapse to the
  * single full value, and a handle that repeats the name is omitted. Pass
- * `instanceUrl` (Mastodon) to qualify bare usernames to their globally
+ * `instanceUrl` (an account on a server of its own) to qualify bare usernames to their globally
  * unique @user@host form. Compact surfaces without a name use
  * displayHandle instead.
  */

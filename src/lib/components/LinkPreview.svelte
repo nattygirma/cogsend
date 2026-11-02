@@ -36,7 +36,7 @@
 
 	$effect(() => {
 		const url = candidate;
-		// Media wins: suppress the card (standard across Bluesky/Mastodon/
+		// Media wins: suppress the card (standard across Bluesky/
 		// Threads/LinkedIn — attachments replace the link card).
 		if (!url) {
 			preview = null;

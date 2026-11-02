@@ -2,14 +2,15 @@ import { platformName } from '#lib/domain/platforms.js';
 
 /**
  * The platforms whose client credentials belong to whoever runs the
- * deployment: LinkedIn issues them to an app owner, Meta to a Threads or an
- * Instagram app, X to a developer project. Only that person can create them, so a deployment
- * without them cannot connect the account at all.
+ * deployment: LinkedIn issues them to an app owner, Meta to a Threads, an
+ * Instagram or a Facebook app, Google to a Cloud project, TikTok to a developer
+ * app, X to a developer project. Only that person can create them, so a
+ * deployment without them cannot connect the account at all.
  *
- * Mastodon is absent on purpose — it registers its app on the instance itself —
- * and Bluesky takes an app password, so both are self-serve.
+ * Bluesky is absent on purpose: it takes an app password, so it is self-serve.
  */
-export type OAuthPlatformId = 'linkedin' | 'threads' | 'instagram' | 'x';
+export type OAuthPlatformId =
+	'linkedin' | 'threads' | 'instagram' | 'facebook' | 'youtube' | 'tiktok' | 'x';
 
 export type PlatformSetup = {
 	/** Worker secrets the connect route requires: it answers "not enabled"
@@ -71,6 +72,42 @@ export const PLATFORM_SETUP: Record<OAuthPlatformId, PlatformSetup> = {
 		docsAnchor: 'instagram',
 		note: 'Only Business and Creator accounts can post through the API.'
 	},
+	facebook: {
+		secrets: ['FACEBOOK_APP_ID', 'FACEBOOK_APP_SECRET'],
+		// Facebook Login for Business takes a configuration id instead of a
+		// scope list; classic Facebook Login needs neither.
+		optionalSecrets: ['FACEBOOK_CONFIG_ID'],
+		callbackPath: '/api/connections/facebook/callback',
+		consoleUrl: 'https://developers.facebook.com/apps/',
+		consoleName: 'Meta for Developers',
+		consoleRequirement:
+			'Create the app, add Facebook Login, and request the pages_show_list, pages_read_engagement and pages_manage_posts permissions. With Facebook Login for Business, create a configuration with those permissions and give PostEasy its Config ID too. While the app is in development only people with a role on it can connect, which is enough for Pages you manage.',
+		redirectField: 'Facebook Login → Settings → Valid OAuth Redirect URIs',
+		docsAnchor: 'facebook',
+		note: 'Posts go to Facebook Pages, not personal profiles.'
+	},
+	youtube: {
+		secrets: ['YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET'],
+		callbackPath: '/api/connections/youtube/callback',
+		consoleUrl: 'https://console.cloud.google.com/apis/credentials',
+		consoleName: 'Google Cloud console',
+		consoleRequirement:
+			'Enable the YouTube Data API v3 for the project, configure the OAuth consent screen with the youtube.upload and youtube.readonly scopes, add your Google account as a test user, then create an OAuth client ID of the type Web application.',
+		redirectField: 'the OAuth client → Authorized redirect URIs',
+		docsAnchor: 'youtube',
+		note: 'While the consent screen is in Testing, Google ends the connection after 7 days and it needs Reconnect.'
+	},
+	tiktok: {
+		secrets: ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET'],
+		callbackPath: '/api/connections/tiktok/callback',
+		consoleUrl: 'https://developers.tiktok.com/apps/',
+		consoleName: 'TikTok for Developers',
+		consoleRequirement:
+			'Create the app, add the Login Kit and Content Posting API products with Direct Post turned on, and request the user.info.basic and video.publish scopes. The redirect URI must be https.',
+		redirectField: 'Login Kit → Redirect URI',
+		docsAnchor: 'tiktok',
+		note: 'Until TikTok audits the app, it can only post videos visible to the account owner.'
+	},
 	x: {
 		// PKCE alone completes the exchange, so the secret is read (as HTTP
 		// Basic auth) only for a confidential "Web App" client.
@@ -88,6 +125,18 @@ export const PLATFORM_SETUP: Record<OAuthPlatformId, PlatformSetup> = {
 };
 
 export type PlatformConfigured = Record<OAuthPlatformId, boolean>;
+
+export const OAUTH_PLATFORM_IDS = Object.keys(PLATFORM_SETUP) as OAuthPlatformId[];
+
+/** One value per OAuth platform, for the records the accounts page keeps. */
+export function oauthPlatformRecord<T>(
+	value: (id: OAuthPlatformId) => T
+): Record<OAuthPlatformId, T> {
+	return Object.fromEntries(OAUTH_PLATFORM_IDS.map((id) => [id, value(id)])) as Record<
+		OAuthPlatformId,
+		T
+	>;
+}
 
 const SETUP_GUIDE_BASE = 'https://github.com/cogsend/cogsend/blob/main/docs/oauth-apps.md';
 
@@ -178,9 +227,18 @@ export function callbackUri(id: OAuthPlatformId, appUrl: string): string {
  * Self-serve platforms first, then the ones that may need server setup — the
  * order the accounts empty state lists them in.
  */
-const CONNECT_ORDER = ['bluesky', 'mastodon', 'linkedin', 'threads', 'instagram', 'x'] as const;
+const CONNECT_ORDER = [
+	'bluesky',
+	'linkedin',
+	'threads',
+	'instagram',
+	'facebook',
+	'youtube',
+	'tiktok',
+	'x'
+] as const;
 
-/** "Bluesky", "Bluesky or Mastodon", "Bluesky, Mastodon, or LinkedIn". */
+/** "Bluesky", "Bluesky or LinkedIn", "Bluesky, LinkedIn, or X". */
 export function joinPlatformNames(names: readonly string[]): string {
 	if (names.length <= 1) return names[0] ?? '';
 	if (names.length === 2) return `${names[0]} or ${names[1]}`;

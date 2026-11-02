@@ -2,17 +2,17 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const dest = '.svelte-kit/cloudflare/_worker.js';
 let src = readFileSync(dest, 'utf8');
-if (src.includes('__COGSEND_HANDLERS__')) process.exit(0);
+if (src.includes('__POSTEASY_HANDLERS__')) process.exit(0);
 
 const handlers = `
-/* __COGSEND_HANDLERS__ */
+/* __POSTEASY_HANDLERS__ */
 /**
  * Bearer for the internal tick/publish calls: an explicit secret, the API
  * token, or the value derived from APP_ENCRYPTION_KEY — the same derivation the
  * Worker itself uses (src/lib/server/derived-secrets.ts). The label below is
  * part of that contract and a unit test pins it to the app's constant.
  */
-async function cogsendSchedulerSecret(env) {
+async function posteasySchedulerSecret(env) {
 	if (env.SCHEDULER_SECRET) return env.SCHEDULER_SECRET;
 	if (env.API_TOKEN) return env.API_TOKEN;
 	if (!env.APP_ENCRYPTION_KEY) return null;
@@ -32,10 +32,10 @@ async function cogsendSchedulerSecret(env) {
 	return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function cogsendInternal(worker, env, ctx, path, body) {
-	const secret = await cogsendSchedulerSecret(env);
+async function posteasyInternal(worker, env, ctx, path, body) {
+	const secret = await posteasySchedulerSecret(env);
 	if (!secret) return null;
-	const req = new Request('https://cogsend.internal' + path, {
+	const req = new Request('https://posteasy.internal' + path, {
 		method: 'POST',
 		headers: {
 			Authorization: 'Bearer ' + secret,
@@ -57,7 +57,7 @@ export default {
 		// from a platform that never dispatched the trigger at all. These two
 		// lines are what wrangler tail can show.
 		ctx.waitUntil(
-			cogsendInternal(worker_default, env, ctx, '/api/internal/tick').then(
+			posteasyInternal(worker_default, env, ctx, '/api/internal/tick').then(
 				(res) => {
 					if (!res || !res.ok) {
 						console.error('[scheduler] tick rejected with HTTP ' + (res ? res.status : 'none'));
@@ -69,7 +69,7 @@ export default {
 	},
 	async queue(batch, env, ctx) {
 		for (const msg of batch.messages) {
-			const res = await cogsendInternal(worker_default, env, ctx, '/api/internal/publish', msg.body);
+			const res = await posteasyInternal(worker_default, env, ctx, '/api/internal/publish', msg.body);
 			// Only infrastructure failures land here (a platform failure is
 			// rescheduled by the app and answers 200). Give the cause a moment
 			// to clear instead of redelivering at once.

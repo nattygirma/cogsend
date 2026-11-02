@@ -10,8 +10,8 @@ import {
 describe('extractBearerToken', () => {
 	it('reads Authorization Bearer and alternate headers', () => {
 		expect(extractBearerToken(new Headers({ authorization: 'Bearer abc.def' }))).toBe('abc.def');
-		expect(extractBearerToken(new Headers({ 'x-cogsend-token': ' tok ' }))).toBe('tok');
-		expect(extractBearerToken(new Headers({ 'x-cogsend-scheduler': 'sched' }))).toBe('sched');
+		expect(extractBearerToken(new Headers({ 'x-posteasy-token': ' tok ' }))).toBe('tok');
+		expect(extractBearerToken(new Headers({ 'x-posteasy-scheduler': 'sched' }))).toBe('sched');
 		expect(extractBearerToken(new Headers())).toBeNull();
 	});
 });

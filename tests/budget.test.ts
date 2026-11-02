@@ -116,9 +116,9 @@ describe('counting wrappers', () => {
 describe('publishCallEstimate', () => {
 	const image = { mime: 'image/png', size: 1000, storageKey: 'k' };
 	it('grows with segments and attachments', () => {
-		const one = publishCallEstimate('mastodon', { text: 'hi' });
-		const withImages = publishCallEstimate('mastodon', { text: 'hi', media: [image, image] });
-		const thread = publishCallEstimate('mastodon', {
+		const one = publishCallEstimate('bluesky', { text: 'hi' });
+		const withImages = publishCallEstimate('bluesky', { text: 'hi', media: [image, image] });
+		const thread = publishCallEstimate('bluesky', {
 			text: 'a',
 			thread: [{ text: 'a' }, { text: 'b' }, { text: 'c' }]
 		});
@@ -131,9 +131,9 @@ describe('publishCallEstimate', () => {
 		expect(publishCallEstimate('zernio', withImages)).toBe(
 			publishCallEstimate('zernio', { text: 'hi' })
 		);
-		// Mastodon is sent the bytes: each image is a read on top of its upload.
-		expect(publishCallEstimate('mastodon', withImages)).toBe(
-			publishCallEstimate('mastodon', { text: 'hi' }) + 2 * (1 + 3)
+		// Bluesky is sent the bytes: each image is a read on top of its upload.
+		expect(publishCallEstimate('bluesky', withImages)).toBe(
+			publishCallEstimate('bluesky', { text: 'hi' }) + 2 * (1 + 1)
 		);
 	});
 
@@ -148,7 +148,7 @@ describe('publishCallEstimate', () => {
 
 	it('counts a video as work that parks, so its size does not decide', () => {
 		const video = (size: number) => ({ mime: 'video/mp4', size, storageKey: 'v.mp4' });
-		for (const platform of ['x', 'linkedin', 'bluesky', 'mastodon', 'threads']) {
+		for (const platform of ['x', 'linkedin', 'bluesky', 'threads']) {
 			const small = publishCallEstimate(platform, { text: 'hi', media: [video(1_000_000)] });
 			const huge = publishCallEstimate(platform, { text: 'hi', media: [video(300_000_000)] });
 			expect(huge, platform).toBe(small);
@@ -165,12 +165,12 @@ describe('publishing within a request budget', () => {
 	let connId: string;
 	let posted: string[];
 
-	const mastodon: FetchLike = async (input, init) => {
+	const x: FetchLike = async (input, init) => {
 		const url = typeof input === 'string' ? input : input.toString();
-		if (url.endsWith('/api/v1/statuses')) {
-			const body = JSON.parse(String(init?.body ?? '{}')) as { status: string };
-			posted.push(body.status);
-			return Response.json({ id: `s${posted.length}`, url: `https://m.test/@me/${posted.length}` });
+		if (url.endsWith('/2/tweets')) {
+			const body = JSON.parse(String(init?.body ?? '{}')) as { text: string };
+			posted.push(body.text);
+			return Response.json({ data: { id: `t${posted.length}` } });
 		}
 		return new Response('unmocked', { status: 404 });
 	};
@@ -191,14 +191,13 @@ describe('publishing within a request budget', () => {
 		await db.insert(connections).values({
 			id: connId,
 			userId,
-			platform: 'mastodon',
-			handle: 'me@m.test',
-			instanceUrl: 'https://m.test',
+			platform: 'x',
+			handle: 'me',
 			credentialsEncrypted: await encryptJson(
-				{ accessToken: 'token', instanceUrl: 'https://m.test' },
+				{ accessToken: 'token', xUserId: '42', xUsername: 'me' },
 				TEST_ENV.APP_ENCRYPTION_KEY
 			),
-			metaJson: JSON.stringify({ maxCharacters: 500 }),
+			metaJson: JSON.stringify({ xUserId: '42' }),
 			status: 'active',
 			createdAt: now,
 			updatedAt: now
@@ -242,7 +241,7 @@ describe('publishing within a request budget', () => {
 		const spent = new SubrequestBudget(50);
 		spent.count(49);
 		const deferred = await publishTarget(db, TEST_ENV, store, id, {
-			fetchImpl: mastodon,
+			fetchImpl: x,
 			budget: spent
 		});
 		expect(deferred).toMatchObject({ deferred: true, skipped: true });
@@ -252,7 +251,7 @@ describe('publishing within a request budget', () => {
 		expect(posted).toEqual([]);
 
 		const first = await publishTarget(db, TEST_ENV, store, id, {
-			fetchImpl: mastodon,
+			fetchImpl: x,
 			budget: spent,
 			mustTry: true
 		});
@@ -271,7 +270,7 @@ describe('publishing within a request budget', () => {
 		tight.count(40);
 		const result = await runSchedulerTick(db, TEST_ENV, {
 			store,
-			fetchImpl: mastodon as typeof fetch,
+			fetchImpl: x as typeof fetch,
 			budget: tight
 		});
 		expect(posted[0]).toBe('first due');
@@ -288,7 +287,7 @@ describe('publishing within a request budget', () => {
 		// The next tick, with a fresh budget, finishes the backlog.
 		const next = await runSchedulerTick(db, TEST_ENV, {
 			store,
-			fetchImpl: mastodon as typeof fetch,
+			fetchImpl: x as typeof fetch,
 			budget: new SubrequestBudget(10_000)
 		});
 		expect(next.deferred).toBe(0);
@@ -302,7 +301,7 @@ describe('publishing within a request budget', () => {
 		const ids = [await dueTarget('one', 3), await dueTarget('two', 2)];
 		const result = await runSchedulerTick(db, TEST_ENV, {
 			store,
-			fetchImpl: mastodon as typeof fetch
+			fetchImpl: x as typeof fetch
 		});
 		expect(result.deferred).toBe(0);
 		for (const id of ids) expect((await row(id)).status).toBe('published');

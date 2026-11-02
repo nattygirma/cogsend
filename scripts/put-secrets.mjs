@@ -162,7 +162,7 @@ for (const key of wanted) {
 	if (key === 'APP_URL' && isLocalAppUrl(value)) {
 		console.error('skip APP_URL: local .dev.vars points at localhost. Set production with:');
 		console.error('  node scripts/wrangler.mjs secret put APP_URL');
-		console.error('  (your production URL, e.g. https://cogsend.<account>.workers.dev)');
+		console.error('  (your production URL, e.g. https://posteasy.<account>.workers.dev)');
 		skipped.push(key);
 		continue;
 	}

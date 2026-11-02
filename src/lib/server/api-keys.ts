@@ -9,9 +9,9 @@ import { bytesToHex, randomHex, utf8Bytes } from '#lib/domain/bytes.js';
 import { first, newId, type AppDb } from './db/client';
 import { apiKeys } from './db/schema';
 
-/** Raw keys look like `cog_<64 hex>` (256 bits). The 12-char prefix
- *  (`cog_` + 6 hex) is stored alongside the hash for display only. */
-export const API_KEY_PREFIX = 'cog_';
+/** Raw keys look like `pe_<64 hex>` (256 bits). The 12-char prefix
+ *  (`pe_` + 6 hex) is stored alongside the hash for display only. */
+export const API_KEY_PREFIX = 'pe_';
 const RAW_HEX_LEN = 64;
 
 export function isApiKeyFormat(raw: string | null | undefined): raw is string {

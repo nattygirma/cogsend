@@ -481,8 +481,6 @@ export const linkedinProvider: PlatformProvider = {
 	capabilities: {
 		maxImages: LINKEDIN_MAX_IMAGES,
 		maxImageBytes: LINKEDIN_MAX_IMAGE_BYTES,
-		supportsCW: false,
-		supportsVisibility: false,
 		supportsThreads: false
 	},
 

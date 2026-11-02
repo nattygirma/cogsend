@@ -15,9 +15,7 @@ import {
 	asMachineUser,
 	cookieSecureFlag,
 	getAdminUser,
-	getSessionUser,
-	isFullyVerified,
-	needsTotpEnroll
+	getSessionUser
 } from '#lib/server/auth.js';
 import { createD1Db, first } from '#lib/server/db/client.js';
 import { ensureSchemaOnce } from '#lib/server/db/init-sql.js';
@@ -34,6 +32,8 @@ import {
 import { runSchedulerTick } from '#lib/server/scheduler.js';
 import { securityHeadersFor } from '#lib/server/security-headers.js';
 import { isPinnedAppUrl } from '#lib/domain/app-url.js';
+import { appkeepIdentity, appkeepLoginUrl, userForAppkeepIdentity } from '#lib/server/appkeep.js';
+import { OAUTH_PLATFORM_IDS, PLATFORM_SETUP } from '#lib/domain/platform-setup.js';
 import { readStoredAppUrl, rememberAppUrl } from '#lib/server/app-settings.js';
 import { carriesCredential, isCrossSiteForgery } from '#lib/server/csrf.js';
 import { verifyTickToken } from '#lib/server/tick-token.js';
@@ -46,27 +46,21 @@ import {
 } from '#lib/server/rate-limit.js';
 
 export function isPublicPath(path: string): boolean {
-	if (path === '/login' || path === '/login/setup-2fa' || path === '/login/verify') return true;
+	if (path === '/login' || path === '/signup') return true;
 	if (
 		path === '/api/health' ||
 		path.startsWith('/api/media/public/') ||
 		path.startsWith('/p/') ||
-		path.startsWith('/api/connections/mastodon/callback') ||
-		path.startsWith('/api/connections/linkedin/callback') ||
-		path.startsWith('/api/connections/threads/callback') ||
-		path.startsWith('/api/connections/instagram/callback') ||
-		path.startsWith('/api/connections/x/callback') ||
+		OAUTH_PLATFORM_IDS.some((id) => path.startsWith(PLATFORM_SETUP[id].callbackPath)) ||
 		path.startsWith('/api/connections/zernio/callback')
 	)
 		return true;
 	if (
 		path === '/api/auth/login' ||
-		path === '/api/auth/claim' ||
+		path === '/api/auth/signup' ||
 		path === '/api/auth/logout' ||
 		path === '/api/auth/me'
 	)
-		return true;
-	if (path.startsWith('/api/auth/totp/enroll') || path.startsWith('/api/auth/totp/verify'))
 		return true;
 	return false;
 }
@@ -88,6 +82,15 @@ function deny(path: string, status: number, body: unknown, secure: boolean, loca
 	}
 	return withPageSecurity(path, json(body, { status }), secure);
 }
+
+/** This app's own sign-in, sign-up and sign-out, which appkeep replaces. */
+const APPKEEP_HANDS_OFF = new Set([
+	'/login',
+	'/signup',
+	'/api/auth/login',
+	'/api/auth/signup',
+	'/api/auth/logout'
+]);
 
 let lastLocalTickAt = 0;
 
@@ -212,9 +215,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const hasCredential = carriesCredential(event.request.headers);
 	const admin = hasCredential ? await getAdminUser(db) : null;
 
-	const session = await getSessionUser(db, appEnv, raw);
-	event.locals.user = session?.user ?? null;
-	if (session?.user) {
+	// On appkeep the signed-in person is whoever appkeep says, never a cookie of
+	// this app's own: there is no login here to have set one.
+	const identity = appEnv.appkeep ? appkeepIdentity(event.request.headers) : null;
+	const session = appEnv.appkeep ? null : await getSessionUser(db, appEnv, raw);
+	event.locals.user = identity
+		? await userForAppkeepIdentity(db, identity)
+		: (session?.user ?? null);
+	if (event.locals.user) {
 		event.locals.authMethod = 'session';
 		event.locals.authCredential = 'session';
 	}
@@ -237,7 +245,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			event.locals.authCredential = 'api_token';
 		}
 	} else if (!event.locals.user || path === '/api/mcp') {
-		// Personal API key: `Authorization: Bearer cog_…` or the `X-API-Key`
+		// Personal API key: `Authorization: Bearer pe_…` or the `X-API-Key`
 		// header (never query strings — they leak into logs). Ordinary routes
 		// preserve session precedence; MCP resolves its bearer key independently.
 		// Format-gated before any hashing or D1 query; only active hashes verify.
@@ -354,35 +362,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	// Dev convenience: SKIP_TOTP (honored for localhost APP_URLs only) treats
-	// 2FA as satisfied so local runs skip the enroll/verify dance entirely.
-	if (appEnv.skipTotp && event.locals.user) {
-		event.locals.user = { ...event.locals.user, totpEnabled: true, mfaVerified: true };
-	}
-
-	if (event.locals.user?.totpEnabled && !event.locals.user.mfaVerified) {
-		event.locals.user = null;
-	}
-
 	const user = event.locals.user;
-	if (needsTotpEnroll(user)) {
-		const allowed =
-			path === '/login/setup-2fa' ||
-			path === '/login' ||
-			path.startsWith('/api/auth/totp/enroll') ||
-			path === '/api/auth/logout' ||
-			path === '/api/auth/me';
-		if (!allowed) {
-			if (path.startsWith('/api/'))
-				return deny(path, 401, { error: 'Unauthorized' }, secureRequest);
-			return deny(path, 303, { error: 'Unauthorized' }, secureRequest, '/login/setup-2fa');
-		}
-		return withPageSecurity(path, await resolve(event), secureRequest);
+	if (!appEnv.updates && (path === '/api/update' || path.startsWith('/api/update/'))) {
+		return deny(path, 404, { error: 'Updates are not installed from here' }, secureRequest);
 	}
-
-	if (!isFullyVerified(user) && !isPublicPath(path)) {
+	if (appEnv.appkeep && APPKEEP_HANDS_OFF.has(path)) {
+		// Signing in, up and out are appkeep's on appkeep.
+		if (path.startsWith('/api/')) return deny(path, 404, { error: 'Not found' }, secureRequest);
+		const next = event.url.searchParams.get('next') || '/';
+		return deny(path, 303, null, secureRequest, user ? '/' : appkeepLoginUrl(next));
+	}
+	if (!user && !isPublicPath(path)) {
 		if (path.startsWith('/api/')) return deny(path, 401, { error: 'Unauthorized' }, secureRequest);
-		return deny(path, 303, { error: 'Unauthorized' }, secureRequest, '/login');
+		const login = appEnv.appkeep ? appkeepLoginUrl(path + event.url.search) : '/login';
+		return deny(path, 303, { error: 'Unauthorized' }, secureRequest, login);
 	}
 
 	return withPageSecurity(path, await resolve(event), secureRequest);

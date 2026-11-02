@@ -6,7 +6,7 @@ export function extractBearerToken(headers: { get(name: string): string | null }
 		const match = /^Bearer\s+(\S+)/i.exec(auth.trim());
 		if (match?.[1]) return match[1];
 	}
-	const alt = headers.get('x-cogsend-token') || headers.get('x-cogsend-scheduler');
+	const alt = headers.get('x-posteasy-token') || headers.get('x-posteasy-scheduler');
 	const token = alt?.trim();
 	return token ? token : null;
 }

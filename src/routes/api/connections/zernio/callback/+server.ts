@@ -51,7 +51,7 @@ export const GET: RequestHandler = async ({ url, locals, cookies }) => {
 		);
 		if (!account) throw new Error('Zernio did not report the connected account');
 		const platform = fromZernioPlatform(account.platform);
-		if (!platform) throw new Error(`CogSend cannot post to ${account.platform}`);
+		if (!platform) throw new Error(`PostEasy cannot post to ${account.platform}`);
 		await upsertZernioConnection({
 			db: locals.db,
 			env: locals.env,

@@ -45,3 +45,6 @@ test-results
 # Written for one parity check and removed right after; see
 # scripts/check-release-parity.mjs.
 wrangler.parity-check.jsonc
+
+# appkeep package build (npm run appkeep:build)
+dist-appkeep/

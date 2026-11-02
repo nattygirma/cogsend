@@ -34,7 +34,7 @@ export interface ZernioPlatformEntry {
 export interface ZernioPost {
 	_id: string;
 	status?: string;
-	metadata?: { cogsendRequestId?: string };
+	metadata?: { posteasyRequestId?: string };
 	platforms?: ZernioPlatformEntry[];
 }
 
@@ -104,7 +104,7 @@ export function zernioHttpError(prefix: string, status: number, body: string): P
 		});
 	}
 	// These two get their own sentences: humanizeError turns "already scheduled"
-	// (Zernio's 409 wording) into CogSend's own schedule clash and "403" into a
+	// (Zernio's 409 wording) into PostEasy's own schedule clash and "403" into a
 	// platform policy refusal, both of which send the reader somewhere wrong.
 	if (status === 409) {
 		return new ProviderError(

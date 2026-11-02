@@ -27,15 +27,15 @@ function scratchCheckout(
 		deployedTo = null
 	}: { account?: string | null; deployedTo?: string | null } = {}
 ) {
-	const dir = mkdtempSync(join(tmpdir(), 'cogsend-doctor-'));
+	const dir = mkdtempSync(join(tmpdir(), 'posteasy-doctor-'));
 	dirs.push(dir);
 	cpSync('scripts', join(dir, 'scripts'), { recursive: true });
 	writeFileSync(
 		join(dir, 'wrangler.jsonc'),
 		JSON.stringify({
-			name: 'cogsend',
-			d1_databases: [{ binding: 'DB', database_name: 'cogsend', database_id: 'db-1' }],
-			r2_buckets: [{ binding: 'MEDIA', bucket_name: 'cogsend-media' }],
+			name: 'posteasy',
+			d1_databases: [{ binding: 'DB', database_name: 'posteasy', database_id: 'db-1' }],
+			r2_buckets: [{ binding: 'MEDIA', bucket_name: 'posteasy-media' }],
 			triggers: { crons: ['* * * * *'] }
 		})
 	);
@@ -44,13 +44,13 @@ function scratchCheckout(
 		`const args = process.argv.slice(2);
 if (process.env.WRANGLER_LOG === 'debug') {
 	const account = ${JSON.stringify(account)};
-	if (account) process.stderr.write('GET https://api.cloudflare.com/client/v4/accounts/' + account + '/workers/scripts/cogsend/secrets\\n');
+	if (account) process.stderr.write('GET https://api.cloudflare.com/client/v4/accounts/' + account + '/workers/scripts/posteasy/secrets\\n');
 	process.exit(1);
 }
 const out = (value) => process.stdout.write(typeof value === 'string' ? value : JSON.stringify(value));
 if (args[0] === 'whoami') out({ loggedIn: true, email: 'op@example.com', accounts: [{ name: 'Acct' }] });
-else if (args[0] === 'd1' && args[1] === 'list') out([{ uuid: 'db-1', name: 'cogsend' }]);
-else if (args[0] === 'r2') out('cogsend-media');
+else if (args[0] === 'd1' && args[1] === 'list') out([{ uuid: 'db-1', name: 'posteasy' }]);
+else if (args[0] === 'r2') out('posteasy-media');
 else if (args[0] === 'secret') out(${JSON.stringify(secretNames.map((name) => ({ name })))});
 else if (args[0] === 'd1' && args[1] === 'migrations') out('✅ No migrations to apply!');
 else if (args[0] === 'deployments') out('Deployed\\n  Created: 1 minute ago');
@@ -61,7 +61,7 @@ else out('');
 		mkdirSync(join(dir, '.wrangler'));
 		writeFileSync(
 			join(dir, '.wrangler', 'deployed-accounts.json'),
-			JSON.stringify({ cogsend: { accountId: deployedTo } })
+			JSON.stringify({ posteasy: { accountId: deployedTo } })
 		);
 	}
 	return dir;
@@ -80,7 +80,7 @@ describe('doctor CLI', () => {
 	it('reports the optional platforms, and that nothing is broken without them', () => {
 		const output = runDoctor(scratchCheckout(['APP_ENCRYPTION_KEY', 'SCHEDULER_SECRET']));
 		expect(output).toContain('LinkedIn, Threads, Instagram, X: no app credentials (optional)');
-		expect(output).toContain('Mastodon and Bluesky can be connected');
+		expect(output).toContain('Bluesky can be connected');
 		// Exit 0: a deployment without app credentials is complete.
 		expect(output).not.toMatch(/✗/);
 	});
@@ -124,7 +124,7 @@ describe('doctor CLI', () => {
 			})
 		);
 		expect(output).toContain(
-			'✗ Commands reach account fedcba9876543210fedcba9876543210, but cogsend was deployed to 0123456789abcdef0123456789abcdef'
+			'✗ Commands reach account fedcba9876543210fedcba9876543210, but posteasy was deployed to 0123456789abcdef0123456789abcdef'
 		);
 	});
 
@@ -136,7 +136,7 @@ describe('doctor CLI', () => {
 			})
 		);
 		expect(output).toContain(
-			'✓ Commands reach cogsend on 0123456789abcdef0123456789abcdef, where it is deployed'
+			'✓ Commands reach posteasy on 0123456789abcdef0123456789abcdef, where it is deployed'
 		);
 	});
 
@@ -152,7 +152,7 @@ describe('doctor CLI', () => {
 		);
 		expect(output).not.toContain('op@example.com');
 		expect(output).not.toContain('skipped (not signed in)');
-		expect(output).toContain('D1 database cogsend exists');
+		expect(output).toContain('D1 database posteasy exists');
 	});
 
 	it('names the profile to sign in when it reaches no account', () => {

@@ -5,7 +5,7 @@ export const ZERNIO_API_KEYS_URL = 'https://zernio.com/dashboard/api-keys';
 /** `oauth_pending.instance_url` value that marks a Zernio connect attempt. */
 export const ZERNIO_PENDING_MARKER = 'zernio';
 
-/** CogSend id → Zernio id. Mastodon is absent: Zernio does not support it. */
+/** PostEasy id → Zernio id. */
 const TO_ZERNIO: Partial<Record<PlatformId, string>> = {
 	x: 'twitter',
 	threads: 'threads',

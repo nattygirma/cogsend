@@ -1,6 +1,6 @@
 import { hasApiScope, type ApiScope } from '#lib/domain/api-scopes.js';
 import { anySecretMatches, extractBearerToken } from '#lib/domain/bearer.js';
-import { isFullyVerified, type SessionUser } from './auth';
+import { isFullyVerified, isOwner, type SessionUser } from './auth';
 import { unauthorized } from './http';
 import { verifyTickToken } from './tick-token';
 import type { AppDb } from './db/client';
@@ -60,5 +60,13 @@ export function requireScope(locals: { apiKeyScopes?: string[] | null }, scope: 
 	if (!scopes) return;
 	if (!hasApiScope(scopes as ApiScope[], scope)) {
 		throw Object.assign(new Error('Insufficient scope'), { status: 403 });
+	}
+}
+
+/** Only the instance owner (the first account) may change what every account
+ *  shares: platform app credentials, updates, the instance name. */
+export async function requireOwner(db: AppDb, user: SessionUser): Promise<void> {
+	if (!(await isOwner(db, user.id))) {
+		throw Object.assign(new Error('Only the workspace owner can change this'), { status: 403 });
 	}
 }

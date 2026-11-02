@@ -141,7 +141,7 @@ jobs:
           fi
           probe="$(mktemp -d)"
           git -C "$probe" init -q -b main
-          git -C "$probe" -c user.name=cogsend-release -c user.email=release@cogsend.com \
+          git -C "$probe" -c user.name=posteasy-release -c user.email=release@cogsend.com \
             commit -q --allow-empty -m "credential check"
           if git -C "$probe" push --dry-run "$remote" HEAD:refs/heads/credential-check 2>&1 | sed "s#${DEPLOY_REPO_TOKEN:-unset-token}#***#g"; then
             echo "The credential can push to cogsend/deploy."
@@ -198,6 +198,6 @@ jobs:
             echo "The deploy repository already holds ${TAG}."
             exit 0
           fi
-          git -c user.name="cogsend-release" -c user.email="release@cogsend.com" \
-            commit -m "CogSend ${TAG}"
+          git -c user.name="posteasy-release" -c user.email="release@cogsend.com" \
+            commit -m "PostEasy ${TAG}"
           git push origin "HEAD:${branch}"

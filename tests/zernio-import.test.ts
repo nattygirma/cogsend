@@ -59,7 +59,7 @@ describe('zernio import', () => {
 		expect(row.status).toBe('expired');
 	});
 
-	it('describes an account for the dialog and drops what CogSend cannot post to', () => {
+	it('describes an account for the dialog and drops what PostEasy cannot post to', () => {
 		const imported = new Set(['acc-9']);
 		expect(toImportable(account(), imported)).toEqual({
 			id: 'acc-1',

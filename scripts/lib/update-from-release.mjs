@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * What the "Update CogSend" Action runs in a Deploy-button repository: replace
+ * What the "Update PostEasy" Action runs in a Deploy-button repository: replace
  * the repository's files with another release, after checking every one of
  * them against that release's signature (see ./github-update.mjs). The Action
  * then commits, and Workers Builds deploys the commit.
@@ -43,7 +43,7 @@ function output(name, value) {
 
 async function download(url, accept) {
 	const res = await fetch(url, {
-		headers: { 'user-agent': 'cogsend-update', ...(accept && { accept }) }
+		headers: { 'user-agent': 'posteasy-update', ...(accept && { accept }) }
 	});
 	if (!res.ok) fail(`${url} answered HTTP ${res.status}`);
 	return res;
@@ -86,16 +86,16 @@ if (older && !rollback) {
 	);
 }
 
-const base = `https://github.com/${APP_REPO}/releases/download/${tag}/cogsend-${version}`;
+const base = `https://github.com/${APP_REPO}/releases/download/${tag}/posteasy-${version}`;
 const [manifestBytes, sigText, pack] = await Promise.all([
 	download(`${base}.manifest.json`).then(async (r) => Buffer.from(await r.arrayBuffer())),
 	download(`${base}.manifest.sig`).then((r) => r.text()),
 	download(`${base}.pack`).then(async (r) => Buffer.from(await r.arrayBuffer()))
 ]);
 
-// The deploy repository keeps one commit per release, titled "CogSend vX":
+// The deploy repository keeps one commit per release, titled "PostEasy vX":
 // stable releases on main, pre-releases on next.
-const source = mkdtempSync(join(tmpdir(), 'cogsend-release-'));
+const source = mkdtempSync(join(tmpdir(), 'posteasy-release-'));
 /** @type {string | null} */
 let leftForAPerson = null;
 try {
@@ -104,7 +104,7 @@ try {
 		encoding: 'utf8'
 	})
 		.split('\n')
-		.find((line) => line.slice(41) === `CogSend ${tag}`)
+		.find((line) => line.slice(41) === `PostEasy ${tag}`)
 		?.slice(0, 40);
 	if (!commit) fail(`${DEPLOY_REPO} has no commit for ${tag}`);
 	execFileSync('git', ['-C', source, 'checkout', '--quiet', commit]);

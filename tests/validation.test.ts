@@ -5,13 +5,8 @@ import {
 	platformLimit
 } from '#lib/domain/editor-limits.js';
 import { platformMark } from '#lib/domain/platform-marks.js';
-import {
-	countGraphemes,
-	mastodonWeightedLength,
-	validateBlueskyText,
-	validateMastodonText
-} from '#lib/domain/validation/text.js';
-import { blueskyProvider, buildLinkFacets, mastodonProvider } from '#lib/server/providers/index.js';
+import { countGraphemes, validateBlueskyText } from '#lib/domain/validation/text.js';
+import { blueskyProvider, buildLinkFacets } from '#lib/server/providers/index.js';
 import { utf8ByteLength } from '#lib/domain/bytes.js';
 
 describe('countGraphemes', () => {
@@ -39,40 +34,13 @@ describe('validateBlueskyText', () => {
 	});
 });
 
-describe('mastodonWeightedLength', () => {
-	it('counts plain text', () => {
-		expect(mastodonWeightedLength('hello world')).toBe(11);
-	});
-	it('counts URLs as 23', () => {
-		expect(mastodonWeightedLength('see https://example.com/very/long/path and more')).toBe(36);
-	});
-});
-
-describe('validateMastodonText', () => {
-	it('uses instance max', () => {
-		expect(validateMastodonText('a'.repeat(500), 500).ok).toBe(true);
-		expect(validateMastodonText('a'.repeat(501), 500).ok).toBe(false);
-	});
-});
-
 describe('provider validate', () => {
 	it('bluesky rejects long text', () => {
 		const issues = blueskyProvider.validate({ text: 'x'.repeat(350) });
 		expect(issues.some((i) => i.code === 'max_length')).toBe(true);
 	});
-	it('mastodon uses meta maxCharacters', () => {
-		expect(
-			mastodonProvider.validate({ text: 'a'.repeat(800) }, { maxCharacters: 1000 })
-		).toHaveLength(0);
-		expect(
-			mastodonProvider
-				.validate({ text: 'a'.repeat(600) }, { maxCharacters: 500 })
-				.some((i) => i.code === 'max_length')
-		).toBe(true);
-	});
 	it('rejects empty segment without media', () => {
 		expect(blueskyProvider.validate({ text: '   ' }).length).toBeGreaterThan(0);
-		expect(mastodonProvider.validate({ text: '' }).length).toBeGreaterThan(0);
 	});
 });
 
@@ -118,12 +86,12 @@ describe('bluesky media size validation', () => {
 });
 
 describe('publish disable gates selected platforms only', () => {
-	it('allows Mastodon-only 400-char post when Bluesky not selected', () => {
+	it('allows a LinkedIn-only 400-char post when Bluesky is not selected', () => {
 		expect(
 			isOverSelectedPlatformLimit({
-				selectedPlatforms: ['mastodon'],
+				selectedPlatforms: ['linkedin'],
 				blueskyLen: 400,
-				mastodonLen: 400
+				linkedinLen: 400
 			})
 		).toBe(false);
 	});
@@ -132,7 +100,7 @@ describe('publish disable gates selected platforms only', () => {
 			isOverSelectedPlatformLimit({
 				selectedPlatforms: ['bluesky'],
 				blueskyLen: 350,
-				mastodonLen: 100
+				linkedinLen: 100
 			})
 		).toBe(true);
 	});
@@ -141,16 +109,16 @@ describe('publish disable gates selected platforms only', () => {
 			isOverSelectedPlatformLimit({
 				selectedPlatforms: ['bluesky'],
 				blueskyLen: 100,
-				mastodonLen: 600
+				linkedinLen: 3500
 			})
 		).toBe(false);
 	});
 	it('blocks when both selected and one is over', () => {
 		expect(
 			isOverSelectedPlatformLimit({
-				selectedPlatforms: ['bluesky', 'mastodon'],
+				selectedPlatforms: ['bluesky', 'linkedin'],
 				blueskyLen: 301,
-				mastodonLen: 100
+				linkedinLen: 100
 			})
 		).toBe(true);
 	});
@@ -159,7 +127,6 @@ describe('publish disable gates selected platforms only', () => {
 			isOverSelectedPlatformLimit({
 				selectedPlatforms: ['bluesky'],
 				blueskyLen: 200,
-				mastodonLen: 0,
 				blueskyMax: 300
 			})
 		).toBe(false);
@@ -167,42 +134,42 @@ describe('publish disable gates selected platforms only', () => {
 });
 
 describe('platformLimit', () => {
-	const mastodon = (maxCharacters?: number) => ({
-		platform: 'mastodon',
+	const x = (maxCharacters?: number) => ({
+		platform: 'x',
 		metaJson: maxCharacters === undefined ? null : { maxCharacters }
 	});
 
-	it('uses the instance limit of the accounts it is given', () => {
-		expect(platformLimit('mastodon', [mastodon(500)])).toBe(500);
-		expect(platformLimit('mastodon', [mastodon(200)])).toBe(200);
-		// Several selected instances: the strictest of those.
-		expect(platformLimit('mastodon', [mastodon(200), mastodon(500)])).toBe(200);
+	it('uses the limit of the accounts it is given, the strictest of several', () => {
+		expect(platformLimit('x', [x(25_000)])).toBe(25_000);
+		expect(platformLimit('x', [x(25_000), x(280)])).toBe(280);
 	});
 
 	it('does not let an account outside the selection cap the post', () => {
 		// The bug this pins: the composer used to pass every connected account,
-		// so an unselected 200-character instance blocked text that only the
-		// 500-character one would have received.
-		const selected = [mastodon(500)];
-		expect(platformLimit('mastodon', selected)).toBe(500);
+		// so an unselected 280-character account blocked text that only the
+		// 25,000-character one would have received.
+		expect(platformLimit('x', [x(25_000)])).toBe(25_000);
 	});
 
-	it('falls back to the platform default, and ignores nonsense', () => {
-		expect(platformLimit('mastodon', [])).toBe(PLATFORM_LIMITS.mastodon);
-		expect(platformLimit('mastodon', [mastodon(0), mastodon(-5)])).toBe(PLATFORM_LIMITS.mastodon);
-		expect(platformLimit('mastodon', [{ platform: 'mastodon', metaJson: {} }])).toBe(
-			PLATFORM_LIMITS.mastodon
-		);
-		expect(platformLimit('bluesky', [])).toBe(PLATFORM_LIMITS.bluesky);
-		expect(platformLimit('linkedin', [mastodon(200)])).toBe(PLATFORM_LIMITS.linkedin);
-		expect(platformLimit('threads', [])).toBe(PLATFORM_LIMITS.threads);
+	it('falls back to the platform default', () => {
 		expect(platformLimit('x', [])).toBe(PLATFORM_LIMITS.x);
+		expect(platformLimit('bluesky', [])).toBe(PLATFORM_LIMITS.bluesky);
+		expect(platformLimit('linkedin', [x(200)])).toBe(PLATFORM_LIMITS.linkedin);
+		expect(platformLimit('threads', [])).toBe(PLATFORM_LIMITS.threads);
 	});
 });
 
 describe('platformMarks', () => {
 	it('answers a mark for every platform the app can connect', () => {
-		for (const platform of ['mastodon', 'bluesky', 'linkedin', 'threads', 'x']) {
+		for (const platform of [
+			'bluesky',
+			'linkedin',
+			'threads',
+			'x',
+			'facebook',
+			'youtube',
+			'tiktok'
+		]) {
 			expect(platformMark(platform), platform).toMatch(/^M/);
 		}
 		// Case-insensitive, because platform ids arrive from D1 and from URLs.

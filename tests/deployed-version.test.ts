@@ -93,10 +93,10 @@ describe('the wrapper tags deploys and guards against downgrades', () => {
 
 	/** A checkout at `version`, and a fake npx whose Worker serves `servingTag`. */
 	function checkout(version: string, serving: string | null) {
-		const root = mkdtempSync(join(tmpdir(), 'cogsend-guard-'));
+		const root = mkdtempSync(join(tmpdir(), 'posteasy-guard-'));
 		dir = root;
-		writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'cogsend', version }));
-		writeFileSync(join(root, 'wrangler.jsonc'), '{\n\t"name": "cogsend"\n}\n');
+		writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'posteasy', version }));
+		writeFileSync(join(root, 'wrangler.jsonc'), '{\n\t"name": "posteasy"\n}\n');
 		const bin = join(root, 'bin');
 		mkdirSync(bin);
 		writeFileSync(
@@ -164,7 +164,7 @@ process.exit(0);
 		rmSync(flagged.root, { recursive: true, force: true });
 
 		const env = checkout('1.12.3', 'v1.13.0');
-		expect(deploy(env.root, env.bin, [], { COGSEND_ALLOW_DOWNGRADE: '1' }).status).toBe(0);
+		expect(deploy(env.root, env.bin, [], { POSTEASY_ALLOW_DOWNGRADE: '1' }).status).toBe(0);
 	});
 
 	it('reads the serving tag from the config the deploy was given', () => {

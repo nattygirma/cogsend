@@ -56,8 +56,8 @@ describe('wrap-worker scheduler derivation', () => {
 	});
 
 	it('computes the same value as the app, with the same precedence', async () => {
-		const fnSource = source.match(/async function cogsendSchedulerSecret[\s\S]*?\n}/)?.[0];
-		expect(fnSource, 'cogsendSchedulerSecret not found in wrap-worker.mjs').toBeTruthy();
+		const fnSource = source.match(/async function posteasySchedulerSecret[\s\S]*?\n}/)?.[0];
+		expect(fnSource, 'posteasySchedulerSecret not found in wrap-worker.mjs').toBeTruthy();
 		// The generated handler runs in Workers, where TextEncoder and crypto.subtle
 		// are globals; hand it the same surface.
 		const schedulerSecret = runInNewContext(`(${fnSource})`, { crypto, TextEncoder }) as (

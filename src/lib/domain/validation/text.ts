@@ -15,22 +15,6 @@ export function countGraphemes(text: string): number {
 	return [...text].length;
 }
 
-export function mastodonWeightedLength(text: string, options: { urlLength?: number } = {}): number {
-	const urlLength = options.urlLength ?? 23;
-	if (!text) return 0;
-	const re = /https?:\/\/[^\s]+/gi;
-	let weighted = 0;
-	let lastIndex = 0;
-	let match: RegExpExecArray | null;
-	while ((match = re.exec(text)) !== null) {
-		weighted += countGraphemes(text.slice(lastIndex, match.index));
-		weighted += urlLength;
-		lastIndex = match.index + match[0].length;
-	}
-	weighted += countGraphemes(text.slice(lastIndex));
-	return weighted;
-}
-
 function tooLong(length: number, max: number, label: string) {
 	return {
 		ok: false as const,
@@ -63,22 +47,6 @@ export function validateBlueskyText(
 		};
 	}
 	return { ok: true, length, max: maxGraphemes };
-}
-
-export function validateMastodonText(
-	text: string,
-	maxChars = 500
-): { ok: boolean; length: number; max: number; message?: string } {
-	const length = mastodonWeightedLength(text);
-	if (length > maxChars) {
-		return {
-			ok: false,
-			length,
-			max: maxChars,
-			message: `${length} / ${maxChars} characters on this instance`
-		};
-	}
-	return { ok: true, length, max: maxChars };
 }
 
 export const LINKEDIN_MAX_CHARS = 3000;

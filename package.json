@@ -1,5 +1,5 @@
 {
-	"name": "cogsend",
+	"name": "posteasy",
 	"private": true,
 	"version": "1.22.0",
 	"description": "Minimal social scheduler for Mastodon, Bluesky, LinkedIn, Threads, Instagram, and X. SvelteKit on Cloudflare Workers, D1, and R2.",
@@ -31,6 +31,7 @@
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build && node scripts/wrap-worker.mjs",
+		"appkeep:build": "npm run build && wrangler deploy --dry-run --outdir dist-appkeep",
 		"preview": "node scripts/wrangler.mjs dev .svelte-kit/cloudflare/_worker.js --port 4173",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -40,7 +41,6 @@
 		"test:unit": "vitest",
 		"test": "vitest run",
 		"test:e2e": "playwright test",
-		"test:e2e:totp": "node scripts/e2e-totp.mjs",
 		"setup": "node scripts/setup.mjs",
 		"admin:reset": "node scripts/admin-reset.mjs",
 		"deploy": "node scripts/wrangler.mjs deploy",

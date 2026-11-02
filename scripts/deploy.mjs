@@ -72,7 +72,7 @@ function d1Json(sql) {
 	return parsed[0]?.results ?? [];
 }
 
-ui.headline('Deploying CogSend');
+ui.headline('Deploying PostEasy');
 
 // Before the tests: a deploy to the wrong account should not cost a test run
 // first.
@@ -97,7 +97,7 @@ guardTarget({
 const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
 const allowDowngrade =
 	process.argv.includes('--allow-downgrade') ||
-	['1', 'true', 'yes'].includes((process.env.COGSEND_ALLOW_DOWNGRADE ?? '').toLowerCase());
+	['1', 'true', 'yes'].includes((process.env.POSTEASY_ALLOW_DOWNGRADE ?? '').toLowerCase());
 if (!allowDowngrade) {
 	ui.progress('checking the deployed version');
 	const serving = servingTag((args) => {

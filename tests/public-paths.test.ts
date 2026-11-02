@@ -6,7 +6,10 @@ describe('isPublicPath', () => {
 		expect(isPublicPath('/api/media/public/abc123.jpg?exp=1&sig=2')).toBe(true);
 		expect(isPublicPath('/api/media/public/abc123.jpg')).toBe(true);
 		expect(isPublicPath('/api/health')).toBe(true);
-		expect(isPublicPath('/api/auth/claim')).toBe(true);
+		expect(isPublicPath('/api/auth/signup')).toBe(true);
+		expect(isPublicPath('/signup')).toBe(true);
+		expect(isPublicPath('/api/auth/claim')).toBe(false);
+		expect(isPublicPath('/login/setup-2fa')).toBe(false);
 		expect(isPublicPath('/api/drafts')).toBe(false);
 		expect(isPublicPath('/api/media/key-1')).toBe(false);
 		expect(isPublicPath('/')).toBe(false);

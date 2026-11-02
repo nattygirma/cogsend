@@ -115,7 +115,6 @@ describe('refreshImpossibleReason', () => {
 	});
 
 	it('providers without refreshable tokens omit the check', () => {
-		expect(getProvider('mastodon').refreshImpossibleReason).toBeUndefined();
 		expect(getProvider('bluesky').refreshImpossibleReason).toBeUndefined();
 	});
 });

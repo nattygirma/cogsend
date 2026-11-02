@@ -20,10 +20,6 @@ export interface VideoFacts {
 
 export interface VideoRuleMeta extends XLimitMeta {
 	provider?: string | null;
-	/** Mastodon: what the instance reports in `configuration.media_attachments`. */
-	videoSizeLimit?: number | null;
-	videoMatrixLimit?: number | null;
-	videoFrameRateLimit?: number | null;
 }
 
 /** In every message about a parked video; the composer and Posts read it to say "Processing". */
@@ -56,11 +52,6 @@ export interface VideoIssue {
 	level: 'error' | 'warn';
 	message: string;
 }
-
-// Mastodon's own defaults, used when an instance has not reported its limits.
-const MASTODON_VIDEO_BYTES = 99_000_000;
-const MASTODON_VIDEO_MATRIX = 8_294_400;
-const MASTODON_VIDEO_FPS = 120;
 
 const X_FREE_MAX_MS = 140_000;
 const X_PREMIUM_MAX_MS = 125 * 60_000;
@@ -118,12 +109,6 @@ function limitsFor(platform: string, meta: VideoRuleMeta | null | undefined): Li
 		}
 		case 'bluesky':
 			return { maxMs: 10 * 60_000, maxBytes: 300_000_000 };
-		case 'mastodon':
-			return {
-				maxBytes: meta?.videoSizeLimit || MASTODON_VIDEO_BYTES,
-				maxPixels: meta?.videoMatrixLimit || MASTODON_VIDEO_MATRIX,
-				maxFps: meta?.videoFrameRateLimit || MASTODON_VIDEO_FPS
-			};
 		case 'linkedin':
 			return { minMs: 3_000, maxMs: 30 * 60_000, minBytes: 75_000, maxBytes: 500_000_000 };
 		case 'threads':
@@ -149,6 +134,20 @@ function limitsFor(platform: string, meta: VideoRuleMeta | null | undefined): Li
 				maxFps: 60,
 				faststart: true
 			};
+		case 'tiktok':
+			// What the Content Posting API takes; the creator's own maximum
+			// (creator_info) can be shorter and is checked when it publishes.
+			return {
+				maxMs: 10 * 60_000,
+				maxBytes: 4_000_000_000,
+				codecs: ['avc', 'hevc'],
+				maxWidth: 4096,
+				minFps: 23,
+				maxFps: 60
+			};
+		// YouTube takes almost anything an MP4 holds; how long depends on whether
+		// the channel is verified, which only YouTube knows, so it has the last
+		// word. Facebook publishes no current limits for Page videos.
 		default:
 			return null;
 	}
@@ -205,10 +204,7 @@ export function videoIssues(
 			error(`${name} takes videos up to ${limits.maxWidth} pixels wide — this one is ${width}`);
 		}
 		if (limits.maxPixels && width * height > limits.maxPixels) {
-			const most =
-				limits.maxPixels === MASTODON_VIDEO_MATRIX
-					? '4K (3840×2160)'
-					: `${(limits.maxPixels / 1_000_000).toFixed(1)} million pixels`;
+			const most = `${(limits.maxPixels / 1_000_000).toFixed(1)} million pixels`;
 			error(`${name} takes videos up to ${most} — this one is ${width}×${height}`);
 		}
 	}

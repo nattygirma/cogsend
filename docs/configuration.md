@@ -67,9 +67,9 @@ The login is not one of these secrets. `npm run setup` writes the account into D
 
 The instance name — shown in the page title, the header, and the login screen —
 is set in **Settings → Instance** and stored in D1, so it needs no redeploy.
-`APP_NAME` (a plain `[vars]` entry, default `CogSend`) is the fallback for
-deployments that would rather keep it in config. The outbound `User-Agent`, the
-Mastodon app name, cookies, and API-key prefixes stay fixed so upgrades keep
+`APP_NAME` (a plain `[vars]` entry, default `PostEasy`) is the fallback for
+deployments that would rather keep it in config. The outbound `User-Agent`, cookies,
+and API-key prefixes stay fixed so upgrades keep
 working.
 
 `APP_URL` is the instance's public origin; `npm run setup` stores it as a Worker
@@ -144,21 +144,18 @@ WRANGLER_PROFILE=my-account npm run deploy
 
 A command without it uses the profile bound to the folder, or the default login.
 
-Each deploy records the account it went to in `.wrangler/deployed-accounts.json`. Commands that write, which are deploys, secrets, remote migrations, `setup` and `admin:reset`, print the account they are about to use and refuse to run against a different one. To move an instance to another account on purpose, deploy once with `COGSEND_ALLOW_ACCOUNT_CHANGE=1 npm run deploy`, which records the new account.
+Each deploy records the account it went to in `.wrangler/deployed-accounts.json`. Commands that write, which are deploys, secrets, remote migrations, `setup` and `admin:reset`, print the account they are about to use and refuse to run against a different one. To move an instance to another account on purpose, deploy once with `POSTEASY_ALLOW_ACCOUNT_CHANGE=1 npm run deploy`, which records the new account.
 
 ## The login
 
-There is one account, created one of two ways: `npm run setup` writes it into D1 from the terminal, before the deployment answers its first request, or, on an instance that has no account yet, the login page creates it once you enter the deployment's `APP_ENCRYPTION_KEY`. Only someone holding that key can do the second, so a fresh instance cannot be claimed by whoever finds its URL first, and once the account exists the form is gone. Only a PBKDF2-SHA256 hash is stored, and the password never becomes a Worker secret.
+Anyone can create an account on the **Create your account** page (`/signup`), and sign in with that email and password from then on. Each account keeps its own posts, connected accounts and API key. The first account created owns the workspace: only the owner can save platform app credentials, set up scheduled publishing, rename the workspace or install updates. `npm run setup` can still write the owner's account into D1 from the terminal before the deployment answers its first request. Only a PBKDF2-SHA256 hash of each password is stored, and passwords never become Worker secrets. There is no second factor.
 
-**Settings → Login** changes the email or the password. The current password is
-required, and a new password signs every device out.
+**Account** changes your name, picture, time zone, email or password, signs out your other devices, and deletes your account. The current password is required for the email, the password and deletion, and a new password signs every device out. The owner can delete their account only once nobody else has one.
 
 Forgot the password? `npm run admin:reset` from your checkout writes a new one and
 revokes every session, leaving the account, its drafts, connections and keys
-untouched. Add `--all` when the authenticator is gone too: that clears the
-enrolled device, and the next sign-in walks through enrollment again with a fresh
-QR and fresh backup codes. `npm run setup -- --reset-login` does the same thing as
-the default case while it is re-checking the resources.
+untouched. `npm run setup -- --reset-login` does the same thing while it is
+re-checking the resources.
 
 There is no emailed reset link and no reset route in the app. Recovery needs the
 same thing installing needs: your Cloudflare account, which is also where the

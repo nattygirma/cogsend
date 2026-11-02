@@ -1,20 +1,23 @@
 # OAuth apps and platform limits
 
-Mastodon and Bluesky connect with what you already have. LinkedIn, Threads,
-Instagram and X need an app registered at the provider first, because they issue the client id
+Bluesky connects with what you already have. LinkedIn, Threads,
+Instagram, Facebook, YouTube, TikTok and X need an app registered at the provider first, because they issue the client id
 and secret the Worker uses. If you would rather not register apps, the optional
 [Zernio provider](zernio.md) publishes to those platforms through Zernio's own.
 
 ## OAuth app setup
 
-Each one is the same three steps: create the app, add the redirect URI, give CogSend the app's credentials. The accounts dialog walks through all three: pick a platform marked **Needs setup** and it shows this instance's exact redirect URI and a form for the credentials.
+Each one is the same three steps: create the app, add the redirect URI, give PostEasy the app's credentials. The accounts dialog walks through all three: pick a platform marked **Needs setup** and it shows this instance's exact redirect URI and a form for the credentials.
 
-| Platform  | Where                                                                 | Redirect URI                                   | Worker secrets                                 |
-| --------- | --------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------- |
-| LinkedIn  | [LinkedIn Developer Portal](https://www.linkedin.com/developers/apps) | `{APP_URL}/api/connections/linkedin/callback`  | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` |
-| Threads   | [Meta for Developers](https://developers.facebook.com/apps/)          | `{APP_URL}/api/connections/threads/callback`   | `THREADS_APP_ID`, `THREADS_APP_SECRET`         |
-| Instagram | [Meta for Developers](https://developers.facebook.com/apps/)          | `{APP_URL}/api/connections/instagram/callback` | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`     |
-| X         | [X Developer Portal](https://developer.x.com/en/portal/dashboard)     | `{APP_URL}/api/connections/x/callback`         | `X_CLIENT_ID`, `X_CLIENT_SECRET`               |
+| Platform  | Where                                                                     | Redirect URI                                   | Worker secrets                                                            |
+| --------- | ------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------- |
+| LinkedIn  | [LinkedIn Developer Portal](https://www.linkedin.com/developers/apps)     | `{APP_URL}/api/connections/linkedin/callback`  | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`                            |
+| Threads   | [Meta for Developers](https://developers.facebook.com/apps/)              | `{APP_URL}/api/connections/threads/callback`   | `THREADS_APP_ID`, `THREADS_APP_SECRET`                                    |
+| Instagram | [Meta for Developers](https://developers.facebook.com/apps/)              | `{APP_URL}/api/connections/instagram/callback` | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`                                |
+| Facebook  | [Meta for Developers](https://developers.facebook.com/apps/)              | `{APP_URL}/api/connections/facebook/callback`  | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_CONFIG_ID` (optional) |
+| YouTube   | [Google Cloud console](https://console.cloud.google.com/apis/credentials) | `{APP_URL}/api/connections/youtube/callback`   | `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`                              |
+| TikTok    | [TikTok for Developers](https://developers.tiktok.com/apps/)              | `{APP_URL}/api/connections/tiktok/callback`    | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`                               |
+| X         | [X Developer Portal](https://developer.x.com/en/portal/dashboard)         | `{APP_URL}/api/connections/x/callback`         | `X_CLIENT_ID`, `X_CLIENT_SECRET`                                          |
 
 The last step works three ways:
 
@@ -35,7 +38,7 @@ the command finishes. Either way, reload the accounts page when you are done. A 
 
 ### Let a browser agent do it
 
-The dialog's first step has **Copy the agent prompt**: instructions for a browser-driving agent such as Claude in Chrome, with this instance's exact redirect URI and the console's requirements filled in. Paste it into the agent and it creates the app and types the credentials into CogSend's form itself, then stops before the provider's authorisation page, which is yours to approve. The prompt tells it never to repeat a secret in the chat, and to hand control back for anything that is yours to do: signing in, phone or identity verification, CAPTCHAs, accepting terms or paying.
+The dialog's first step has **Copy the agent prompt**: instructions for a browser-driving agent such as Claude in Chrome, with this instance's exact redirect URI and the console's requirements filled in. Paste it into the agent and it creates the app and types the credentials into PostEasy's form itself, then stops before the provider's authorisation page, which is yours to approve. The prompt tells it never to repeat a secret in the chat, and to hand control back for anything that is yours to do: signing in, phone or identity verification, CAPTCHAs, accepting terms or paying.
 
 ### LinkedIn
 
@@ -89,13 +92,73 @@ Instagram only lets Business and Creator accounts post through its API. A person
    connect under **App roles → Roles → Add People** as an **Instagram Tester**,
    and accept the invite in Instagram (Settings → Website permissions → Apps and
    websites → Tester invites).
-6. Give CogSend the credentials in the accounts dialog, or set the secrets:
+6. Give PostEasy the credentials in the accounts dialog, or set the secrets:
 
    ```sh
    npm run secrets:put INSTAGRAM_APP_ID INSTAGRAM_APP_SECRET
    ```
 
-Posting to an account you own needs no App Review. The token lasts 60 days and CogSend renews it when it publishes or when you press **Verify**; an account left untouched for longer shows as expired and needs **Reconnect**.
+Posting to an account you own needs no App Review. The token lasts 60 days and PostEasy renews it when it publishes or when you press **Verify**; an account left untouched for longer shows as expired and needs **Reconnect**.
+
+### Facebook
+
+PostEasy posts to Facebook Pages, not to personal profiles: Meta's API has no way to post to a profile.
+
+1. Create an app in the [Meta for Developers](https://developers.facebook.com/apps/)
+   dashboard. An app you already use for Threads or Instagram works too.
+2. Add **Facebook Login** (or **Facebook Login for Business**), and request the
+   `pages_show_list`, `pages_read_engagement` and `pages_manage_posts`
+   permissions.
+3. Under the login product's **Settings**, add the redirect URI to **Valid OAuth
+   Redirect URIs**.
+4. With Facebook Login for Business, create a **configuration** with those three
+   permissions and copy its **Config ID**. Classic Facebook Login needs none.
+5. Copy the **App ID** and **App secret** from **App settings → Basic**.
+6. Give PostEasy the credentials in the accounts dialog, or set the secrets:
+
+   ```sh
+   npm run secrets:put FACEBOOK_APP_ID FACEBOOK_APP_SECRET FACEBOOK_CONFIG_ID
+   ```
+
+While the app is in development, only people with a role on it can connect, which covers Pages you manage yourself; nothing needs App Review for that. Connecting adds every Page you grant during sign-in as its own account. Page tokens do not expire, but changing your Facebook password or removing the app ends them, and the Page then shows as expired until **Reconnect**.
+
+### YouTube
+
+1. In the [Google Cloud console](https://console.cloud.google.com/), create a
+   project (or pick one) and enable the **YouTube Data API v3**.
+2. Configure the **OAuth consent screen**: add the scopes
+   `https://www.googleapis.com/auth/youtube.upload` and
+   `https://www.googleapis.com/auth/youtube.readonly`, and add your Google
+   account under **Test users**.
+3. Under **Credentials**, create an **OAuth client ID** of the type **Web
+   application**, and add the redirect URI to **Authorized redirect URIs**.
+4. Give PostEasy the client id and secret in the accounts dialog, or set the secrets:
+
+   ```sh
+   npm run secrets:put YOUTUBE_CLIENT_ID YOUTUBE_CLIENT_SECRET
+   ```
+
+While the consent screen's publishing status is **Testing**, Google ends every connection 7 days after you approve it, and the channel shows as expired until **Reconnect**. Publishing the app (and, for anyone but yourself, passing Google's verification for the `youtube.upload` scope) removes that limit. A project can upload 100 videos a day by default.
+
+Each video takes a title (the post's first line when you leave it empty), a visibility that starts as **Private**, and whether it is made for kids, which YouTube requires you to say: the composer's **YouTube** button sets all three. The post becomes the video's description. A vertical video up to three minutes long becomes a Short on its own.
+
+### TikTok
+
+1. Create an app in [TikTok for Developers](https://developers.tiktok.com/apps/).
+2. Add **Login Kit** and the **Content Posting API** with **Direct Post** turned
+   on, and request the `user.info.basic` and `video.publish` scopes.
+3. Add the redirect URI under **Login Kit → Redirect URI**. TikTok only accepts
+   `https` addresses, so a local instance cannot connect.
+4. Copy the **Client key** and **Client secret**, then give them to PostEasy in the
+   accounts dialog, or set the secrets:
+
+   ```sh
+   npm run secrets:put TIKTOK_CLIENT_KEY TIKTOK_CLIENT_SECRET
+   ```
+
+Until TikTok audits the app, every video it posts is visible only to the account owner, and the account itself has to be private. Submitting the app for TikTok's audit lifts both.
+
+TikTok requires the person posting to choose some settings for every video, with nothing chosen for them: who can watch it, whether others may comment, duet or stitch, and whether it is commercial content. The composer's **TikTok** button shows them, checked with TikTok each time it opens, and a post cannot be scheduled until they are set. PostEasy posts videos only: TikTok's photo posts must come from a domain verified with TikTok.
 
 ### X
 
@@ -104,7 +167,7 @@ Posting to an account you own needs no App Review. The token lasts 60 days and C
    type **Web App**, and add the redirect URI as the **Callback URI / Redirect
    URL**.
 3. Copy the client id, plus the client secret if the app is a confidential
-   client (CogSend also completes the exchange with PKCE alone).
+   client (PostEasy also completes the exchange with PKCE alone).
 4. Set the secrets:
 
    ```sh
@@ -120,17 +183,19 @@ again; see [Domains and URLs](domains.md).
 Without these, those platforms are listed in the accounts dialog with a
 **Needs setup** badge. Picking one shows that platform's own steps — the redirect
 URI to register and the Worker secrets to set — instead of a connect attempt that
-cannot succeed. Mastodon and Bluesky keep working either way.
+cannot succeed. Bluesky keeps working either way.
 
 ## Platforms
 
 | Platform  | Auth                                                                     | Text                                         | Images                                                    | Video                                        | Threads                      |
 | --------- | ------------------------------------------------------------------------ | -------------------------------------------- | --------------------------------------------------------- | -------------------------------------------- | ---------------------------- |
-| Mastodon  | OAuth (per instance)                                                     | instance max (default 500)                   | 4, 16MB                                                   | instance max (default 99MB)                  | yes                          |
 | Bluesky   | handle + app password                                                    | 300                                          | 4, 2MB                                                    | up to 10 min, 300MB                          | yes                          |
 | LinkedIn  | OAuth (`openid profile email w_member_social`)                           | 3000                                         | 4, 8MB (no WebP)                                          | 3 s to 30 min, 500MB                         | no — flattened into one post |
 | Threads   | OAuth (`threads_basic threads_content_publish` `threads_manage_replies`) | 500, max 5 links                             | 4 uploadable, 10 allowed, 8MB JPEG/PNG                    | up to 5 min, 1GB                             | yes                          |
 | Instagram | OAuth (`instagram_business_basic instagram_business_content_publish`)    | 2200, max 30 hashtags                        | required: 1 to 10, 8MB JPEG (PNG and WebP sent as a copy) | a Reel on its own: 3 s to 15 min, 300MB      | no — flattened into one post |
+| Facebook  | OAuth (`pages_show_list pages_read_engagement pages_manage_posts`)       | 63,206                                       | up to 10, 10MB                                            | on its own                                   | no — flattened into one post |
+| YouTube   | OAuth (`youtube.upload youtube.readonly`)                                | description: 5,000 bytes; title: 100         | none                                                      | required, one per post                       | no — flattened into one post |
+| TikTok    | OAuth (`user.info.basic video.publish`)                                  | 2,200                                        | none                                                      | required, one per post, up to 10 min         | no — flattened into one post |
 | X         | OAuth 2.0 + PKCE                                                         | 280 (25,000 with a paid plan), max 1 cashtag | 4, 5MB (15MB GIF)                                         | 0.5 s to 2:20 (longer with X Premium), 512MB | yes                          |
 
 LinkedIn rejects WebP at publish time — upload JPEG, PNG or GIF.
@@ -147,4 +212,4 @@ those URLs are not signed and never expire, protected only by the randomness in
 the object key, so keep the origin unlisted and treat a leaked URL as permanent.
 A Reel's cover always goes through the signed route, since a new cover replaces the old one in place. Remove the variable to go back to signed URLs.
 
-Every platform takes one video per post, with no images beside it; on LinkedIn, which joins a thread into one post, that means one video for the whole thread. CogSend stores videos up to 300MB, whatever a platform allows. A Mastodon server reports its own video limits, which CogSend reads when you connect the account. Threads and Instagram fetch the video from the same signed URLs as images.
+Every platform takes one video per post, with no images beside it; on LinkedIn, which joins a thread into one post, that means one video for the whole thread. PostEasy stores videos up to 300MB, whatever a platform allows. Threads and Instagram fetch the video from the same signed URLs as images.

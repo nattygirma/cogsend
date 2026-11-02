@@ -5,9 +5,9 @@
  * anything itself.
  *
  * Three files per release:
- *   cogsend-<v>.manifest.json  what to upload, and where each piece sits in the pack
- *   cogsend-<v>.manifest.sig   Ed25519 over the manifest's exact bytes
- *   cogsend-<v>.pack           the worker modules, then every asset already base64'd
+ *   posteasy-<v>.manifest.json  what to upload, and where each piece sits in the pack
+ *   posteasy-<v>.manifest.sig   Ed25519 over the manifest's exact bytes
+ *   posteasy-<v>.pack           the worker modules, then every asset already base64'd
  *
  * The asset side mirrors wrangler (node_modules/wrangler/wrangler-dist/cli.js):
  * the same ignore defaults, the same 32-character hash (blake3 over the base64
@@ -251,7 +251,7 @@ export function buildBundle({
 
 	const manifest = {
 		format: MANIFEST_FORMAT,
-		name: 'cogsend',
+		name: 'posteasy',
 		version,
 		tag,
 		createdAt,
@@ -259,7 +259,7 @@ export function buildBundle({
 		manualOnly: Boolean(release.manualOnly),
 		schemaChange: Boolean(release.schemaChange),
 		notes: release.notes ?? null,
-		pack: { file: `cogsend-${version}.pack`, size: pack.length, sha256: sha256(pack) },
+		pack: { file: `posteasy-${version}.pack`, size: pack.length, sha256: sha256(pack) },
 		worker: {
 			mainModule,
 			modules: workerModules,

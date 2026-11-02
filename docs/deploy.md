@@ -1,4 +1,4 @@
-# Deploying CogSend
+# Deploying PostEasy
 
 Two ways to deploy. The **Deploy to Cloudflare** button is the recommended one: nothing to install, and updates later come through GitHub with no token. Your terminal with `npm run setup` is for changing the code, or for deploying without a GitHub or GitLab account. Both end the same way, with a Worker, a D1 database, an R2 bucket and your account ([Updating](updates.md)).
 
@@ -12,17 +12,15 @@ R2 asks for a payment method on file even on the free tier.
 1. Press the button and sign in to Cloudflare. It copies [cogsend/deploy](https://github.com/cogsend/deploy), a prebuilt release, into your GitHub or GitLab account (tick **Create private Git repository** if you like) and deploys it with Workers Builds.
 2. The form asks for one secret, `APP_ENCRYPTION_KEY`. Generate one at [cogsend.com/key](https://cogsend.com/key/) and save a copy: you need it again in step 4, and losing it later means reconnecting every account. Leave the other fields at their defaults, unless the form says a name is taken.
 3. Press **Create and deploy** and wait for the build to finish. If the Worker's **Domains** tab then shows its workers.dev URL as off, reload the page: the build turns the URL on as its last step, and the dashboard does not refresh by itself.
-4. Open the Worker's URL. The login page asks for the encryption key, an email and a password, and creates your account. Then scan the QR with an authenticator app and save the backup codes.
+4. Open the Worker's URL and choose **Create the first one**: the account you create owns the workspace. Do this straight away — until an account exists, whoever opens the URL first becomes the owner.
 
-Only someone who knows the encryption key can create the account, so finding the URL first is not enough to take over a fresh instance.
-
-The account needs a workers.dev subdomain before anything can deploy; a brand-new Cloudflare account is asked to pick one ([Custom domains](domains.md#the-workersdev-url)). Updates go through that repository's **Update CogSend** action, which Settings → Instance links to; keep Workers Builds connected ([Updating](updates.md#installed-with-the-deploy-to-cloudflare-button)).
+The account needs a workers.dev subdomain before anything can deploy; a brand-new Cloudflare account is asked to pick one ([Custom domains](domains.md#the-workersdev-url)). Updates go through that repository's **Update PostEasy** action, which Settings → Instance links to; keep Workers Builds connected ([Updating](updates.md#installed-with-the-deploy-to-cloudflare-button)).
 
 ## One command
 
 ```sh
-git clone --depth 1 https://github.com/cogsend/cogsend.git cogsend
-cd cogsend && npm install && npm run setup
+git clone --depth 1 https://github.com/cogsend/cogsend.git posteasy
+cd posteasy && npm install && npm run setup
 ```
 
 `setup` runs `wrangler login`, creates the D1 database and the R2 bucket if they
@@ -58,7 +56,7 @@ Its flags, for the cases the defaults deliberately avoid:
 A second instance, with names of its own:
 
 ```sh
-npm run setup -- --name my-cogsend --db my-cogsend --bucket my-cogsend-media
+npm run setup -- --name my-posteasy --db my-posteasy --bucket my-posteasy-media
 ```
 
 Those names live in `wrangler.personal.jsonc`, so every later command uses them.
@@ -76,10 +74,9 @@ This path needs no GitHub App and no Workers Builds, and nothing to configure in
 ## After the first deploy
 
 1. Open the Worker URL and sign in with the email and password `setup` created
-   (or, after the button, the account you just created). The first sign-in asks
-   for an authenticator app: scan the QR and save the backup codes it shows.
-2. Connect accounts under **Accounts**. Mastodon and Bluesky work immediately;
-   LinkedIn, Threads, Instagram and X need an OAuth app each, with the redirect URI built
+   (or, after the button, the account you just created).
+2. Connect accounts under **Accounts**. Bluesky works immediately;
+   LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X need an OAuth app each, with the redirect URI built
    from your deployed URL. The accounts dialog walks you through it, takes the
    app's credentials in a form, and can hand the whole job to a browser agent
    ([OAuth apps](oauth-apps.md)).
@@ -138,9 +135,9 @@ A fresh database needs no migration step — the schema bootstraps itself on the
 first request; an older one gets new migrations with `npm run db:migrate:remote`.
 
 To choose a location, or to reuse a database or bucket you already have, create
-them first: `node scripts/wrangler.mjs d1 create cogsend` prints an id for
+them first: `node scripts/wrangler.mjs d1 create posteasy` prints an id for
 `wrangler.personal.jsonc`, and `node scripts/wrangler.mjs r2 bucket create
-cogsend-media` makes the bucket. Otherwise the deploy creates both.
+posteasy-media` makes the bucket. Otherwise the deploy creates both.
 
 Optional secrets — `API_TOKEN` for scripts, `SCHEDULER_SECRET` for an external
 pinger, the OAuth client ids, Resend for failure emails, `MEDIA_PUBLIC_BASE_URL`

@@ -1,4 +1,3 @@
-import { createHmac } from 'node:crypto';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { expect, test, type Page } from '@playwright/test';
 import { buildMp4 } from '../mp4-fixture';
@@ -7,29 +6,12 @@ import {
 	E2E_D1_FLAGS,
 	attachUntilAnswered,
 	clickUntilVisible,
+	waitForLiveComposer,
 	e2eVars,
 	fillUntilKept
 } from './e2e-env';
 
-/** RFC 6238 TOTP (SHA-1, 30s) for the base32 secret shown on setup-2fa. */
-function totpCode(secretBase32: string, timeMs = Date.now()): string {
-	const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-	const clean = secretBase32.replace(/[^A-Z2-7]/gi, '').toUpperCase();
-	let bits = '';
-	for (const c of clean) bits += alphabet.indexOf(c).toString(2).padStart(5, '0');
-	const bytes: number[] = [];
-	for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
-	const msg = Buffer.alloc(8);
-	msg.writeBigUInt64BE(BigInt(Math.floor(timeMs / 30_000)));
-	const hmac = createHmac('sha1', Buffer.from(bytes)).update(msg).digest();
-	const offset = hmac[hmac.length - 1] & 0x0f;
-	return (((hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000) + '').padStart(6, '0');
-}
-
 const vars = e2eVars();
-// .dev.vars may set SKIP_TOTP=1 (local convenience): sign-in then lands in the
-// app directly and the enroll/verify steps are skipped.
-const SKIP_TOTP = ['1', 'true', 'yes', 'on'].includes((vars.SKIP_TOTP || '').toLowerCase());
 const DRAFT_TEXT = `e2e smoke ${Date.now()}`;
 
 /**
@@ -72,24 +54,6 @@ async function seedFirewalledBluesky(page: Page, handle: string): Promise<string
 	return connId;
 }
 
-/** A Mastodon row is enough for the composer; publish never touches it here. */
-async function seedMastodon(page: Page, handle: string): Promise<string> {
-	const { execSync } = await import('node:child_process');
-	const { randomUUID } = await import('node:crypto');
-	const blob = await encryptForTest({
-		accessToken: 'xxxx',
-		instanceUrl: 'https://mastodon.test'
-	});
-	const me = await page.request.get('/api/auth/me').then((r) => r.json());
-	const connId = randomUUID();
-	const now = Date.now();
-	execSync(
-		`node scripts/wrangler.mjs d1 execute DB --local ${E2E_D1_FLAGS} --command "INSERT INTO connections (id, user_id, platform, handle, instance_url, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${connId}', '${me.user.id}', 'mastodon', '${handle}', 'https://mastodon.test', '${blob}', '{}', 'active', ${now}, ${now})"`,
-		{ stdio: 'pipe' }
-	);
-	return connId;
-}
-
 async function deleteConnection(id: string): Promise<void> {
 	const { execSync } = await import('node:child_process');
 	execSync(
@@ -114,7 +78,7 @@ test.afterAll(async () => {
 	await page.close();
 });
 
-test('signs in and enrolls 2fa', async () => {
+test('signs in with email and password, no second step', async () => {
 	test.setTimeout(120_000);
 	await page.goto('/compose');
 	await expect(page).toHaveURL(/\/login$/);
@@ -122,28 +86,9 @@ test('signs in and enrolls 2fa', async () => {
 	await expect(page.getByTestId('brand-mark')).toBeVisible();
 	// Both fields have to survive hydration; see tests/e2e/e2e-env.ts.
 	await fillUntilKept(page.getByLabel('Email'), E2E_ACCOUNT.email);
-	await fillUntilKept(page.getByLabel('Password'), E2E_ACCOUNT.password);
+	await fillUntilKept(page.getByLabel('Password', { exact: true }), E2E_ACCOUNT.password);
 	await page.getByRole('button', { name: 'Sign in' }).click();
-	if (SKIP_TOTP) {
-		// Password is the whole login in this mode.
-		await expect(page).toHaveURL(/\/compose$/, { timeout: 20000 });
-		return;
-	}
-	await expect(page).toHaveURL(/\/login\/setup-2fa$/);
-	const secret = (await page.locator('code').first().innerText()).replace(/\s+/g, '');
-	await page.getByText('I saved these backup codes').click();
-	// Codes can straddle a 30s boundary: retry with a fresh code.
-	for (let attempt = 0; attempt < 3; attempt++) {
-		await page.getByPlaceholder('123456').fill(totpCode(secret));
-		await page.getByRole('button', { name: 'Confirm and continue' }).click();
-		try {
-			await expect(page).toHaveURL(/\/(compose)?$/, { timeout: 4000 });
-			return;
-		} catch {
-			/* retry */
-		}
-	}
-	throw new Error('2fa enroll did not complete');
+	await expect(page).toHaveURL(/\/$/, { timeout: 20000 });
 });
 
 test('autosaves a draft and restores it on reload', async () => {
@@ -227,7 +172,6 @@ test('a platform without app credentials shows its setup steps, not a failure', 
 	await expect(emptyState).toBeVisible();
 	const promised = (await emptyState.textContent()) ?? '';
 	expect(promised).toContain('Bluesky');
-	expect(promised).toContain('Mastodon');
 	for (const platform of OAUTH_SETUP) {
 		const configured = !missing.some((p) => p.id === platform.id);
 		expect([platform.id, promised.includes(platform.name)]).toEqual([platform.id, configured]);
@@ -293,7 +237,10 @@ test('a platform without app credentials shows its setup steps, not a failure', 
 	await copyUri.click();
 	// Icon-only button: the confirmation is the tick, announced to a screen
 	// reader through the status region rather than drawn as text.
-	await expect(page.getByTestId('copy-status').first()).toHaveText('Copied to clipboard');
+	// The platform cards behind the dialog carry copy buttons of their own.
+	await expect(
+		page.getByTestId('platform-setup-panel').getByTestId('copy-status').first()
+	).toHaveText('Copied to clipboard');
 	expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
 		((await redirectUri.textContent()) ?? '').trim()
 	);
@@ -336,15 +283,8 @@ test('settings defaults persist', async () => {
 	// The update line sits under the version: either a release link (when a
 	// newer one exists) or the manual check. It must never be blank.
 	await expect(page.getByTestId('version-line')).toContainText(/is available|Check for updates/);
-	await page.getByLabel('Mastodon visibility').selectOption('private');
 	await page.getByRole('button', { name: 'Save defaults' }).click();
 	await expect(page.getByText('Defaults saved')).toBeVisible();
-	const apiSettings = await page.request.get('/api/settings').then((r) => r.json());
-	if (apiSettings.settings?.mastoVisibility !== 'private') {
-		throw new Error(`settings API shows ${JSON.stringify(apiSettings)}`);
-	}
-	await page.reload();
-	await expect(page.getByLabel('Mastodon visibility')).toHaveValue('private');
 });
 
 test('scheduled publishing card explains the tick and mints a token', async () => {
@@ -397,71 +337,42 @@ test('the tick runs on demand and reports back', async () => {
 	await expect(page.getByTestId('scheduler-status-line')).toContainText('Last tick');
 });
 
-test('profile save leaves unsaved new-post defaults alone', async () => {
-	await page.goto('/settings');
+test('account profile saves the name and picture, and checks the picture URL', async () => {
+	await page.goto('/account');
 	const before = await page.request.get('/api/settings').then((r) => r.json());
 	const originalName: string | null = before.displayName ?? null;
+	const originalPicture: string = before.settings?.profilePictureUrl ?? '';
+	const profile = page.getByTestId('account-profile');
 
-	// Change a default but never save it, then save the profile: the profile card
-	// owns the name, so the pending default must not ride along with it.
-	const dirty = before.settings.mastoVisibility === 'unlisted' ? 'direct' : 'unlisted';
-	await page.getByLabel('Mastodon visibility').selectOption(dirty);
-	await page.getByLabel('Display Name').fill('Cross-card probe');
-	await page.getByRole('button', { name: 'Save Changes' }).click();
+	// Rejected in the browser: nothing reaches the API.
+	await profile.locator('#picture').fill('http://insecure.example/me.png');
+	await profile.getByRole('button', { name: 'Save profile' }).click();
+	await expect(page.getByText('The picture must be an https:// image URL')).toBeVisible();
+	expect(
+		(await page.request.get('/api/settings').then((r) => r.json())).settings.profilePictureUrl
+	).toBe(originalPicture);
+
+	await profile.locator('#picture').fill('https://example.com/me.png');
+	await profile.getByLabel('Display name').fill('Cross-card probe');
+	await profile.getByRole('button', { name: 'Save profile' }).click();
 	await expect(page.getByText('Profile saved')).toBeVisible();
 
 	const after = await page.request.get('/api/settings').then((r) => r.json());
 	expect(after.displayName).toBe('Cross-card probe');
-	expect(after.settings.mastoVisibility).toBe(before.settings.mastoVisibility);
+	expect(after.settings.profilePictureUrl).toBe('https://example.com/me.png');
+	// The profile owns the name and picture alone: new-post defaults stay put.
+	expect(after.settings.defaultAccountIds).toEqual(before.settings.defaultAccountIds);
 
 	// Leave the workspace as the following tests expect to find it.
-	await page.request.patch('/api/settings', { data: { displayName: originalName ?? '' } });
+	await page.request.patch('/api/settings', {
+		data: { displayName: originalName ?? '', profilePictureUrl: originalPicture }
+	});
 });
 
-test('profile picture dialog saves on its own and validates the URL', async () => {
-	await page.goto('/settings');
-	const before = await page.request.get('/api/settings').then((r) => r.json());
-	const originalPicture: string = before.settings?.profilePictureUrl ?? '';
-
-	await page.getByRole('button', { name: 'Add profile picture' }).click();
-	// A primary confirm focuses the button that continues, not Cancel: the
-	// dialog is a form, and the user came here to save. (The danger tone is the
-	// other way round — see ConfirmDialog.)
-	await expect
-		.poll(() => page.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? ''))
-		.toBe('confirm-dialog-ok');
-	await page.locator('#profile-picture-url').fill('http://insecure.example/me.png');
-	await page.getByTestId('confirm-dialog-ok').click();
-	await expect(page.getByText('Enter an https:// image URL')).toBeVisible();
-	// Rejected locally: nothing reached the API.
-	expect(
-		(await page.request.get('/api/settings').then((r) => r.json())).settings.profilePictureUrl
-	).toBe(originalPicture);
-
-	// Fixing the URL clears the message before the next save attempt.
-	await page.locator('#profile-picture-url').fill('https://example.com/me.png');
-	await expect(page.getByText('Enter an https:// image URL')).toBeHidden();
-	await page.getByTestId('confirm-dialog-ok').click();
-	await expect(page.getByText('Profile picture saved')).toBeVisible();
-
-	const saved = await page.request.get('/api/settings').then((r) => r.json());
-	expect(saved.settings.profilePictureUrl).toBe('https://example.com/me.png');
-	// The picture dialog owns the picture alone.
-	expect(saved.displayName).toBe(before.displayName);
-
-	// Remove it again so later tests meet the workspace they expect.
-	await page.getByRole('button', { name: 'Edit profile picture' }).click();
-	await page.getByRole('button', { name: 'Remove picture' }).click();
-	await expect(page.getByText('Profile picture removed')).toBeVisible();
-	expect(
-		(await page.request.get('/api/settings').then((r) => r.json())).settings.profilePictureUrl
-	).toBe(originalPicture);
-});
-
-test('profile menu appears after login with workspace navigation', async () => {
+test('profile menu and sidebar navigation appear after login', async () => {
 	// Guards the stale-layout-data regression: without fresh layout data after
 	// auth, the root layout keeps user:null and the menu never renders.
-	await page.goto('/compose');
+	await page.goto('/');
 	await expect(page.getByRole('button', { name: 'Profile menu' })).toBeVisible();
 	await clickUntilVisible(
 		page,
@@ -469,13 +380,13 @@ test('profile menu appears after login with workspace navigation', async () => {
 		page.getByRole('menuitem', { name: 'Settings' })
 	);
 	await expect(page.getByRole('menuitem', { name: 'Settings' })).toBeVisible();
-	await expect(page.getByRole('menuitem', { name: 'API docs' })).toBeVisible();
+	await expect(page.getByRole('menuitem', { name: 'Account' })).toBeVisible();
+	await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
 	await page.keyboard.press('Escape');
-	await page.getByRole('button', { name: 'Workspace menu' }).click();
-	await expect(page.getByRole('menuitem', { name: 'Compose' })).toBeVisible();
-	await expect(page.getByRole('menuitem', { name: 'Posts' })).toBeVisible();
-	await expect(page.getByRole('menuitem', { name: 'Accounts' })).toBeVisible();
-	await page.getByRole('menuitem', { name: 'Posts' }).click();
+	const nav = page.getByRole('navigation', { name: 'Primary' });
+	for (const name of ['Dashboard', 'Calendar', 'Posts', 'Accounts', 'Insights', 'Settings'])
+		await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
+	await nav.getByRole('link', { name: 'Posts', exact: true }).click();
 	await expect(page).toHaveURL(/\/posts/);
 });
 
@@ -483,12 +394,14 @@ test('publish asks for confirmation listing destinations', async () => {
 	test.setTimeout(120_000);
 	await seedFirewalledBluesky(page, 'test.bsky.social');
 	await page.goto('/compose');
+	// The account avatars render with the page; clicks before hydration are lost.
+	await waitForLiveComposer(page);
 	await clickUntilVisible(
 		page,
 		page.getByTestId('destinations-toggle'),
 		page.getByRole('button', { name: /test\.bsky\.social/ }).first()
 	);
-	// The dock truncates the handle to "test"; match the row's accessible name.
+	// The row shows the handle as "test"; match its accessible name.
 	await expect(page.getByRole('button', { name: /test\.bsky\.social/ }).first()).toBeVisible({
 		timeout: 15000
 	});
@@ -581,6 +494,8 @@ test('a saved draft restores the accounts it was written for', async () => {
 	// Both bluesky accounts exist by now (seeded by the two tests above);
 	// reuse them so the shared connection list stays unchanged.
 	await page.goto('/compose');
+	// The account avatars render with the page; clicks before hydration are lost.
+	await waitForLiveComposer(page);
 	await clickUntilVisible(
 		page,
 		page.getByTestId('destinations-toggle'),
@@ -609,6 +524,8 @@ test('a saved draft restores the accounts it was written for', async () => {
 	// The value above is server-rendered, so it can be on screen before Svelte
 	// has hydrated. A bare click here is lost and the popover never opens; this
 	// is the race clickUntilVisible exists for (see tests/e2e/e2e-env.ts).
+	// The account avatars render with the page; clicks before hydration are lost.
+	await waitForLiveComposer(page);
 	await clickUntilVisible(
 		page,
 		page.getByTestId('destinations-toggle'),
@@ -628,7 +545,7 @@ test('a saved draft restores the accounts it was written for', async () => {
 
 test('publish without asking hands off at once and still reports failures', async () => {
 	test.setTimeout(120_000);
-	await page.evaluate(() => localStorage.setItem('cogsend-skip-publish-confirm', '1'));
+	await page.evaluate(() => localStorage.setItem('posteasy-skip-publish-confirm', '1'));
 	await page.goto('/compose');
 	await fillUntilKept(page.getByTestId('segment-input-0'), 'skip-ask fan-out probe');
 	// No confirmation dialog: the click publishes straight away.
@@ -643,7 +560,7 @@ test('publish without asking hands off at once and still reports failures', asyn
 	await expect(toast).not.toContainText('still sending', { timeout: 30000 });
 	await expect(toast).toHaveAttribute('role', 'alert');
 	await page.getByTestId('toast-dismiss').click();
-	await page.evaluate(() => localStorage.removeItem('cogsend-skip-publish-confirm'));
+	await page.evaluate(() => localStorage.removeItem('posteasy-skip-publish-confirm'));
 });
 
 test('api key works logged out, stays out of key management', async () => {
@@ -660,9 +577,9 @@ test('api key works logged out, stays out of key management', async () => {
 		'href',
 		'/api#mcp-server-heading'
 	);
-	await expect(mcpSetup.locator('pre').nth(0)).toContainText('Bearer ${COGSEND_API_KEY}');
+	await expect(mcpSetup.locator('pre').nth(0)).toContainText('Bearer ${POSTEASY_API_KEY}');
 	await expect(mcpSetup.locator('pre').nth(1)).toContainText(
-		'bearer_token_env_var = "COGSEND_API_KEY"'
+		'bearer_token_env_var = "POSTEASY_API_KEY"'
 	);
 	await expect(mcpSetup.locator('pre').nth(1)).toContainText(
 		'default_tools_approval_mode = "prompt"'
@@ -678,7 +595,7 @@ test('api key works logged out, stays out of key management', async () => {
 	const reveal = page.getByTestId('api-key-reveal');
 	await expect(reveal).toBeVisible({ timeout: 15000 });
 	const rawKey = await page.getByTestId('api-key-value').innerText();
-	expect(rawKey.trim()).toMatch(/^cog_[0-9a-fA-F]{64}$/);
+	expect(rawKey.trim()).toMatch(/^pe_[0-9a-fA-F]{64}$/);
 	await page.getByRole('button', { name: 'I have saved it' }).click();
 	await expect(reveal).toBeHidden();
 	await expect(page.getByTestId('api-key-status')).toContainText(rawKey.trim().slice(0, 12));
@@ -687,7 +604,7 @@ test('api key works logged out, stays out of key management', async () => {
 
 	// The official Streamable HTTP client can initialize and call a read tool with this fresh key.
 	const supportedClient = new Client(
-		{ name: 'cogsend-settings-e2e', version: '1.0.0' },
+		{ name: 'posteasy-settings-e2e', version: '1.0.0' },
 		{ versionNegotiation: { mode: { pin: '2026-07-28' } } }
 	);
 	const supportedTransport = new StreamableHTTPClientTransport(new URL(`${origin}/api/mcp`), {
@@ -756,7 +673,7 @@ test('api key works logged out, stays out of key management', async () => {
 	await page.getByTestId('confirm-dialog-ok').click();
 	await expect(page.getByTestId('api-key-reveal')).toBeVisible({ timeout: 15000 });
 	const replacementKey = (await page.getByTestId('api-key-value').innerText()).trim();
-	expect(replacementKey).toMatch(/^cog_[0-9a-fA-F]{64}$/);
+	expect(replacementKey).toMatch(/^pe_[0-9a-fA-F]{64}$/);
 	await page.getByRole('button', { name: 'I have saved it' }).click();
 	expect(await page.content()).not.toContain(replacementKey);
 	expect(
@@ -827,7 +744,10 @@ test('composer chrome: counts, thread cards and override tabs', async () => {
 
 	// Bluesky override: add override, edit the card, unlink to re-sync.
 	await page.getByTestId('add-override-toggle').click();
-	await page.getByRole('button', { name: /test\.bsky\.social/ }).click();
+	await page
+		.getByTestId('override-menu')
+		.getByRole('button', { name: /test\.bsky\.social/ })
+		.click();
 	await expect(page.getByTestId('editor-tab-bluesky')).toBeVisible();
 	await fillUntilKept(page.getByTestId('segment-input-0'), 'bluesky-only text');
 	await expect(page.getByTestId('reset-platform-tab')).toBeVisible();
@@ -835,39 +755,6 @@ test('composer chrome: counts, thread cards and override tabs', async () => {
 	await expect(page.getByTestId('reset-platform-tab')).toHaveCount(0);
 	// Reset restores Global's body text in the card.
 	await expect(page.getByTestId('segment-input-0')).toHaveValue('gauge probe text');
-});
-
-test('mastodon options follow the selected destinations', async () => {
-	test.setTimeout(120_000);
-	// The settings test leaves visibility=private; a stored default alone must
-	// not surface the Mastodon strip while only Bluesky is selected.
-	await page.goto('/compose');
-	await expect(page.getByTestId('masto-options')).toHaveCount(0);
-
-	const mastoId = await seedMastodon(page, 'masto@test');
-	try {
-		// The fresh composer selects every active account, Mastodon included.
-		await page.goto('/compose');
-		await expect(page.getByTestId('masto-options')).toBeVisible({ timeout: 15000 });
-		await clickUntilVisible(
-			page,
-			page.getByTestId('masto-settings-toggle'),
-			page.getByTestId('masto-visibility')
-		);
-		await expect(page.getByTestId('masto-visibility')).toBeVisible();
-		await expect(page.getByTestId('masto-cw')).toBeVisible();
-		await page.keyboard.press('Escape');
-
-		// Deselecting Mastodon hides the strip again.
-		await page.getByTestId('destinations-toggle').click();
-		await page.getByRole('button', { name: 'Clear all' }).click();
-		await page.locator('button[title="Bluesky: test.bsky.social"]').click();
-		await page.keyboard.press('Escape');
-		await expect(page.getByTestId('masto-options')).toHaveCount(0);
-	} finally {
-		// Keep the shared connection list stable for the tests that follow.
-		await deleteConnection(mastoId);
-	}
 });
 
 test('short paste stays in the card', async () => {
@@ -894,9 +781,12 @@ test('overflow paste auto-splits across cards', async () => {
 	await clickUntilVisible(
 		page,
 		page.getByTestId('add-override-toggle'),
-		page.getByRole('button', { name: /test\.bsky\.social/ })
+		page.getByTestId('override-menu').getByRole('button', { name: /test\.bsky\.social/ })
 	);
-	await page.getByRole('button', { name: /test\.bsky\.social/ }).click();
+	await page
+		.getByTestId('override-menu')
+		.getByRole('button', { name: /test\.bsky\.social/ })
+		.click();
 	await expect(page.getByTestId('editor-tab-bluesky')).toBeVisible();
 	// 12 sentences ≈ 250+ chars: over Bluesky's 300 cap only when longer.
 	const long = Array.from(
@@ -950,6 +840,8 @@ test('a long link preview stays inside its thread card', async () => {
 	// The second card is what makes the two widths comparable, so a
 	// thread-capable destination has to be selected: a stored default from an
 	// earlier test can leave only LinkedIn on.
+	// The account avatars render with the page; clicks before hydration are lost.
+	await waitForLiveComposer(page);
 	await clickUntilVisible(
 		page,
 		page.getByTestId('destinations-toggle'),
@@ -1008,10 +900,9 @@ test('navigating away with pending edits flushes the draft', async () => {
 	await page.goto('/compose');
 	const text = `flush probe ${Date.now()}`;
 	await fillUntilKept(page.getByTestId('segment-input-0'), text);
-	// Leave within the autosave debounce window via SPA navigation.
-	await page.getByRole('button', { name: 'Workspace menu' }).click();
-	await page.getByRole('menuitem', { name: 'Posts' }).click();
-	await expect(page).toHaveURL(/\/posts/);
+	// Close the composer within the autosave debounce window.
+	await page.getByRole('button', { name: 'Close composer' }).click();
+	await expect(page).toHaveURL(/\/$/);
 	// The flush runs during navigation: poll the API for the created draft.
 	await expect
 		.poll(
@@ -1022,8 +913,8 @@ test('navigating away with pending edits flushes the draft', async () => {
 			{ timeout: 20000 }
 		)
 		.toBeTruthy();
-	// And it shows up in the UI after a reload.
-	await page.reload();
+	// And it shows up with the drafts.
+	await page.goto('/posts?tab=drafts');
 	await expect(page.getByText(text)).toBeVisible({ timeout: 20000 });
 });
 
@@ -1039,14 +930,16 @@ test('publish confirmation can be skipped and reset from settings', async () => 
 	await expect(dialog).toBeVisible();
 	await dialog.getByRole('checkbox').check();
 	await page.getByRole('button', { name: 'Keep editing' }).click();
-	expect(await page.evaluate(() => localStorage.getItem('cogsend-skip-publish-confirm'))).toBe('1');
+	expect(await page.evaluate(() => localStorage.getItem('posteasy-skip-publish-confirm'))).toBe(
+		'1'
+	);
 	// Reset from Settings.
 	await page.goto('/settings');
 	const ask = page.getByRole('switch', { name: /Ask for confirmation before publishing/ });
 	await expect(ask).not.toBeChecked();
 	await ask.click();
 	expect(
-		await page.evaluate(() => localStorage.getItem('cogsend-skip-publish-confirm'))
+		await page.evaluate(() => localStorage.getItem('posteasy-skip-publish-confirm'))
 	).toBeNull();
 });
 
@@ -1061,8 +954,9 @@ test('destinations dock shows on mobile layout', async () => {
 test('the header keeps a Write button on a phone', async () => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto('/posts');
-	await page.getByRole('link', { name: 'Write', exact: true }).click();
+	await page.getByTestId('write-new-post-mobile').click();
 	await expect(page).toHaveURL(/\/compose$/);
+	await expect(page.getByRole('dialog', { name: 'Create Post' })).toBeVisible();
 	await page.setViewportSize({ width: 1280, height: 800 });
 });
 
@@ -1220,7 +1114,7 @@ test('posts keeps its tab and search across a round trip', async () => {
 	await fillUntilKept(search, 'dropdown probe');
 	await expect(page.getByText('dropdown probe')).toBeVisible();
 
-	await page.getByRole('link', { name: 'Write', exact: true }).click();
+	await page.getByTestId('write-new-post-sidebar').click();
 	await expect(page).toHaveURL(/\/compose$/);
 	await page.goBack();
 	await expect(page).toHaveURL(/\/posts\?tab=published$/);
@@ -1228,9 +1122,11 @@ test('posts keeps its tab and search across a round trip', async () => {
 	await expect(search).toHaveValue('dropdown probe');
 	await expect(page.getByText('dropdown probe')).toBeVisible();
 
-	// The menu's Posts link starts over on All, even from another tab.
-	await page.getByRole('button', { name: 'Workspace menu' }).click();
-	await page.getByRole('menuitem', { name: 'Posts' }).click();
+	// The sidebar's Posts link starts over on All, even from another tab.
+	await page
+		.getByRole('navigation', { name: 'Primary' })
+		.getByRole('link', { name: 'Posts', exact: true })
+		.click();
 	await expect(page).toHaveURL(/\/posts$/);
 	await expect(tabs.getByRole('link', { name: /^all posts/i })).toHaveAttribute(
 		'aria-current',
@@ -1267,12 +1163,14 @@ test('linkedin filter shows the profile name, not the email', async () => {
 	await expect(page.getByRole('menuitemradio', { name: 'Test User' })).toBeVisible();
 	await expect(page.getByRole('menuitemradio', { name: /person@example\.com/ })).toHaveCount(0);
 });
-test('single-destination composer hides thread, override and mastodon chrome', async () => {
+test('single-destination composer hides thread and override chrome', async () => {
 	// The LinkedIn account seeded by the filter test is still connected.
 	// LinkedIn cannot thread, so with it as the only destination neither the
 	// thread affordance nor an override (the Global body already is its body)
-	// nor the Mastodon options have anything to act on.
+	// has anything to act on.
 	await page.goto('/compose');
+	// The account avatars render with the page; clicks before hydration are lost.
+	await waitForLiveComposer(page);
 	await clickUntilVisible(
 		page,
 		page.getByTestId('destinations-toggle'),
@@ -1285,7 +1183,6 @@ test('single-destination composer hides thread, override and mastodon chrome', a
 	await page.keyboard.press('Escape');
 	await expect(page.getByTestId('add-thread-post')).toHaveCount(0);
 	await expect(page.getByTestId('add-override-toggle')).toHaveCount(0);
-	await expect(page.getByTestId('masto-options')).toHaveCount(0);
 
 	// A second, thread-capable destination brings both affordances back.
 	await page.getByTestId('destinations-toggle').click();

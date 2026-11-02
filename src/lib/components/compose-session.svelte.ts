@@ -11,4 +11,6 @@ export const composeSession = $state<{
 	/** Something is open that Write would put away: a saved post or typed text. */
 	hasContent: boolean;
 	startNew: (() => void) | null;
-}>({ active: false, hasContent: false, startNew: null });
+	/** Saves what the open editor has not saved yet, before the composer closes. */
+	flush: (() => Promise<void>) | null;
+}>({ active: false, hasContent: false, startNew: null, flush: null });

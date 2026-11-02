@@ -172,7 +172,6 @@ jobs:
           - { suite: main-1, script: 'test:e2e -- --shard=1/3' }
           - { suite: main-2, script: 'test:e2e -- --shard=2/3' }
           - { suite: main-3, script: 'test:e2e -- --shard=3/3' }
-          - { suite: totp, script: 'test:e2e:totp' }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

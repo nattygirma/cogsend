@@ -37,13 +37,13 @@ afterEach(() => {
 });
 
 function scratch() {
-	const dir = mkdtempSync(join(tmpdir(), 'cogsend-target-'));
+	const dir = mkdtempSync(join(tmpdir(), 'posteasy-target-'));
 	dirs.push(dir);
 	return dir;
 }
 
 const requestLine = (account: string) =>
-	`-- START CF API REQUEST: GET https://api.cloudflare.com/client/v4/accounts/${account}/workers/scripts/cogsend/secrets`;
+	`-- START CF API REQUEST: GET https://api.cloudflare.com/client/v4/accounts/${account}/workers/scripts/posteasy/secrets`;
 
 /** A wrangler that answers the probe from `account` and whoami with `names`. */
 function fakeRun(account: string | null, names: Record<string, string> = {}) {
@@ -90,7 +90,7 @@ describe('which commands are checked', () => {
 		[['d1', 'execute', 'DB', '--local', '--command', 'x'], false],
 		[['d1', 'migrations', 'apply', 'DB', '--remote'], true],
 		[['d1', 'migrations', 'list', 'DB', '--remote'], false],
-		[['d1', 'create', 'cogsend'], true],
+		[['d1', 'create', 'posteasy'], true],
 		[['r2', 'bucket', 'create', 'media'], true],
 		[['r2', 'bucket', 'list'], false],
 		[['whoami'], false],
@@ -103,22 +103,22 @@ describe('which commands are checked', () => {
 describe('the deploy record', () => {
 	it('keeps one account per Worker and rewrites only on a change', () => {
 		const file = join(scratch(), '.wrangler', 'deployed-accounts.json');
-		expect(recordedAccount('cogsend', file)).toBeNull();
-		expect(recordAccount('cogsend', HOME, { file })).toBe(true);
-		expect(recordAccount('cogsend', HOME, { file })).toBe(false);
+		expect(recordedAccount('posteasy', file)).toBeNull();
+		expect(recordAccount('posteasy', HOME, { file })).toBe(true);
+		expect(recordAccount('posteasy', HOME, { file })).toBe(false);
 		expect(recordAccount('other-instance', OTHER, { file })).toBe(true);
-		expect(recordedAccount('cogsend', file)).toBe(HOME);
+		expect(recordedAccount('posteasy', file)).toBe(HOME);
 		expect(recordedAccount('other-instance', file)).toBe(OTHER);
 	});
 
 	it('ignores a record that is not an account id', () => {
 		const dir = scratch();
 		const file = join(dir, 'records.json');
-		writeFileSync(file, JSON.stringify({ cogsend: { accountId: 'not-an-id' } }));
-		expect(recordedAccount('cogsend', file)).toBeNull();
+		writeFileSync(file, JSON.stringify({ posteasy: { accountId: 'not-an-id' } }));
+		expect(recordedAccount('posteasy', file)).toBeNull();
 		writeFileSync(file, 'not json');
-		expect(recordedAccount('cogsend', file)).toBeNull();
-		expect(recordAccount('cogsend', 'nope', { file })).toBe(false);
+		expect(recordedAccount('posteasy', file)).toBeNull();
+		expect(recordAccount('posteasy', 'nope', { file })).toBe(false);
 	});
 });
 
@@ -126,9 +126,9 @@ describe('checking the target', () => {
 	function setup(recorded: string | null) {
 		const dir = scratch();
 		const config = join(dir, 'wrangler.jsonc');
-		writeFileSync(config, JSON.stringify({ name: 'cogsend' }));
+		writeFileSync(config, JSON.stringify({ name: 'posteasy' }));
 		const file = join(dir, 'records.json');
-		if (recorded) recordAccount('cogsend', recorded, { file });
+		if (recorded) recordAccount('posteasy', recorded, { file });
 		return { args: ['--config', config], file };
 	}
 
@@ -138,14 +138,14 @@ describe('checking the target', () => {
 		expect(check.verdict).toBe('mismatch');
 		const told = explainTarget(check);
 		expect(told.refuse).toBe(true);
-		expect(told.headline).toContain(`deployed cogsend to account ${HOME}`);
+		expect(told.headline).toContain(`deployed posteasy to account ${HOME}`);
 		expect(told.headline).toContain(`would reach ${OTHER}`);
 		// Pinning account_id is not the fix here: with the wrong login it only
 		// turns this refusal into an authentication error.
 		expect(told.notes.join('\n')).toContain(`use a login that reaches ${HOME}`);
 		expect(told.notes.join('\n')).toContain('npx wrangler auth activate <profile>');
 		expect(told.notes.join('\n')).not.toContain('account_id');
-		expect(told.notes.join('\n')).toContain('COGSEND_ALLOW_ACCOUNT_CHANGE=1 npm run deploy');
+		expect(told.notes.join('\n')).toContain('POSTEASY_ALLOW_ACCOUNT_CHANGE=1 npm run deploy');
 	});
 
 	it('lets a deliberate move through', () => {
@@ -153,7 +153,7 @@ describe('checking the target', () => {
 		const check = checkTarget({
 			args,
 			file,
-			env: { COGSEND_ALLOW_ACCOUNT_CHANGE: '1' },
+			env: { POSTEASY_ALLOW_ACCOUNT_CHANGE: '1' },
 			run: fakeRun(OTHER).run
 		});
 		expect(check.verdict).toBe('changing');
@@ -170,7 +170,7 @@ describe('checking the target', () => {
 		});
 		expect(check.verdict).toBe('match');
 		expect(explainTarget(check).headline).toBe(
-			`target: cogsend on Home (${HOME}) · profile personal`
+			`target: posteasy on Home (${HOME}) · profile personal`
 		);
 	});
 
@@ -222,7 +222,7 @@ describe('scripts/wrangler.mjs', () => {
 	function checkout(account: string) {
 		const dir = scratch();
 		cpSync('scripts', join(dir, 'scripts'), { recursive: true });
-		writeFileSync(join(dir, 'wrangler.jsonc'), JSON.stringify({ name: 'cogsend' }));
+		writeFileSync(join(dir, 'wrangler.jsonc'), JSON.stringify({ name: 'posteasy' }));
 		const bin = join(dir, 'bin');
 		mkdirSync(bin);
 		writeFileSync(
@@ -236,7 +236,7 @@ if (process.env.WRANGLER_LOG === 'debug') {
 }
 appendFileSync(${JSON.stringify(join(dir, 'npx.log'))}, JSON.stringify(args) + '\\n');
 if (args[1] === 'whoami') process.stdout.write(JSON.stringify({ loggedIn: true, accounts: [] }));
-if (args[1] === 'deploy') process.stdout.write('Uploaded cogsend\\n  https://cogsend.example.workers.dev\\n');
+if (args[1] === 'deploy') process.stdout.write('Uploaded posteasy\\n  https://posteasy.example.workers.dev\\n');
 process.exit(0);
 `
 		);
@@ -248,7 +248,7 @@ process.exit(0);
 				env: {
 					...process.env,
 					PATH: `${bin}:${process.env.PATH}`,
-					COGSEND_NOTE_TIMEOUT_MS: '5000',
+					POSTEASY_NOTE_TIMEOUT_MS: '5000',
 					...env
 				}
 			});
@@ -269,22 +269,22 @@ process.exit(0);
 		const { wrangler, record } = checkout(HOME);
 		const { result } = wrangler(['deploy']);
 		expect(result.status).toBe(0);
-		expect(result.stderr).toContain(`target: cogsend on ${HOME}`);
-		expect(JSON.parse(readFileSync(record, 'utf8')).cogsend.accountId).toBe(HOME);
+		expect(result.stderr).toContain(`target: posteasy on ${HOME}`);
+		expect(JSON.parse(readFileSync(record, 'utf8')).posteasy.accountId).toBe(HOME);
 	});
 
 	it('refuses a secret for another account before wrangler sees it', () => {
 		const { wrangler, record } = checkout(OTHER);
-		recordAccount('cogsend', HOME, { file: record });
+		recordAccount('posteasy', HOME, { file: record });
 		const { result, commands } = wrangler(['secret', 'put', 'THREADS_APP_ID']);
 		expect(result.status).toBe(1);
-		expect(result.stderr).toContain('refusing: this checkout deployed cogsend');
+		expect(result.stderr).toContain('refusing: this checkout deployed posteasy');
 		expect(commands.some((args) => args[0] === 'secret' && args[1] === 'put')).toBe(false);
 	});
 
 	it('runs it on the recorded account', () => {
 		const { wrangler, record } = checkout(HOME);
-		recordAccount('cogsend', HOME, { file: record });
+		recordAccount('posteasy', HOME, { file: record });
 		const { result, commands } = wrangler(['secret', 'put', 'THREADS_APP_ID']);
 		expect(result.status).toBe(0);
 		expect(commands).toContainEqual(['secret', 'put', 'THREADS_APP_ID']);
@@ -292,17 +292,17 @@ process.exit(0);
 
 	it('moves the record on a deliberate account change', () => {
 		const { wrangler, record } = checkout(OTHER);
-		recordAccount('cogsend', HOME, { file: record });
+		recordAccount('posteasy', HOME, { file: record });
 		expect(wrangler(['deploy']).result.status).toBe(1);
-		const moved = wrangler(['deploy'], { COGSEND_ALLOW_ACCOUNT_CHANGE: '1' });
+		const moved = wrangler(['deploy'], { POSTEASY_ALLOW_ACCOUNT_CHANGE: '1' });
 		expect(moved.result.status).toBe(0);
-		expect(recordedAccount('cogsend', record)).toBe(OTHER);
+		expect(recordedAccount('posteasy', record)).toBe(OTHER);
 	});
 
 	it('leaves the check to a script that already made it', () => {
 		const { wrangler, record } = checkout(OTHER);
-		recordAccount('cogsend', HOME, { file: record });
-		const { result } = wrangler(['secret', 'put', 'X'], { COGSEND_TARGET_CHECKED: HOME });
+		recordAccount('posteasy', HOME, { file: record });
+		const { result } = wrangler(['secret', 'put', 'X'], { POSTEASY_TARGET_CHECKED: HOME });
 		expect(result.status).toBe(0);
 		expect(result.stderr).not.toContain('target:');
 	});

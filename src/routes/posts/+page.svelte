@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import {
 		CalendarClock,
@@ -207,6 +207,12 @@
 	let error = $state<string | null>(data.loadFailed ? 'Could not load posts' : null);
 	// What the composer just did with the post that sent you here.
 	let notice = $state(takePostsNotice());
+	// The composer can open over this page and send you back to it without
+	// remounting it, so the notice is also picked up after each navigation.
+	afterNavigate(() => {
+		const next = takePostsNotice();
+		if (next) notice = next;
+	});
 	let busy = $state<string | null>(null);
 	let pendingCancel = $state<{
 		ids: string[];
@@ -949,12 +955,17 @@
 
 <svelte:window onclick={onWindowClick} onkeydown={onWindowKeydown} />
 
-<div class="mx-auto flex w-full max-w-2xl flex-1 flex-col">
+<div class="mx-auto flex w-full max-w-4xl flex-1 flex-col">
 	<!-- Header -->
 	<div class="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 		<div>
-			<p class="text-[11px] font-bold tracking-widest text-stone-500 uppercase">Library</p>
-			<h1 class="mt-2 text-3xl font-extrabold tracking-tight text-stone-900">Posts</h1>
+			<p class="mb-1.5 text-[11px] font-semibold tracking-[0.14em] text-stone-500 uppercase">
+				Content
+			</p>
+			<h1 class="text-2xl font-semibold tracking-tight text-stone-900 sm:text-[28px]">Posts</h1>
+			<p class="mt-2 max-w-2xl text-sm text-stone-500">
+				Drafts, scheduled posts and everything already sent, in one place.
+			</p>
 		</div>
 
 		<!-- Account filter + search -->
@@ -968,7 +979,7 @@
 						aria-haspopup="menu"
 						aria-expanded={accountMenuOpen}
 						aria-label="Filter posts by account"
-						class="flex items-center gap-2 rounded-full border border-stone-200/80 bg-white py-2 pr-3 pl-3.5 text-[12px] font-bold text-stone-700 shadow-sm transition-colors hover:border-stone-300 hover:text-stone-900"
+						class="btn btn-secondary btn-sm h-10 px-3.5"
 					>
 						{#if selectedAccount}
 							<SocialIcon platform={selectedAccount.platform} className="h-3.5 w-3.5" />
@@ -1043,7 +1054,7 @@
 					aria-label="Search posts"
 					bind:this={searchInput}
 					bind:value={query}
-					class="w-full rounded-full border border-stone-200/80 bg-white py-2 pr-9 pl-10 text-[13px] font-bold text-stone-900 shadow-sm transition-all placeholder:font-medium placeholder:text-stone-500 focus:border-stone-300 focus:ring-2 focus:ring-stone-200 focus:outline-none sm:w-48 pointer-coarse:text-base"
+					class="field pr-9 pl-10 sm:w-56 pointer-coarse:text-base"
 				/>
 				{#if query}
 					<button
@@ -1122,9 +1133,9 @@
 		onscroll={updateFades}
 		style:mask-image={fadeMask(fadeLeft, fadeRight)}
 		style:-webkit-mask-image={fadeMask(fadeLeft, fadeRight)}
-		class="-mx-6 mb-6 [scrollbar-width:none] overflow-x-auto px-6 [&::-webkit-scrollbar]:hidden"
+		class="-mx-4 mb-6 [scrollbar-width:none] overflow-x-auto px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
 	>
-		<div class="w-max rounded-xl bg-stone-200/50 p-1">
+		<div class="w-max rounded-xl border border-stone-200 bg-white p-1 shadow-sm">
 			<div class="flex" role="group" aria-label="Filter posts by status">
 				{#each TAB_VALUES as tab (tab)}
 					<a
@@ -1133,9 +1144,9 @@
 						data-sveltekit-replacestate
 						data-sveltekit-reset="false"
 						aria-current={activeTab === tab ? 'page' : undefined}
-						class="rounded-lg px-4 py-1.5 text-[13px] font-bold capitalize transition-all {activeTab ===
+						class="rounded-lg px-4 py-1.5 text-[13px] font-semibold capitalize transition-all {activeTab ===
 						tab
-							? 'bg-white text-stone-900 shadow-sm'
+							? 'bg-accent-soft text-accent-ink'
 							: 'text-stone-500 hover:text-stone-900'}"
 					>
 						{tab === 'all' ? 'All Posts' : tab}
@@ -1161,10 +1172,7 @@
 	<div class="flex flex-col gap-4">
 		{#if loading && visible.length === 0}
 			{#each [0, 1, 2] as i (i)}
-				<div
-					class="flex animate-pulse flex-col rounded-[2rem] border border-stone-200/80 bg-white p-5 sm:p-6"
-					aria-hidden="true"
-				>
+				<div class="card flex animate-pulse flex-col p-5 sm:p-6" aria-hidden="true">
 					<div class="mb-4 flex items-center justify-between">
 						<div class="h-8 w-24 rounded-full bg-stone-100"></div>
 						<div class="h-5 w-20 rounded bg-stone-100"></div>
@@ -1180,7 +1188,7 @@
 		{#each visible as card (card.key)}
 			{@const badge = statusBadge(card.status)}
 			<div
-				class="flex flex-col rounded-[2rem] border border-stone-200/80 bg-white p-5 shadow-[0_8px_30px_-12px_rgb(28_25_23/0.06)] transition-all hover:border-stone-300 hover:shadow-[0_8px_30px_-12px_rgb(28_25_23/0.1)] sm:p-6"
+				class="card flex flex-col p-5 transition-all hover:border-stone-300 hover:shadow-[0_8px_30px_-12px_rgb(28_25_23/0.1)] sm:p-6"
 				data-testid="post-card"
 				data-status={card.status}
 			>
@@ -1660,7 +1668,7 @@
 
 		{#if !loading && !loadFailed && visible.length === 0}
 			<div
-				class="flex flex-col items-center justify-center rounded-[2rem] border border-dashed border-stone-200/80 bg-white px-4 py-20 text-center"
+				class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-white px-4 py-20 text-center"
 			>
 				<div
 					class="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-stone-100 bg-stone-50 text-stone-500 shadow-sm"

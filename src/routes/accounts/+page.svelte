@@ -1,12 +1,27 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { ChevronDown, Plug, Plus, X } from '@lucide/svelte';
+	import {
+		ChevronDown,
+		CircleCheck,
+		ExternalLink,
+		Link2,
+		Plug,
+		Plus,
+		RefreshCw,
+		Trash2,
+		TriangleAlert,
+		Wrench,
+		X
+	} from '@lucide/svelte';
 	import { fade, fly } from 'svelte/transition';
 	import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
 	import CopyButton from '#lib/components/CopyButton.svelte';
 	import AccountAvatar from '#lib/components/AccountAvatar.svelte';
 	import SocialIcon from '#lib/components/SocialIcon.svelte';
+	import PageHeader from '#lib/components/ui/PageHeader.svelte';
+	import Badge from '#lib/components/ui/Badge.svelte';
+	import { platformColorClass } from '#lib/components/platform-color.js';
 	import { accountLabel, displayHost, platformName, platformRank } from '#lib/domain/platforms.js';
 	import { humanizeError } from '#lib/domain/human-error.js';
 	import {
@@ -16,6 +31,7 @@
 		isOAuthPlatform,
 		missingSecrets,
 		needsSetup,
+		oauthPlatformRecord,
 		platformSecretNames,
 		secretsPutCommandFor,
 		secretLabel,
@@ -83,12 +99,7 @@
 	);
 	// svelte-ignore state_referenced_locally
 	let configured = $state<Record<OAuthPlatformId, boolean>>(
-		data.configured ?? {
-			linkedin: true,
-			threads: true,
-			instagram: true,
-			x: true
-		}
+		data.configured ?? oauthPlatformRecord(() => true)
 	);
 	// Per-secret presence from the API. The panel names the missing half of a
 	// half-configured platform instead of repeating "no credentials yet" for a
@@ -99,18 +110,17 @@
 	// form in the setup panel. Only the form's own can be changed from here.
 	// svelte-ignore state_referenced_locally
 	let credentialSources = $state<Record<OAuthPlatformId, 'env' | 'app' | null>>(
-		data.sources ?? { linkedin: null, threads: null, instagram: null, x: null }
+		data.sources ?? oauthPlatformRecord(() => null)
 	);
 	// svelte-ignore state_referenced_locally
 	let savedClientIds = $state<Record<OAuthPlatformId, string | null>>(
-		data.savedClientIds ?? { linkedin: null, threads: null, instagram: null, x: null }
+		data.savedClientIds ?? oauthPlatformRecord(() => null)
 	);
 	let appForm = $state<Record<string, string>>({});
 	let appFormBusy = $state(false);
 	let appFormError = $state<string | null>(null);
 	let handle = $state('');
 	let appPassword = $state('');
-	let instanceUrl = $state('');
 	let msg = $state<string | null>(null);
 	// svelte-ignore state_referenced_locally
 	let err = $state<string | null>(data.loadFailed ? 'Could not load accounts' : null);
@@ -126,7 +136,7 @@
 	let pendingDisconnect = $state<{ id: string; label: string } | null>(null);
 	let disconnectBusy = $state(false);
 	let showConnectDialog = $state(false);
-	let modalForm = $state<'none' | 'bluesky' | 'mastodon' | 'zernio'>('none');
+	let modalForm = $state<'none' | 'bluesky' | 'zernio'>('none');
 	// Set when the picked platform has no credentials on this deployment: the
 	// dialog shows its setup steps instead of a request that can only fail.
 	let setupPanel = $state<OAuthPlatformId | null>(null);
@@ -163,16 +173,28 @@
 			form: null
 		},
 		{
+			id: 'facebook',
+			name: 'Facebook',
+			description: 'Connect the Pages you manage',
+			form: null
+		},
+		{
+			id: 'youtube',
+			name: 'YouTube',
+			description: 'Upload videos to your channel',
+			form: null
+		},
+		{
+			id: 'tiktok',
+			name: 'TikTok',
+			description: 'Post videos to your TikTok account',
+			form: null
+		},
+		{
 			id: 'linkedin',
 			name: 'LinkedIn',
 			description: 'Connect your personal or company page',
 			form: null
-		},
-		{
-			id: 'mastodon',
-			name: 'Mastodon',
-			description: 'Connect via your instance',
-			form: 'mastodon' as const
 		},
 		{
 			id: 'bluesky',
@@ -181,6 +203,34 @@
 			form: 'bluesky' as const
 		}
 	];
+
+	const TILE_BG: Record<string, string> = {
+		x: 'bg-stone-100',
+		threads: 'bg-stone-100',
+		instagram: 'bg-pink-50',
+		facebook: 'bg-blue-50',
+		youtube: 'bg-red-50',
+		tiktok: 'bg-stone-100',
+		linkedin: 'bg-blue-50',
+		bluesky: 'bg-sky-50'
+	};
+
+	const needsAttention = $derived(connections.filter((c) => c.status !== 'active').length);
+	// App credentials are the instance's, shared by every member: only the
+	// owner may enter or replace them. Undefined (no owner flag in the layout
+	// data) keeps the single-account behaviour.
+	const canManageApps = $derived((page.data as { isOwner?: boolean }).isOwner !== false);
+
+	function connectFromCard(id: string) {
+		err = null;
+		const found = availablePlatforms.find((p) => p.id === id);
+		if (found?.form) {
+			openConnectDialog();
+			modalForm = found.form;
+			return;
+		}
+		pickPlatform(id);
+	}
 
 	async function load() {
 		if (connections.length === 0) initialLoading = true;
@@ -204,12 +254,8 @@
 			zernioHasStoredKey = connections.some(viaZernio);
 			if (typeof payload.appUrl === 'string') appUrl = payload.appUrl;
 			if (payload.configured && typeof payload.configured === 'object') {
-				configured = {
-					linkedin: payload.configured.linkedin !== false,
-					threads: payload.configured.threads !== false,
-					instagram: payload.configured.instagram !== false,
-					x: payload.configured.x !== false
-				};
+				const reported = payload.configured as Partial<Record<OAuthPlatformId, boolean>>;
+				configured = oauthPlatformRecord((id) => reported[id] !== false);
 			}
 			if (payload.secrets && typeof payload.secrets === 'object') {
 				secretPresence = payload.secrets as Record<string, boolean>;
@@ -252,10 +298,7 @@
 		}
 	}
 
-	async function connectOAuth(
-		platform: 'mastodon' | OAuthPlatformId,
-		body: Record<string, string>
-	) {
+	async function connectOAuth(platform: OAuthPlatformId, body: Record<string, string>) {
 		loading = true;
 		err = null;
 		try {
@@ -282,13 +325,6 @@
 			err = humanizeError(e instanceof Error ? e.message : 'Failed');
 			loading = false;
 		}
-	}
-
-	async function connectMastodon(e: Event) {
-		e.preventDefault();
-		loading = true;
-		err = null;
-		await connectOAuth('mastodon', { instanceUrl });
 	}
 
 	async function loadZernioAccounts(e?: Event) {
@@ -531,20 +567,7 @@
 			modalForm = 'bluesky';
 			return;
 		}
-		if (account.platform === 'mastodon') {
-			if (!account.instanceUrl) {
-				err = 'Missing instance URL — disconnect and connect again';
-				return;
-			}
-			void connectOAuth('mastodon', { instanceUrl: account.instanceUrl });
-			return;
-		}
-		if (
-			account.platform === 'linkedin' ||
-			account.platform === 'threads' ||
-			account.platform === 'instagram' ||
-			account.platform === 'x'
-		) {
+		if (isOAuthPlatform(account.platform)) {
 			if (needsSetup(account.platform, configured)) {
 				showSetupPanel(account.platform);
 				return;
@@ -613,109 +636,241 @@
 	});
 </script>
 
-<div class="mx-auto flex w-full max-w-2xl flex-1 flex-col">
-	<div class="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-		<div>
-			<p class="text-[11px] font-bold tracking-widest text-stone-500 uppercase">Integrations</p>
-			<h1 class="mt-2 text-3xl font-extrabold tracking-tight text-stone-900">Connected Accounts</h1>
-		</div>
-		<button
-			type="button"
-			onclick={openConnectDialog}
-			class="inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-[13px] font-bold text-white shadow-md transition-all hover:bg-stone-800"
-		>
+<PageHeader
+	eyebrow="Integrations"
+	title="Accounts"
+	subtitle="Connect each social account once. Every post you write can then go to any of them, now or on a schedule."
+>
+	{#snippet actions()}
+		<button type="button" onclick={openConnectDialog} class="btn btn-primary">
 			<Plus class="h-4 w-4" />
 			<span>Connect new</span>
 		</button>
-	</div>
+	{/snippet}
+</PageHeader>
 
-	{#if msg || err}
-		<div
-			class="mb-4 rounded-xl px-3 py-2 text-sm {err
-				? 'bg-red-50 text-red-700'
-				: 'bg-emerald-50 text-emerald-800'}"
-			role="alert"
-		>
-			{err || msg}
-		</div>
+<div class="mb-6 flex flex-wrap items-center gap-2" data-testid="accounts-summary">
+	<Badge tone={connections.length ? 'ok' : 'neutral'} dot>{connections.length} connected</Badge>
+	{#if needsAttention > 0}
+		<Badge tone="warn" dot>{needsAttention} need{needsAttention === 1 ? 's' : ''} attention</Badge>
 	{/if}
+	{#if !initialLoading && !loadFailed && connections.length === 0}
+		<p class="text-sm text-stone-500">{emptyStateSentence(configured)}</p>
+	{/if}
+</div>
 
+{#if msg || err}
 	<div
-		class="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_8px_30px_-12px_rgb(28_25_23/0.06)]"
+		class="mb-6 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm {err
+			? 'border-rose-200 bg-rose-50 text-rose-700'
+			: 'border-emerald-200 bg-emerald-50 text-emerald-800'}"
+		role="alert"
 	>
-		{#if initialLoading && connections.length === 0}
-			<div class="animate-pulse" aria-hidden="true">
-				{#each [0, 1, 2] as i (i)}
-					<div class="flex items-center gap-4 p-4 sm:px-6 sm:py-4">
-						<div class="h-11 w-11 shrink-0 rounded-full bg-stone-100"></div>
-						<div class="flex-1">
-							<div class="h-4 w-32 rounded bg-stone-100"></div>
-							<div class="mt-2 h-3 w-48 rounded bg-stone-100"></div>
-						</div>
-						<div class="h-5 w-16 rounded bg-stone-100"></div>
-					</div>
-				{/each}
-			</div>
-		{:else if loadFailed && connections.length === 0}
-			<div class="flex flex-wrap items-center gap-3 p-6">
-				<p class="min-w-0 flex-1 text-sm font-medium text-stone-500">
-					Accounts could not be loaded. The message above says why — retry in a moment.
-				</p>
-				<button
-					type="button"
-					onclick={() => void load()}
-					class="rounded-full border border-stone-300 bg-white px-4 py-1.5 text-[12px] font-bold text-stone-900 transition-colors hover:bg-stone-100"
-				>
-					Retry
-				</button>
-			</div>
-		{:else if connections.length === 0}
-			<p class="p-6 text-sm font-medium text-stone-500">{emptyStateSentence(configured)}</p>
+		{#if err}
+			<TriangleAlert class="mt-0.5 h-4 w-4 shrink-0" />
 		{:else}
-			{#each connections as account, index (account.id)}
-				{@const needsReconnect = account.status !== 'active'}
-				<div
-					class="group flex flex-col justify-between gap-4 p-4 transition-colors hover:bg-stone-50/50 sm:flex-row sm:items-center sm:px-6 sm:py-4 {index !==
-					connections.length - 1
-						? 'border-b border-stone-100'
-						: ''}"
+			<CircleCheck class="mt-0.5 h-4 w-4 shrink-0" />
+		{/if}
+		<span class="min-w-0 flex-1 break-words">{err || msg}</span>
+		<button
+			type="button"
+			class="-my-1 rounded-md p-1 opacity-70 hover:opacity-100"
+			aria-label="Dismiss message"
+			onclick={() => {
+				err = null;
+				msg = null;
+			}}
+		>
+			<X class="h-4 w-4" />
+		</button>
+	</div>
+{/if}
+
+{#if loadFailed && connections.length === 0}
+	<div class="card mb-6 flex flex-wrap items-center gap-3 p-5">
+		<p class="min-w-0 flex-1 text-sm text-stone-500">
+			Accounts could not be loaded. The message above says why — retry in a moment.
+		</p>
+		<button type="button" onclick={() => void load()} class="btn btn-secondary btn-sm">Retry</button
+		>
+	</div>
+{/if}
+
+<div class="grid gap-5 xl:grid-cols-2">
+	{#each availablePlatforms as platform (platform.id)}
+		{@const list = connections.filter((c) => c.platform === platform.id)}
+		{@const setupNeeded = needsSetup(platform.id, configured)}
+		{@const savedHere = isOAuthPlatform(platform.id) && credentialSources[platform.id] === 'app'}
+		<section class="card flex min-w-0 flex-col p-5" data-testid="platform-card-{platform.id}">
+			<div class="flex items-center gap-3">
+				<span
+					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl {TILE_BG[
+						platform.id
+					] ?? 'bg-stone-100'} {platformColorClass(platform.id)}"
+					aria-hidden="true"
 				>
-					<div class="flex items-center gap-4">
-						<AccountAvatar
-							platform={account.platform}
-							handle={account.handle}
-							displayName={account.displayName}
-							avatarUrl={account.avatarUrl}
-							size={44}
-							title={accountLabel(account.displayName, account.handle, account.instanceUrl) ||
-								undefined}
-						/>
-						<div>
-							<h3 class="text-[15px] leading-tight font-extrabold tracking-tight text-stone-900">
-								{platformName(account.platform)}
-								{#if viaZernio(account)}
-									<span
-										class="ml-1 rounded bg-stone-100 px-1.5 py-0.5 align-middle text-[10px] font-bold tracking-widest text-stone-500 uppercase"
-										>via Zernio</span
-									>
-								{/if}
-							</h3>
-							<p
-								class="mt-0.5 text-[13px] font-medium text-stone-500"
-								title={accountLabel(account.displayName, account.handle, account.instanceUrl) ||
-									undefined}
+					<SocialIcon platform={platform.id} className="h-5 w-5" />
+				</span>
+				<div class="min-w-0 flex-1">
+					<h2 class="text-[15px] font-semibold tracking-tight text-stone-900">{platform.name}</h2>
+					<p class="truncate text-xs text-stone-500">
+						{list.length ? `${list.length} connected` : platform.description}
+					</p>
+				</div>
+				{#if setupNeeded && isOAuthPlatform(platform.id)}
+					<button
+						type="button"
+						class="btn btn-secondary btn-sm"
+						data-testid="setup-card-{platform.id}"
+						aria-label={`Set up the ${platform.name} app`}
+						onclick={() => showSetupPanel(platform.id as OAuthPlatformId)}
+						disabled={!canManageApps}
+					>
+						<Wrench class="h-3.5 w-3.5" /> Set up
+					</button>
+				{:else}
+					<button
+						type="button"
+						class="btn btn-primary btn-sm"
+						data-testid="connect-card-{platform.id}"
+						aria-label={`Add a ${platform.name} account`}
+						onclick={() => connectFromCard(platform.id)}
+						disabled={loading}
+					>
+						<Plug class="h-3.5 w-3.5" /> Connect
+					</button>
+				{/if}
+			</div>
+
+			{#if setupNeeded && isOAuthPlatform(platform.id)}
+				{@const setup = PLATFORM_SETUP[platform.id as OAuthPlatformId]}
+				<div
+					class="mt-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-600"
+				>
+					{#if canManageApps}
+						<p>
+							<span class="font-semibold text-stone-900">Needs a developer app.</span>
+							Create one in the
+							<a
+								href={setup.consoleUrl}
+								target="_blank"
+								rel="noreferrer"
+								class="inline-flex items-center gap-0.5 font-semibold text-accent hover:underline"
+								>{setup.consoleName} <ExternalLink class="h-3 w-3" /></a
+							>, then press Set up to enter its credentials.
+						</p>
+						<p class="mt-2 text-[11px] text-stone-500">Redirect URL to register:</p>
+						<div
+							class="mt-1 flex items-center gap-1 rounded-lg border border-stone-200 bg-white py-1 pr-1 pl-3"
+						>
+							<code
+								class="min-w-0 flex-1 overflow-x-auto font-mono text-[11px] whitespace-nowrap text-stone-900 select-all"
+								data-testid="card-callback-uri-{platform.id}"
+								>{callbackUri(platform.id as OAuthPlatformId, appUrl || page.url.origin)}</code
 							>
-								{#if account.platform === 'linkedin' && account.displayName}
-									{account.displayName}
-								{:else}
-									{accountLabel(account.displayName, account.handle)}
+							<CopyButton
+								value={callbackUri(platform.id as OAuthPlatformId, appUrl || page.url.origin)}
+								ariaLabel={`Copy the ${platform.name} redirect URL`}
+							/>
+						</div>
+					{:else}
+						<p>Ask the workspace owner to set up {platform.name}.</p>
+					{/if}
+				</div>
+			{/if}
+
+			<div class="mt-4 flex-1 space-y-2">
+				{#if initialLoading && list.length === 0}
+					<div class="h-14 animate-pulse rounded-xl bg-stone-100" aria-hidden="true"></div>
+				{:else if list.length === 0}
+					{#if !setupNeeded}
+						<p class="text-sm text-stone-400">No {platform.name} accounts yet.</p>
+					{/if}
+				{:else}
+					{#each list as account (account.id)}
+						{@const needsReconnect = account.status !== 'active'}
+						{@const label =
+							accountLabel(account.displayName, account.handle, account.instanceUrl) ||
+							platformName(account.platform)}
+						<div
+							class="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 px-3 py-2.5 {needsReconnect
+								? 'bg-amber-50/40'
+								: 'bg-white'}"
+						>
+							<AccountAvatar
+								platform={account.platform}
+								handle={account.handle}
+								displayName={account.displayName}
+								avatarUrl={account.avatarUrl}
+								size={36}
+								title={label}
+							/>
+							<div class="min-w-0 flex-1">
+								<p class="truncate text-sm font-semibold text-stone-900" title={label}>
+									{#if account.platform === 'linkedin' && account.displayName}
+										{account.displayName}
+									{:else}
+										{accountLabel(account.displayName, account.handle)}
+									{/if}
+								</p>
+								<p class="truncate text-[11px] text-stone-500">
+									{platformName(account.platform)}{account.instanceUrl
+										? ` · ${displayHost(account.instanceUrl)}`
+										: ''}
+								</p>
+							</div>
+							<div class="flex flex-wrap items-center gap-1.5">
+								{#if viaZernio(account)}
+									<Badge tone="info">via Zernio</Badge>
 								{/if}
-								{account.instanceUrl ? ` · ${displayHost(account.instanceUrl)}` : ''}
-							</p>
+								{#if needsReconnect}
+									<Badge tone="warn" dot
+										>{account.status === 'expired' ? 'Needs reconnect' : account.status}</Badge
+									>
+								{:else}
+									<Badge tone="ok" dot>Connected</Badge>
+								{/if}
+							</div>
+							<div class="flex items-center gap-0.5">
+								<button
+									type="button"
+									onclick={() =>
+										verify(
+											account.id,
+											needsReconnect ? 'Account is active again' : 'Connection works'
+										)}
+									disabled={verifying === account.id}
+									class="btn btn-ghost btn-sm px-2"
+									aria-label={`Check ${label}`}
+									title="Check the connection"
+								>
+									<RefreshCw class="h-3.5 w-3.5 {verifying === account.id ? 'animate-spin' : ''}" />
+								</button>
+								{#if needsReconnect}
+									<button
+										type="button"
+										onclick={() => reconnectAccount(account)}
+										disabled={verifying === account.id || loading}
+										class="btn btn-secondary btn-sm"
+										aria-label={`Reconnect ${label}`}
+									>
+										<Link2 class="h-3.5 w-3.5" /> Reconnect
+									</button>
+								{/if}
+								<button
+									type="button"
+									onclick={() => (pendingDisconnect = { id: account.id, label })}
+									class="btn btn-ghost btn-sm px-2 hover:bg-rose-50 hover:text-rose-600"
+									aria-label={`Disconnect ${label}`}
+									title={`Disconnect ${label}`}
+								>
+									<Trash2 class="h-3.5 w-3.5" />
+								</button>
+							</div>
 							{#if account.platform === 'x' && !viaZernio(account) && !needsReconnect}
 								{@const long = (account.metaJson?.maxCharacters ?? 280) > 280}
 								<p
-									class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium text-stone-500"
+									class="flex w-full flex-wrap items-center gap-x-2 gap-y-1 border-t border-stone-100 pt-2 text-[12px] text-stone-500"
 									data-testid="x-long-posts-{account.id}"
 								>
 									<span>
@@ -726,7 +881,7 @@
 										type="button"
 										onclick={() => setLongPosts(account, !long)}
 										disabled={savingLongPosts === account.id}
-										class="font-bold text-stone-900 underline"
+										class="font-semibold text-accent hover:underline"
 										>{long ? 'Turn off' : 'Turn on'}</button
 									>
 									{#if typeof account.metaJson?.longPosts === 'boolean'}
@@ -734,68 +889,58 @@
 											type="button"
 											onclick={() => setLongPosts(account, null)}
 											disabled={savingLongPosts === account.id}
-											class="font-bold text-stone-500 underline">Use what X reports</button
+											class="font-semibold text-stone-500 hover:underline"
+											>Use what X reports</button
 										>
 									{/if}
 									<button
 										type="button"
 										onclick={() => verify(account.id, 'Checked with X')}
 										disabled={verifying === account.id}
-										class="font-bold text-stone-500 underline"
+										class="font-semibold text-stone-500 hover:underline"
 										>{verifying === account.id ? 'Checking…' : 'Check plan'}</button
 									>
 								</p>
 							{/if}
 						</div>
-					</div>
-					<div class="mt-2 flex items-center justify-between gap-3 sm:mt-0 sm:justify-end">
-						{#if needsReconnect}
-							<span
-								class="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold tracking-widest text-amber-700 uppercase"
-							>
-								{account.status}
-							</span>
-							<button
-								type="button"
-								onclick={() => reconnectAccount(account)}
-								disabled={verifying === account.id || loading}
-								class="text-xs font-bold text-stone-900 underline">Reconnect</button
-							>
-							<button
-								type="button"
-								onclick={() => verify(account.id)}
-								disabled={verifying === account.id}
-								class="text-xs font-bold text-stone-500 underline"
-								>{verifying === account.id ? 'Checking…' : 'Check'}</button
-							>
-						{:else}
-							<span
-								class="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold tracking-widest text-emerald-700 uppercase shadow-sm"
-							>
-								Connected
-							</span>
-						{/if}
-						<button
-							type="button"
-							onclick={() =>
-								(pendingDisconnect = {
-									id: account.id,
-									label:
-										accountLabel(account.displayName, account.handle, account.instanceUrl) ||
-										account.platform
-								})}
-							class="flex h-8 w-8 items-center justify-center rounded-full text-stone-500 transition-colors hover:bg-red-50 hover:text-red-600"
-							aria-label={`Disconnect ${accountLabel(account.displayName, account.handle, account.instanceUrl) || platformName(account.platform)}`}
-							title={`Disconnect ${accountLabel(account.displayName, account.handle, account.instanceUrl) || platformName(account.platform)}`}
-						>
-							<X class="h-4 w-4" />
-						</button>
-					</div>
-				</div>
-			{/each}
-		{/if}
-	</div>
+					{/each}
+				{/if}
+			</div>
+
+			{#if savedHere && canManageApps}
+				<p class="mt-3 text-[11px] text-stone-500">
+					Uses app credentials saved on this instance.
+					<button
+						type="button"
+						class="font-semibold text-accent hover:underline"
+						onclick={() => showSetupPanel(platform.id as OAuthPlatformId)}>Manage</button
+					>
+				</p>
+			{/if}
+		</section>
+	{/each}
 </div>
+
+<section
+	class="card mt-5 flex flex-wrap items-center gap-4 border-dashed p-5"
+	data-testid="zernio-banner"
+>
+	<span
+		class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-600"
+		aria-hidden="true"
+	>
+		<Plug class="h-5 w-5" />
+	</span>
+	<div class="min-w-0 flex-1">
+		<h2 class="text-[15px] font-semibold tracking-tight text-stone-900">Connect through Zernio</h2>
+		<p class="text-xs text-stone-500">
+			No developer app of your own for X, Threads, Instagram or LinkedIn. Free plan available.
+		</p>
+	</div>
+	<button type="button" class="btn btn-secondary btn-sm" onclick={() => openZernioForm()}>
+		Use Zernio
+	</button>
+</section>
 
 {#if showConnectDialog}
 	<div
@@ -804,7 +949,7 @@
 		role="presentation"
 	>
 		<div
-			class="absolute inset-0 bg-stone-900/20 backdrop-blur-sm"
+			class="absolute inset-0 bg-stone-900/30 backdrop-blur-sm"
 			onclick={closeConnectDialog}
 			aria-hidden="true"
 		></div>
@@ -813,7 +958,7 @@
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="connect-dialog-title"
-			class="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-stone-200/80 bg-white p-6 shadow-[0_16px_40px_-12px_rgb(28_25_23/0.15)] sm:p-8"
+			class="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 shadow-[0_24px_60px_-16px_rgb(28_25_23/0.25)] sm:p-7"
 			transition:fly={{ y: 20, duration: 250, opacity: 0 }}
 			use:dialogFocus={{
 				onEscape: () => {
@@ -821,23 +966,18 @@
 				}
 			}}
 		>
-			<div class="mb-8 flex items-start justify-between">
+			<div class="mb-6 flex items-start justify-between">
 				<div>
-					<h2
-						id="connect-dialog-title"
-						class="text-2xl font-extrabold tracking-tight text-stone-900"
-					>
+					<h2 id="connect-dialog-title" class="text-xl font-semibold tracking-tight text-stone-900">
 						Add Integration
 					</h2>
-					<p class="mt-1.5 text-[13px] font-medium text-stone-500">
-						Select a platform to connect to your workspace.
-					</p>
+					<p class="mt-1 text-sm text-stone-500">Select a platform to connect to your workspace.</p>
 				</div>
 				<button
 					type="button"
 					bind:this={connectCloseBtn}
 					onclick={closeConnectDialog}
-					class="ml-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-stone-50 text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900"
+					class="btn btn-ghost btn-sm ml-4 h-9 w-9 shrink-0 px-0"
 					aria-label="Close add integration dialog"
 				>
 					<X class="h-5 w-5" />
@@ -856,16 +996,16 @@
 					{@const agentPrompt = buildAgentPrompt(
 						setupPanel,
 						appUrl || page.url.origin,
-						page.data.appName ?? 'CogSend'
+						page.data.appName ?? 'PostEasy'
 					)}
 					<div class="space-y-4" data-testid="platform-setup-panel">
 						<button
 							type="button"
 							onclick={backToPlatforms}
-							class="text-[13px] font-bold text-stone-500 hover:text-stone-900"
+							class="text-[13px] font-semibold text-stone-500 hover:text-stone-900"
 							>← All platforms</button
 						>
-						<h3 class="text-[17px] font-extrabold tracking-tight text-stone-900">
+						<h3 class="text-[17px] font-semibold tracking-tight text-stone-900">
 							{savedHere
 								? `${platformName(setupPanel)} app credentials`
 								: `${platformName(setupPanel)} isn't enabled yet`}
@@ -880,166 +1020,172 @@
 								here.
 							{/if}
 						</p>
-						<div
-							class="divide-y divide-stone-200/80 overflow-hidden rounded-xl border border-stone-200/80"
-						>
-							<details class="group">
-								<summary
-									data-testid="setup-step-1"
-									class="flex cursor-pointer list-none items-center gap-2.5 p-3 text-xs font-bold text-stone-900 hover:bg-stone-50 [&::-webkit-details-marker]:hidden"
-								>
-									<span
-										class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-900 text-[10px] text-white"
-										>1</span
+						{#if !canManageApps}
+							<p
+								class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600"
+							>
+								Ask the workspace owner to set up {platformName(setupPanel)}.
+							</p>
+						{:else}
+							<div
+								class="divide-y divide-stone-200 overflow-hidden rounded-xl border border-stone-200"
+							>
+								<details class="group">
+									<summary
+										data-testid="setup-step-1"
+										class="flex cursor-pointer list-none items-center gap-2.5 p-3 text-xs font-bold text-stone-900 hover:bg-stone-50 [&::-webkit-details-marker]:hidden"
 									>
-									Create the app
-									<ChevronDown
-										class="ml-auto h-4 w-4 shrink-0 text-stone-400 transition-transform group-open:rotate-180"
-									/>
-								</summary>
-								<div class="space-y-2 px-3 pb-3 text-xs font-medium text-stone-600">
-									<p>
-										In the <a
-											href={setup.consoleUrl}
-											target="_blank"
-											rel="noreferrer"
-											class="font-bold text-stone-900 underline">{setup.consoleName}</a
-										>. {setup.consoleRequirement}
-									</p>
-									<p>Register this redirect URI in {setup.redirectField}:</p>
-									<div
-										class="flex items-center gap-1 rounded-xl border border-stone-200/80 bg-stone-50 py-1 pr-1 pl-3"
-									>
-										<code
-											class="min-w-0 flex-1 overflow-x-auto font-mono text-[11px] whitespace-nowrap text-stone-900 select-all"
-											data-testid="setup-callback-uri">{redirectUri}</code
+										<span
+											class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-[10px] text-white"
+											>1</span
 										>
-										<CopyButton value={redirectUri} ariaLabel="Copy the redirect URI" />
-									</div>
-									<p class="pt-1">
-										Or let a browser agent such as Claude in Chrome do it: copy this prompt and
-										paste it into the agent. It stops whenever a step needs you.
-									</p>
-									<div
-										class="flex items-center gap-1 rounded-xl border border-stone-200/80 bg-stone-50 py-1 pr-1 pl-3"
-									>
-										<span class="min-w-0 flex-1 truncate text-[11px] font-bold text-stone-900"
-											>Agent prompt for {platformName(setupPanel)}</span
-										>
-										<CopyButton value={agentPrompt} ariaLabel="Copy the agent prompt" />
-									</div>
-								</div>
-							</details>
-							<details class="group" open={savedHere}>
-								<summary
-									data-testid="setup-step-2"
-									class="flex cursor-pointer list-none items-center gap-2.5 p-3 text-xs font-bold text-stone-900 hover:bg-stone-50 [&::-webkit-details-marker]:hidden"
-								>
-									<span
-										class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-900 text-[10px] text-white"
-										>2</span
-									>
-									Enter the app's credentials
-									<ChevronDown
-										class="ml-auto h-4 w-4 shrink-0 text-stone-400 transition-transform group-open:rotate-180"
-									/>
-								</summary>
-								<form
-									class="space-y-2 px-3 pb-3"
-									data-testid="setup-app-form"
-									onsubmit={(e) => saveAppCredentials(setupPanel!, e)}
-								>
-									{#each secretNames as secret (secret)}
-										{@const optional = setup.optionalSecrets?.includes(secret)}
-										<label class="block">
-											<span class="text-[11px] font-bold text-stone-600"
-												>{secretLabel(secret)}{optional ? ' (optional)' : ''}</span
-											>
-											<input
-												type={secret.endsWith('_ID') ? 'text' : 'password'}
-												autocomplete="off"
-												spellcheck="false"
-												required={!optional}
-												bind:value={appForm[secret]}
-												class="mt-1 w-full rounded-xl border border-stone-200/80 bg-stone-50 px-3 py-2 font-mono text-xs text-stone-900 focus:border-stone-400 focus:bg-white focus:outline-none pointer-coarse:text-base"
-											/>
-										</label>
-									{/each}
-									<p class="text-[11px] font-medium text-stone-500">
-										Stored encrypted on this instance, and never shown again.
-									</p>
-									{#if appFormError}
-										<p class="text-xs font-bold text-red-600" role="alert">{appFormError}</p>
-									{/if}
-									<div class="flex items-center gap-3">
-										<button
-											type="submit"
-											disabled={appFormBusy}
-											class="rounded-full bg-stone-900 px-4 py-2 text-xs font-bold text-white hover:bg-stone-800 disabled:opacity-50"
-											>{appFormBusy ? 'Saving…' : 'Save and connect'}</button
-										>
-										{#if savedHere}
-											<button
-												type="button"
-												disabled={appFormBusy}
-												onclick={() => removeAppCredentials(setupPanel!)}
-												class="text-xs font-bold text-stone-500 underline-offset-2 hover:text-red-700 hover:underline"
-												>Remove</button
-											>
-										{/if}
-									</div>
-								</form>
-							</details>
-							<details class="group">
-								<summary
-									data-testid="setup-step-3"
-									class="flex cursor-pointer list-none items-center gap-2.5 p-3 text-xs font-bold text-stone-900 hover:bg-stone-50 [&::-webkit-details-marker]:hidden"
-								>
-									<span
-										class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-900 text-[10px] text-white"
-										>3</span
-									>
-									Or set them as Worker secrets
-									<ChevronDown
-										class="ml-auto h-4 w-4 shrink-0 text-stone-400 transition-transform group-open:rotate-180"
-									/>
-								</summary>
-								<div class="space-y-2 px-3 pb-3 text-xs font-medium text-stone-600">
-									<p>
-										Put {#each missing as secret, index (secret)}{index > 0 ? ' and ' : ''}<code
-												class="font-mono text-[11px] text-stone-900">{secret}</code
-											>{/each} in
-										<code class="font-mono text-[11px] text-stone-900">.dev.vars</code> — uncomment the
-										line if it is already there, otherwise add it — then run
-									</p>
-									{#if alreadySet.length}
+										Create the app
+										<ChevronDown
+											class="ml-auto h-4 w-4 shrink-0 text-stone-400 transition-transform group-open:rotate-180"
+										/>
+									</summary>
+									<div class="space-y-2 px-3 pb-3 text-xs font-medium text-stone-600">
 										<p>
-											Already set on the Worker:
-											{#each alreadySet as secret, index (secret)}{index > 0 ? ', ' : ''}<code
-													class="font-mono text-[11px] text-stone-900">{secret}</code
-												>{/each}.
+											In the <a
+												href={setup.consoleUrl}
+												target="_blank"
+												rel="noreferrer"
+												class="font-bold text-stone-900 underline">{setup.consoleName}</a
+											>. {setup.consoleRequirement}
 										</p>
-									{/if}
-									<div
-										class="flex items-center gap-1 rounded-xl border border-stone-200/80 bg-stone-50 py-1 pr-1 pl-3"
-									>
-										<code
-											class="min-w-0 flex-1 overflow-x-auto font-mono text-[11px] whitespace-nowrap text-stone-900 select-all"
-											data-testid="setup-command">{command}</code
+										<p>Register this redirect URI in {setup.redirectField}:</p>
+										<div
+											class="flex items-center gap-1 rounded-xl border border-stone-200/80 bg-stone-50 py-1 pr-1 pl-3"
 										>
-										<CopyButton value={command} ariaLabel="Copy the secrets command" />
+											<code
+												class="min-w-0 flex-1 overflow-x-auto font-mono text-[11px] whitespace-nowrap text-stone-900 select-all"
+												data-testid="setup-callback-uri">{redirectUri}</code
+											>
+											<CopyButton value={redirectUri} ariaLabel="Copy the redirect URI" />
+										</div>
+										<p class="pt-1">
+											Or let a browser agent such as Claude in Chrome do it: copy this prompt and
+											paste it into the agent. It stops whenever a step needs you.
+										</p>
+										<div
+											class="flex items-center gap-1 rounded-xl border border-stone-200/80 bg-stone-50 py-1 pr-1 pl-3"
+										>
+											<span class="min-w-0 flex-1 truncate text-[11px] font-bold text-stone-900"
+												>Agent prompt for {platformName(setupPanel)}</span
+											>
+											<CopyButton value={agentPrompt} ariaLabel="Copy the agent prompt" />
+										</div>
 									</div>
-									<p class="text-[11px] text-stone-500">
-										No checkout on this machine? Add them in the Cloudflare dashboard instead:
-										Workers → your Worker → Settings → Variables and Secrets, then press Deploy.
-									</p>
-									<p class="text-[11px] text-stone-500">
-										Then reload this page: secrets go live as soon as the command finishes, with no
-										redeploy step. Worker secrets take precedence over credentials entered above.
-									</p>
-								</div>
-							</details>
-						</div>
+								</details>
+								<details class="group" open={savedHere}>
+									<summary
+										data-testid="setup-step-2"
+										class="flex cursor-pointer list-none items-center gap-2.5 p-3 text-xs font-bold text-stone-900 hover:bg-stone-50 [&::-webkit-details-marker]:hidden"
+									>
+										<span
+											class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-[10px] text-white"
+											>2</span
+										>
+										Enter the app's credentials
+										<ChevronDown
+											class="ml-auto h-4 w-4 shrink-0 text-stone-400 transition-transform group-open:rotate-180"
+										/>
+									</summary>
+									<form
+										class="space-y-2 px-3 pb-3"
+										data-testid="setup-app-form"
+										onsubmit={(e) => saveAppCredentials(setupPanel!, e)}
+									>
+										{#each secretNames as secret (secret)}
+											{@const optional = setup.optionalSecrets?.includes(secret)}
+											<label class="block">
+												<span class="text-[11px] font-bold text-stone-600"
+													>{secretLabel(secret)}{optional ? ' (optional)' : ''}</span
+												>
+												<input
+													type={secret.endsWith('_ID') ? 'text' : 'password'}
+													autocomplete="off"
+													spellcheck="false"
+													required={!optional}
+													bind:value={appForm[secret]}
+													class="field mt-1 font-mono text-xs pointer-coarse:text-base"
+												/>
+											</label>
+										{/each}
+										<p class="text-[11px] font-medium text-stone-500">
+											Stored encrypted on this instance, and never shown again.
+										</p>
+										{#if appFormError}
+											<p class="text-xs font-bold text-red-600" role="alert">{appFormError}</p>
+										{/if}
+										<div class="flex items-center gap-3">
+											<button type="submit" disabled={appFormBusy} class="btn btn-primary btn-sm"
+												>{appFormBusy ? 'Saving…' : 'Save and connect'}</button
+											>
+											{#if savedHere}
+												<button
+													type="button"
+													disabled={appFormBusy}
+													onclick={() => removeAppCredentials(setupPanel!)}
+													class="text-xs font-bold text-stone-500 underline-offset-2 hover:text-red-700 hover:underline"
+													>Remove</button
+												>
+											{/if}
+										</div>
+									</form>
+								</details>
+								<details class="group">
+									<summary
+										data-testid="setup-step-3"
+										class="flex cursor-pointer list-none items-center gap-2.5 p-3 text-xs font-bold text-stone-900 hover:bg-stone-50 [&::-webkit-details-marker]:hidden"
+									>
+										<span
+											class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-[10px] text-white"
+											>3</span
+										>
+										Or set them as Worker secrets
+										<ChevronDown
+											class="ml-auto h-4 w-4 shrink-0 text-stone-400 transition-transform group-open:rotate-180"
+										/>
+									</summary>
+									<div class="space-y-2 px-3 pb-3 text-xs font-medium text-stone-600">
+										<p>
+											Put {#each missing as secret, index (secret)}{index > 0 ? ' and ' : ''}<code
+													class="font-mono text-[11px] text-stone-900">{secret}</code
+												>{/each} in
+											<code class="font-mono text-[11px] text-stone-900">.dev.vars</code> — uncomment
+											the line if it is already there, otherwise add it — then run
+										</p>
+										{#if alreadySet.length}
+											<p>
+												Already set on the Worker:
+												{#each alreadySet as secret, index (secret)}{index > 0 ? ', ' : ''}<code
+														class="font-mono text-[11px] text-stone-900">{secret}</code
+													>{/each}.
+											</p>
+										{/if}
+										<div
+											class="flex items-center gap-1 rounded-xl border border-stone-200/80 bg-stone-50 py-1 pr-1 pl-3"
+										>
+											<code
+												class="min-w-0 flex-1 overflow-x-auto font-mono text-[11px] whitespace-nowrap text-stone-900 select-all"
+												data-testid="setup-command">{command}</code
+											>
+											<CopyButton value={command} ariaLabel="Copy the secrets command" />
+										</div>
+										<p class="text-[11px] text-stone-500">
+											No checkout on this machine? Add them in the Cloudflare dashboard instead:
+											Workers → your Worker → Settings → Variables and Secrets, then press Deploy.
+										</p>
+										<p class="text-[11px] text-stone-500">
+											Then reload this page: secrets go live as soon as the command finishes, with
+											no redeploy step. Worker secrets take precedence over credentials entered
+											above.
+										</p>
+									</div>
+								</details>
+							</div>
+						{/if}
 						{#if setup.note}
 							<p class="text-xs font-medium text-stone-500">{setup.note}</p>
 						{/if}
@@ -1050,19 +1196,21 @@
 							class="inline-block text-[13px] font-bold text-stone-900 underline"
 							>Full {platformName(setupPanel)} steps</a
 						>
-						<p
-							class="rounded-xl border border-dashed border-stone-300 px-3 py-2.5 text-xs font-medium text-stone-600"
-							data-testid="setup-zernio-callout"
-						>
-							Don't want to set up an app?
-							<button
-								type="button"
-								onclick={() => openZernioForm(setupPanel ?? undefined)}
-								class="font-bold text-stone-900 underline"
-								>Connect {platformName(setupPanel)} through Zernio</button
+						{#if isZernioPlatform(setupPanel)}
+							<p
+								class="rounded-xl border border-dashed border-stone-300 px-3 py-2.5 text-xs font-medium text-stone-600"
+								data-testid="setup-zernio-callout"
 							>
-							instead.{setupPanel === 'x' ? '' : ' Free plan available.'}
-						</p>
+								Don't want to set up an app?
+								<button
+									type="button"
+									onclick={() => openZernioForm(setupPanel ?? undefined)}
+									class="font-bold text-stone-900 underline"
+									>Connect {platformName(setupPanel)} through Zernio</button
+								>
+								instead.{setupPanel === 'x' ? '' : ' Free plan available.'}
+							</p>
+						{/if}
 					</div>
 				{/key}
 			{:else if modalForm === 'none'}
@@ -1070,12 +1218,14 @@
 					{#each availablePlatforms as platform (platform.id)}
 						<button
 							type="button"
-							class="group flex items-center justify-between rounded-[1.5rem] border border-stone-200/80 bg-white p-4 text-left shadow-sm transition-all hover:border-stone-300 hover:shadow-md"
+							class="group flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3.5 text-left transition-all hover:border-indigo-200 hover:bg-indigo-50/40"
 							onclick={() => pickPlatform(platform.id)}
 						>
 							<div class="flex items-center gap-4">
 								<span
-									class="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-stone-100 font-bold text-stone-600 shadow-sm transition-colors group-hover:bg-stone-200/50 group-hover:text-stone-900"
+									class="flex h-10 w-10 items-center justify-center rounded-lg {TILE_BG[
+										platform.id
+									] ?? 'bg-stone-100'} {platformColorClass(platform.id)}"
 								>
 									{#if platform.id === 'zernio'}
 										<Plug class="h-5 w-5" />
@@ -1084,10 +1234,10 @@
 									{/if}
 								</span>
 								<div>
-									<h3 class="text-[15px] font-extrabold tracking-tight text-stone-900">
+									<h3 class="text-[14px] font-semibold tracking-tight text-stone-900">
 										{platform.name}
 									</h3>
-									<p class="mt-0.5 text-[13px] font-medium text-stone-500">
+									<p class="mt-0.5 text-xs text-stone-500">
 										{platform.description}
 									</p>
 								</div>
@@ -1099,7 +1249,7 @@
 								>
 							{:else}
 								<div
-									class="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-stone-500 transition-all group-hover:border-stone-900 group-hover:bg-stone-900 group-hover:text-white"
+									class="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-500 transition-all group-hover:border-accent group-hover:bg-accent group-hover:text-white"
 								>
 									<Plus class="h-4 w-4" />
 								</div>
@@ -1127,21 +1277,21 @@
 				</div>
 				<button
 					type="button"
-					class="group flex w-full items-center justify-between gap-3 rounded-[1.5rem] border border-dashed border-stone-300 bg-stone-50/60 p-4 text-left transition-all hover:border-stone-400 hover:bg-white"
+					class="group flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-stone-300 bg-stone-50/60 p-3.5 text-left transition-all hover:border-stone-400 hover:bg-white"
 					onclick={() => openZernioForm()}
 					data-testid="zernio-card"
 				>
 					<div class="flex items-center gap-4">
 						<span
-							class="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-white text-stone-600 shadow-sm transition-colors group-hover:text-stone-900"
+							class="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-stone-600 shadow-sm transition-colors group-hover:text-stone-900"
 						>
 							<Plug class="h-5 w-5" />
 						</span>
 						<div>
-							<h3 class="text-[15px] font-extrabold tracking-tight text-stone-900">
+							<h3 class="text-[14px] font-semibold tracking-tight text-stone-900">
 								Connect through Zernio
 							</h3>
-							<p class="mt-0.5 text-[13px] font-medium text-stone-500">No developer apps needed</p>
+							<p class="mt-0.5 text-xs text-stone-500">No developer apps needed</p>
 						</div>
 					</div>
 					<span
@@ -1154,10 +1304,10 @@
 					<button
 						type="button"
 						onclick={backToPlatforms}
-						class="text-[13px] font-bold text-stone-500 hover:text-stone-900"
+						class="text-[13px] font-semibold text-stone-500 hover:text-stone-900"
 						>← All platforms</button
 					>
-					<h3 class="text-[17px] font-extrabold tracking-tight text-stone-900">Bluesky</h3>
+					<h3 class="text-[17px] font-semibold tracking-tight text-stone-900">Bluesky</h3>
 					<ol class="list-decimal space-y-1 pl-4 text-xs font-medium text-stone-500">
 						<li>
 							Open
@@ -1176,7 +1326,7 @@
 						placeholder="handle.bsky.social"
 						aria-label="Bluesky handle"
 						bind:value={handle}
-						class="w-full rounded-xl border border-stone-200/80 bg-stone-50 px-3 py-2.5 text-sm font-bold text-stone-900 focus:border-stone-400 focus:bg-white focus:outline-none pointer-coarse:text-base"
+						class="field pointer-coarse:text-base"
 						required
 					/>
 					<input
@@ -1184,17 +1334,14 @@
 						placeholder="App password (xxxx-xxxx-xxxx-xxxx)"
 						aria-label="Bluesky app password"
 						bind:value={appPassword}
-						class="w-full rounded-xl border border-stone-200/80 bg-stone-50 px-3 py-2.5 text-sm font-bold text-stone-900 focus:border-stone-400 focus:bg-white focus:outline-none pointer-coarse:text-base"
+						class="field pointer-coarse:text-base"
 						required
 						autocomplete="off"
 					/>
 					{#if err}
 						<p class="text-sm text-red-600">{err}</p>
 					{/if}
-					<button
-						type="submit"
-						disabled={loading}
-						class="w-full rounded-full bg-stone-900 py-2.5 text-[13px] font-bold text-white transition-all hover:bg-stone-800 disabled:opacity-50"
+					<button type="submit" disabled={loading} class="btn btn-primary w-full"
 						>{loading ? 'Connecting…' : 'Connect Bluesky'}</button
 					>
 				</form>
@@ -1203,10 +1350,10 @@
 					<button
 						type="button"
 						onclick={backToPlatforms}
-						class="text-[13px] font-bold text-stone-500 hover:text-stone-900"
+						class="text-[13px] font-semibold text-stone-500 hover:text-stone-900"
 						>← All platforms</button
 					>
-					<h3 class="text-[17px] font-extrabold tracking-tight text-stone-900">Zernio</h3>
+					<h3 class="text-[17px] font-semibold tracking-tight text-stone-900">Zernio</h3>
 					<p class="text-xs font-medium text-stone-500">
 						Zernio publishes with its own approved apps, so X, Threads, LinkedIn and Bluesky connect
 						without a developer app of your own. It has a free plan (X needs a card), and posts
@@ -1226,7 +1373,7 @@
 								: 'Zernio API key'}
 							aria-label="Zernio API key"
 							bind:value={zernioApiKey}
-							class="w-full rounded-xl border border-stone-200/80 bg-stone-50 px-3 py-2.5 text-sm font-bold text-stone-900 focus:border-stone-400 focus:bg-white focus:outline-none pointer-coarse:text-base"
+							class="field pointer-coarse:text-base"
 							required={!zernioHasStoredKey}
 							autocomplete="off"
 						/>
@@ -1239,10 +1386,7 @@
 							>. It needs the publishing and accounts groups; a read-only key cannot post.
 						</p>
 						{#if zernioAccounts === null}
-							<button
-								type="submit"
-								disabled={loading}
-								class="w-full rounded-full bg-stone-900 py-2.5 text-[13px] font-bold text-white transition-all hover:bg-stone-800 disabled:opacity-50"
+							<button type="submit" disabled={loading} class="btn btn-primary w-full"
 								>{loading ? 'Loading…' : 'Show my Zernio accounts'}</button
 							>
 						{/if}
@@ -1288,7 +1432,7 @@
 								type="button"
 								onclick={importZernioAccounts}
 								disabled={loading || zernioSelected.length === 0}
-								class="w-full rounded-full bg-stone-900 py-2.5 text-[13px] font-bold text-white transition-all hover:bg-stone-800 disabled:opacity-50"
+								class="btn btn-primary w-full"
 								>{loading
 									? 'Importing…'
 									: `Import ${zernioSelected.length} account${zernioSelected.length === 1 ? '' : 's'}`}</button
@@ -1319,8 +1463,7 @@
 									type="button"
 									disabled={loading || !zernioConnectProfile}
 									onclick={() => connectThroughZernio(zernioConnectPlatform, zernioConnectProfile)}
-									class="rounded-full border border-stone-300 bg-white px-4 py-1.5 text-[12px] font-bold text-stone-900 transition-colors hover:bg-stone-100 disabled:opacity-50"
-									>{loading ? 'Redirecting…' : 'Connect'}</button
+									class="btn btn-secondary btn-sm">{loading ? 'Redirecting…' : 'Connect'}</button
 								>
 							</div>
 							<p class="text-[11px] font-medium text-stone-500">
@@ -1332,36 +1475,6 @@
 						<p class="text-sm text-red-600">{err}</p>
 					{/if}
 				</div>
-			{:else}
-				<form onsubmit={connectMastodon} class="space-y-3">
-					<button
-						type="button"
-						onclick={backToPlatforms}
-						class="text-[13px] font-bold text-stone-500 hover:text-stone-900"
-						>← All platforms</button
-					>
-					<h3 class="text-[17px] font-extrabold tracking-tight text-stone-900">Mastodon</h3>
-					<p class="text-xs font-medium text-stone-500">
-						Enter your instance (mastodon.social, hachyderm.io, …). You'll authorize on that site.
-					</p>
-					<input
-						type="text"
-						placeholder="https://mastodon.social"
-						aria-label="Mastodon instance URL"
-						bind:value={instanceUrl}
-						class="w-full rounded-xl border border-stone-200/80 bg-stone-50 px-3 py-2.5 text-sm font-bold text-stone-900 focus:border-stone-400 focus:bg-white focus:outline-none pointer-coarse:text-base"
-						required
-					/>
-					{#if err}
-						<p class="text-sm text-red-600">{err}</p>
-					{/if}
-					<button
-						type="submit"
-						disabled={loading}
-						class="w-full rounded-full bg-stone-900 py-2.5 text-[13px] font-bold text-white transition-all hover:bg-stone-800 disabled:opacity-50"
-						>{loading ? 'Redirecting…' : 'Connect Mastodon'}</button
-					>
-				</form>
 			{/if}
 		</div>
 	</div>

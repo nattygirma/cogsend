@@ -362,15 +362,17 @@
 </script>
 
 <div
-	class="mx-auto flex w-full max-w-2xl flex-1 flex-col"
+	class="mx-auto flex w-full max-w-4xl flex-1 flex-col"
 	aria-busy={loading}
 	data-testid="insights-page"
 >
 	<div class="mb-8 flex flex-wrap items-end justify-between gap-4">
-		<div class="flex flex-col gap-2">
-			<p class="text-[11px] font-bold tracking-widest text-stone-500 uppercase">Analytics</p>
-			<h1 class="text-3xl font-extrabold tracking-tight text-stone-900">Insights</h1>
-			<p class="text-[13px] font-medium text-stone-500">
+		<div>
+			<p class="mb-1.5 text-[11px] font-semibold tracking-[0.14em] text-stone-500 uppercase">
+				Analytics
+			</p>
+			<h1 class="text-2xl font-semibold tracking-tight text-stone-900 sm:text-[28px]">Insights</h1>
+			<p class="mt-2 max-w-2xl text-sm text-stone-500">
 				{#if stats}
 					Delivery stats for the last {rangeWords(stats.range.days)}, compared with the previous
 					{rangeWords(stats.range.days)}.
@@ -379,14 +381,19 @@
 				{/if}
 			</p>
 		</div>
-		<div class="inline-flex rounded-2xl bg-stone-200/50 p-1" role="group" aria-label="Date range">
+		<div
+			class="inline-flex rounded-xl border border-stone-200 bg-white p-1 shadow-sm"
+			role="group"
+			aria-label="Date range"
+		>
 			{#each RANGES as value (value)}
 				<button
 					type="button"
 					aria-pressed={range === value}
 					onclick={() => pickRange(value)}
-					class="rounded-xl px-3.5 py-1.5 text-[13px] font-bold transition-colors {range === value
-						? 'bg-white text-stone-900 shadow-sm'
+					class="rounded-lg px-3.5 py-1.5 text-[13px] font-semibold transition-colors {range ===
+					value
+						? 'bg-accent-soft text-accent-ink'
 						: 'text-stone-500 hover:text-stone-900'}"
 				>
 					{value} days
@@ -429,26 +436,19 @@
 		<!-- First paint only: skeleton in the real layout's shape. -->
 		<div class="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-hidden="true">
 			{#each [0, 1, 2] as i (i)}
-				<div
-					class="animate-pulse rounded-[1.5rem] border border-stone-200/80 bg-white p-4 {i === 2
-						? 'col-span-2 sm:col-span-1'
-						: ''}"
-				>
+				<div class="card animate-pulse p-4 {i === 2 ? 'col-span-2 sm:col-span-1' : ''}">
 					<div class="h-6 w-12 rounded bg-stone-100"></div>
 					<div class="mt-3 h-3 w-20 rounded bg-stone-100"></div>
 				</div>
 			{/each}
 		</div>
-		<div
-			class="mt-5 animate-pulse rounded-[2rem] border border-stone-200/80 bg-white p-5"
-			aria-hidden="true"
-		>
+		<div class="card mt-5 animate-pulse p-5" aria-hidden="true">
 			<div class="h-4 w-32 rounded bg-stone-100"></div>
 			<div class="mt-4 h-36 rounded-2xl bg-stone-50"></div>
 		</div>
 	{:else if stats && !hasActivity}
 		<div
-			class="flex flex-col items-center justify-center rounded-[2rem] border border-dashed border-stone-200/80 bg-white px-4 py-20 text-center"
+			class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-white px-4 py-20 text-center"
 		>
 			<div
 				class="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-stone-100 bg-stone-50 text-stone-500 shadow-sm"
@@ -462,7 +462,7 @@
 		</div>
 	{:else if stats}
 		<div class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="insights-stats">
-			<div class="rounded-[1.5rem] border border-stone-200/80 bg-white p-4 shadow-sm">
+			<div class="card p-4">
 				<p class="text-2xl font-extrabold tracking-tight text-stone-900">
 					{stats.totals.published}
 				</p>
@@ -476,7 +476,7 @@
 					{countDelta(stats.totals.published, stats.previous.published)}
 				</p>
 			</div>
-			<div class="rounded-[1.5rem] border border-stone-200/80 bg-white p-4 shadow-sm">
+			<div class="card p-4">
 				<p class="text-2xl font-extrabold tracking-tight text-stone-900">
 					{stats.totals.scheduled}
 				</p>
@@ -489,9 +489,7 @@
 							: 'nothing queued'}
 				</p>
 			</div>
-			<div
-				class="col-span-2 rounded-[1.5rem] border border-stone-200/80 bg-white p-4 shadow-sm sm:col-span-1"
-			>
+			<div class="card col-span-2 p-4 sm:col-span-1">
 				<p class="text-xl font-extrabold tracking-tight text-stone-900 sm:text-2xl">
 					{latestPost.text}
 				</p>
@@ -543,10 +541,7 @@
 			</div>
 		</div>
 
-		<div
-			class="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_8px_30px_-12px_rgb(28_25_23/0.06)]"
-			data-testid="insights-chart"
-		>
+		<div class="card overflow-hidden" data-testid="insights-chart">
 			<div class="p-4 pb-3.5 sm:p-5">
 				<div class="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="insights-legend">
 					<span class="flex items-center gap-1.5 text-[11px] font-bold text-stone-500">
@@ -790,10 +785,7 @@
 				{accounts.length === 1 ? 'account' : 'accounts'}
 			</p>
 		</div>
-		<div
-			class="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_8px_30px_-12px_rgb(28_25_23/0.06)]"
-			data-testid="insights-accounts"
-		>
+		<div class="card overflow-hidden" data-testid="insights-accounts">
 			{#each accounts as account, index (account.connectionId)}
 				<div
 					class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:flex-nowrap sm:gap-4 {index !==

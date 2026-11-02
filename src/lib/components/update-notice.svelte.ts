@@ -4,7 +4,7 @@
  * has seen it. "Seen" is remembered per browser and per release, so the next
  * release brings the dot back.
  */
-const SEEN_KEY = 'cogsend:update-seen';
+const SEEN_KEY = 'posteasy:update-seen';
 
 export const updateNotice = $state<{ tag: string | null; seen: string | null }>({
 	tag: null,

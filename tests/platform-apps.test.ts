@@ -174,16 +174,23 @@ describe('OAuth app credentials stored in the app', () => {
 		expect(connect.status).toBe(409);
 	});
 
-	it('refuses API keys, unknown platforms, and an unverified session', async () => {
+	it('refuses API keys, unknown platforms, and anyone but the workspace owner', async () => {
 		expect((await call(appPUT, { body: X_APP, locals: session(TEST_ENV, 'bearer') })).status).toBe(
 			401
 		);
 		expect((await call(appPUT, { platform: 'mastodon', body: X_APP })).status).toBe(404);
-		const unverified = {
-			...session(),
-			user: { ...session().user, mfaVerified: false }
-		};
-		expect((await call(appPUT, { body: X_APP, locals: unverified })).status).toBe(401);
+		// A later sign-up shares the workspace but not its platform apps.
+		const later = new Date(Date.now() + 1000);
+		await db.insert(users).values({
+			id: 'member',
+			email: 'member@localhost',
+			passwordHash: 'x',
+			createdAt: later,
+			updatedAt: later
+		});
+		const member = { ...session(), user: { ...session().user, id: 'member' } };
+		expect((await call(appPUT, { body: X_APP, locals: member })).status).toBe(403);
+		expect((await call(appDELETE, { locals: member })).status).toBe(403);
 		expect(await resolvePlatformCredentials(db, TEST_ENV, 'x')).toBeNull();
 	});
 

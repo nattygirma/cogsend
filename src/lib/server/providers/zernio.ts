@@ -55,7 +55,7 @@ async function createOrAdopt(opts: {
 			postId: existingId,
 			fetchImpl: opts.fetchImpl
 		});
-		if (existing.metadata?.cogsendRequestId !== opts.requestId) throw err;
+		if (existing.metadata?.posteasyRequestId !== opts.requestId) throw err;
 		return existingId;
 	}
 }
@@ -200,7 +200,7 @@ export function zernioProviderFor(
 				const requestId = zernioRequestId(publishOpts?.idempotencyKey?.(0) ?? crypto.randomUUID());
 				postId = await createOrAdopt({
 					apiKey,
-					body: { ...body, metadata: { cogsendRequestId: requestId } },
+					body: { ...body, metadata: { posteasyRequestId: requestId } },
 					requestId,
 					fetchImpl
 				});

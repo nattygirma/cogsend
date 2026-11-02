@@ -10,7 +10,7 @@
  *
  * Usage:
  *   npm run doctor
- *   npm run doctor -- --app-url https://cogsend.example.com
+ *   npm run doctor -- --app-url https://posteasy.example.com
  *
  * Exit code is 1 when something is broken (✗), 0 when only warnings (!) or
  * everything passed.
@@ -513,8 +513,8 @@ function checkNode() {
  * validity: a wrong id still counts as set up and is rejected by the provider
  * when someone tries to connect.
  *
- * `ok` either way, on purpose. A deployment without them is complete — Mastodon
- * and Bluesky connect with what the user already has — so the line says what is
+ * `ok` either way, on purpose. A deployment without them is complete — Bluesky
+ * connects with what the user already has — so the line says what is
  * possible rather than adding a warning to every fresh install.
  *
  * @param {string[]} secretNames
@@ -543,9 +543,7 @@ export function platformVerdict(secretNames) {
 		id: 'platforms',
 		status: 'ok',
 		label: `${missing.join(', ')}: no app credentials (optional)`,
-		detail: ready.length
-			? `${ready.join(', ')} can be connected`
-			: 'Mastodon and Bluesky can be connected',
+		detail: ready.length ? `${ready.join(', ')} can be connected` : 'Bluesky can be connected',
 		fix: 'docs/oauth-apps.md — register the app, then `npm run secrets:put`'
 	};
 }
@@ -896,7 +894,7 @@ async function main() {
 
 	// Before the login line: with WRANGLER_PROFILE set, the account a request
 	// made through the profile reached is what says whether it is signed in.
-	const target = checkTarget({ env: { ...process.env, COGSEND_ALLOW_ACCOUNT_CHANGE: '' } });
+	const target = checkTarget({ env: { ...process.env, POSTEASY_ALLOW_ACCOUNT_CHANGE: '' } });
 	/** @type {any} */
 	let account = null;
 	if (!target.profile) {
@@ -1155,7 +1153,7 @@ async function main() {
 	const remotes = run('git', ['remote', '-v'], { timeout: 15_000 });
 	const shape = installShape(`${remotes.stdout}${remotes.stderr}`);
 	try {
-		const headers = { accept: 'application/vnd.github+json', 'user-agent': 'cogsend' };
+		const headers = { accept: 'application/vnd.github+json', 'user-agent': 'posteasy' };
 		const res = await fetch('https://api.github.com/repos/cogsend/cogsend/releases/latest', {
 			headers,
 			signal: AbortSignal.timeout(10_000)

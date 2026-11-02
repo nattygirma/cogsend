@@ -8,7 +8,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
  * The preview server gets a dedicated fixture through Wrangler's `--env-file`
  * flag, so the specs read the same file. A developer's `.dev.vars` is never
  * consulted or changed. The TOTP suite can supply a temporary derivative via
- * `COGSEND_E2E_VARS_FILE`.
+ * `POSTEASY_E2E_VARS_FILE`.
  *
  * The login is not one of those values: the account is created in D1 before the
  * server starts, by `scripts/seed-local.mjs`, into the suite's own state
@@ -25,7 +25,7 @@ function parse(raw: string): Record<string, string> {
 	return out;
 }
 
-export const E2E_VARS_FILE = process.env.COGSEND_E2E_VARS_FILE || FIXTURE;
+export const E2E_VARS_FILE = process.env.POSTEASY_E2E_VARS_FILE || FIXTURE;
 
 export function e2eVars(): Record<string, string> {
 	return parse(readFileSync(E2E_VARS_FILE, 'utf8'));

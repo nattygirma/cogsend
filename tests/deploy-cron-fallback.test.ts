@@ -17,10 +17,10 @@ import {
 } from '../scripts/lib/wrangler-config.mjs';
 
 /** The real error, as Cloudflare returns it (the account id is redacted). */
-const QUOTA_ERROR = `✘ [ERROR] Trigger configuration for "cogsend-demo" was only partially updated:
+const QUOTA_ERROR = `✘ [ERROR] Trigger configuration for "posteasy-demo" was only partially updated:
 
     Cron schedules:
-      - A request to the Cloudflare API (/accounts/0123456789abcdef0123456789abcdef/workers/scripts/cogsend-demo/schedules) failed.
+      - A request to the Cloudflare API (/accounts/0123456789abcdef0123456789abcdef/workers/scripts/posteasy-demo/schedules) failed.
         - This account has reached the Workers Free limit of 5 cron triggers per account. Upgrade to Workers Paid to increase this limit to 1,000: https://dash.cloudflare.com/0123456789abcdef0123456789abcdef/workers/plans [code: 10072]
   To learn more about this error, visit: https://developers.cloudflare.com/workers/platform/limits/#account-plan-limits
 
@@ -45,7 +45,7 @@ describe('jsonc parsing', () => {
 	it('keeps urls, escapes and comments apart', () => {
 		const text = `{
 	// a comment with a "quote" and a / slash
-	"name": "cogsend", /* block
+	"name": "posteasy", /* block
 	   comment */
 	"main": "./x.js",
 	"url": "https://example.com//path",
@@ -53,7 +53,7 @@ describe('jsonc parsing', () => {
 	"trailing": [1, 2,],
 }`;
 		expect(parseJsonc(text)).toEqual({
-			name: 'cogsend',
+			name: 'posteasy',
 			main: './x.js',
 			url: 'https://example.com//path',
 			escaped: 'a"b // not a comment',
@@ -68,7 +68,7 @@ describe('jsonc parsing', () => {
 
 describe('trigger removal', () => {
 	const config = {
-		name: 'cogsend',
+		name: 'posteasy',
 		compatibility_date: '2026-08-17',
 		triggers: { crons: ['* * * * *'] },
 		d1_databases: [{ binding: 'DB' }]
@@ -84,8 +84,8 @@ describe('trigger removal', () => {
 	});
 
 	it('adds an explicit empty trigger list when there was none', () => {
-		expect(withoutCronTriggers({ name: 'cogsend' })).toEqual({
-			name: 'cogsend',
+		expect(withoutCronTriggers({ name: 'posteasy' })).toEqual({
+			name: 'posteasy',
 			triggers: { crons: [] }
 		});
 	});
@@ -141,10 +141,10 @@ describe('config argument handling', () => {
 		expect(withoutConfigArg(['deploy', '-c', 'a.jsonc'])).toEqual(['deploy']);
 		expect(withoutConfigArg(['deploy', '--config=a.jsonc'])).toEqual(['deploy']);
 		// The value of another flag is never mistaken for a config value.
-		expect(withoutConfigArg(['deploy', '--name', 'cogsend'])).toEqual([
+		expect(withoutConfigArg(['deploy', '--name', 'posteasy'])).toEqual([
 			'deploy',
 			'--name',
-			'cogsend'
+			'posteasy'
 		]);
 	});
 });
@@ -192,7 +192,7 @@ describe('deploy fallback, end to end', () => {
 	});
 
 	function scratch(scriptBody: string, config: string) {
-		const created = mkdtempSync(join(tmpdir(), 'cogsend-wrapper-'));
+		const created = mkdtempSync(join(tmpdir(), 'posteasy-wrapper-'));
 		dir = created;
 		writeFileSync(join(created, 'wrangler.jsonc'), config);
 		const bin = join(created, 'bin');
@@ -237,7 +237,7 @@ ${scriptBody}
 			`if (deploy && !hasNoCronConfig) { console.error(${JSON.stringify(QUOTA_ERROR)}); process.exit(1); }
 if (deploy) { console.log('Deployed sent'); process.exit(0); }
 process.exit(0);`,
-			`{\n\t"name": "cogsend",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
+			`{\n\t"name": "posteasy",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
 		);
 		const result = runWrapper(root, bin);
 		expect(result.status).toBe(0);
@@ -270,7 +270,7 @@ if (deploy) {
 	process.exit(0);
 }
 process.exit(0);`,
-			`{\n\t"name": "cogsend",\n\t// a comment that JSON.parse would choke on\n\t"triggers": { "crons": ["* * * * *"] },\n\t"vars": {}\n}\n`
+			`{\n\t"name": "posteasy",\n\t// a comment that JSON.parse would choke on\n\t"triggers": { "crons": ["* * * * *"] },\n\t"vars": {}\n}\n`
 		);
 		const result = runWrapper(root, bin);
 		expect(result.status).toBe(0);
@@ -281,7 +281,7 @@ process.exit(0);`,
 		const { root, bin } = scratch(
 			`if (deploy) { console.error(${JSON.stringify(QUOTA_ERROR)}); process.exit(1); }
 process.exit(0);`,
-			`{\n\t"name": "cogsend",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
+			`{\n\t"name": "posteasy",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
 		);
 		const result = runWrapper(root, bin);
 		expect(result.status).toBe(1);
@@ -295,7 +295,7 @@ process.exit(0);`,
 		const { root, bin } = scratch(
 			`if (deploy) { console.log('Deployed sent'); process.exit(0); }
 process.exit(0);`,
-			`{\n\t"name": "cogsend"\n}\n`
+			`{\n\t"name": "posteasy"\n}\n`
 		);
 		const result = runWrapper(root, bin, ['deploy'], { WRANGLER_PROFILE: 'my-account' });
 		expect(result.status).toBe(0);
@@ -303,7 +303,7 @@ process.exit(0);`,
 
 		// With a personal config in the directory, that is appended as well — and
 		// after the profile, which is the order this wrapper composes.
-		writeFileSync(join(root, 'wrangler.personal.jsonc'), `{\n\t"name": "cogsend-mine"\n}\n`);
+		writeFileSync(join(root, 'wrangler.personal.jsonc'), `{\n\t"name": "posteasy-mine"\n}\n`);
 		runWrapper(root, bin, ['deploy'], { WRANGLER_PROFILE: 'my-account' });
 		const deploys = calls(root).filter((args: string[]) => args.includes('deploy'));
 		expect(deploys[1]).toEqual([
@@ -319,7 +319,7 @@ process.exit(0);`,
 	it('does nothing special for unrelated failures', () => {
 		const { root, bin } = scratch(
 			`console.error('✘ [ERROR] Worker exceeded the size limit [code: 10027]'); process.exit(1);`,
-			`{\n\t"name": "cogsend"\n}\n`
+			`{\n\t"name": "posteasy"\n}\n`
 		);
 		const result = runWrapper(root, bin);
 		expect(result.status).toBe(1);
@@ -331,7 +331,7 @@ process.exit(0);`,
 		const { root, bin } = scratch(
 			`if (deploy) { console.log('Deployed sent'); process.exit(0); }
 process.exit(0);`,
-			`{\n\t"name": "cogsend",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
+			`{\n\t"name": "posteasy",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
 		);
 		const result = runWrapper(root, bin);
 		expect(result.status).toBe(0);
@@ -347,7 +347,7 @@ process.exit(0);`,
 			`if (deploy) { console.log('Deployed sent'); process.exit(0); }
 if (args.includes('d1')) { setTimeout(() => {}, 60_000); }
 else process.exit(0);`,
-			`{\n\t"name": "cogsend",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
+			`{\n\t"name": "posteasy",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
 		);
 		// Shrink the note timeout so the test does not wait a minute: the wrapper
 		// reads it from the environment when set.
@@ -358,7 +358,7 @@ else process.exit(0);`,
 			env: {
 				...process.env,
 				PATH: `${bin}:${process.env.PATH}`,
-				COGSEND_NOTE_TIMEOUT_MS: '1500'
+				POSTEASY_NOTE_TIMEOUT_MS: '1500'
 			}
 		});
 		expect(result.status).toBe(0);
@@ -369,7 +369,7 @@ else process.exit(0);`,
 		const { root, bin } = scratch(
 			`if (deploy) { console.log('Deployed sent'); process.exit(0); }
 process.exit(0);`,
-			`{\n\t"name": "cogsend",\n\t"triggers": { "crons": [] }\n}\n`
+			`{\n\t"name": "posteasy",\n\t"triggers": { "crons": [] }\n}\n`
 		);
 		const result = runWrapper(root, bin);
 		expect(result.status).toBe(0);
@@ -380,23 +380,23 @@ process.exit(0);`,
 		const { root, bin } = scratch(
 			`if (deploy) { console.log('Total Upload: 1 KiB'); process.exit(0); }
 process.exit(0);`,
-			`{\n\t"name": "cogsend",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
+			`{\n\t"name": "posteasy",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
 		);
 		const result = runWrapper(root, bin, ['deploy', '--dry-run']);
 		expect(result.status).toBe(0);
 		expect(calls(root)).toHaveLength(1);
 	});
 
-	it('COGSEND_STRICT_CRON=1 keeps the failure', () => {
+	it('POSTEASY_STRICT_CRON=1 keeps the failure', () => {
 		const { root, bin } = scratch(
 			`if (deploy) { console.error(${JSON.stringify(QUOTA_ERROR)}); process.exit(1); }
 process.exit(0);`,
-			`{\n\t"name": "cogsend",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
+			`{\n\t"name": "posteasy",\n\t"triggers": { "crons": ["* * * * *"] }\n}\n`
 		);
 		const result = spawnSync('node', [join(process.cwd(), 'scripts/wrangler.mjs'), 'deploy'], {
 			cwd: root,
 			encoding: 'utf8',
-			env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, COGSEND_STRICT_CRON: '1' }
+			env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, POSTEASY_STRICT_CRON: '1' }
 		});
 		expect(result.status).toBe(1);
 		expect(calls(root)).toHaveLength(1);

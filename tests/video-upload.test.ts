@@ -77,7 +77,7 @@ describe('videoIssues', () => {
 		videoIssues(platform, { ...fine, ...facts }, meta as never).map((i) => i.message);
 
 	it('passes an ordinary phone video everywhere', () => {
-		for (const p of ['x', 'bluesky', 'mastodon', 'linkedin', 'threads']) {
+		for (const p of ['x', 'bluesky', 'linkedin', 'threads']) {
 			expect([p, errors(p, {})]).toEqual([p, []]);
 		}
 	});
@@ -114,16 +114,6 @@ describe('videoIssues', () => {
 		]);
 		expect(errors('threads', { faststart: false })[0]).toMatch(/index at the start/);
 		expect(errors('threads', { videoCodec: 'hevc' })).toEqual([]);
-	});
-
-	it('uses what a Mastodon server reports, and its defaults otherwise', () => {
-		expect(errors('mastodon', { size: 120_000_000 })).toEqual([
-			'Mastodon takes videos up to 99 MB — this one is 120 MB'
-		]);
-		expect(errors('mastodon', { size: 50_000_000 }, { videoSizeLimit: 40_000_000 })).toEqual([
-			'Mastodon takes videos up to 40 MB — this one is 50 MB'
-		]);
-		expect(errors('mastodon', { width: 7680, height: 4320 })[0]).toMatch(/4K/);
 	});
 
 	it('checks LinkedIn and Bluesky for length', () => {

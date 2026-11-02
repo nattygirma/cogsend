@@ -1,6 +1,6 @@
 /**
  * Updating a Deploy-button install through its own GitHub repository: the
- * repository's "Update CogSend" Action replaces its files with another
+ * repository's "Update PostEasy" Action replaces its files with another
  * release, and Workers Builds deploys that commit.
  *
  * Trust comes from the release signature, never from where files are fetched:
@@ -22,7 +22,7 @@ import { isLaterVersion } from './deployed-version.mjs';
 /** Left by an update that installs an older release on purpose, naming that
  *  release; the deploy script lets exactly that version past its downgrade
  *  check. */
-export const ROLLBACK_MARKER = '.cogsend-rollback';
+export const ROLLBACK_MARKER = '.posteasy-rollback';
 
 /** What an update never replaces: the repository itself and its workflows. */
 export const KEEP = new Set(['.git', '.github']);

@@ -81,7 +81,7 @@ function isLongPostRefusal(status: number, body: string): boolean {
 /** Holds the account to 280 from here on, until the operator says otherwise. */
 function longPostRefused(status: number, detail: string): ProviderError {
 	return new ProviderError(
-		'X refused a post over 280 characters. Long posts need X Premium on this account, so CogSend now holds it to 280. If it does have Premium, turn Long posts back on under Accounts.',
+		'X refused a post over 280 characters. Long posts need X Premium on this account, so PostEasy now holds it to 280. If it does have Premium, turn Long posts back on under Accounts.',
 		{
 			status,
 			code: 'forbidden',
@@ -663,8 +663,6 @@ export const xProvider: PlatformProvider = {
 	capabilities: {
 		maxImages: X_MAX_IMAGES,
 		maxImageBytes: X_MAX_IMAGE_BYTES,
-		supportsCW: false,
-		supportsVisibility: false,
 		supportsThreads: true
 	},
 

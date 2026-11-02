@@ -93,6 +93,8 @@ async function targetStatuses(page: Page, draftId: string) {
 
 async function untick(page: Page, short: string) {
 	const row = page.locator(`button[title="Bluesky: ${short}.bsky.social"]`);
+	// The account avatars render with the page; clicks before hydration are lost.
+	await waitForLiveComposer(page);
 	await clickUntilVisible(page, page.getByTestId('destinations-toggle'), row);
 	await expect(row).toHaveAttribute('aria-pressed', 'true');
 	await row.click();

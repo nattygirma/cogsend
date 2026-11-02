@@ -36,7 +36,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const unsupported = ids.filter((id) => toImportable(byId.get(id)!, new Set()) === null);
 		if (unsupported.length) {
 			return fail(
-				`CogSend cannot post to ${unsupported.map((id) => byId.get(id)!.platform).join(', ')}`
+				`PostEasy cannot post to ${unsupported.map((id) => byId.get(id)!.platform).join(', ')}`
 			);
 		}
 		const rows = [];

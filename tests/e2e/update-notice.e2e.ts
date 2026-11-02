@@ -31,19 +31,20 @@ const openMenu = (page: Page, name: string) =>
 	clickUntilVisible(page, page.getByRole('button', { name }), page.locator('#profile-menu'));
 
 async function signIn(page: Page) {
-	await page.goto('/compose');
+	// The dashboard: on the compose page the composer would cover the header.
+	await page.goto('/');
 	if (/\/login$/.test(new URL(page.url()).pathname)) {
 		await page.getByLabel('Email').fill(E2E_ACCOUNT.email);
-		await page.getByLabel('Password').fill(E2E_ACCOUNT.password);
+		await page.getByLabel('Password', { exact: true }).fill(E2E_ACCOUNT.password);
 		await page.getByRole('button', { name: 'Sign in' }).click();
-		await expect(page).toHaveURL(/\/compose$/, { timeout: 20000 });
+		await expect(page).toHaveURL(/\/$/, { timeout: 20000 });
 	}
 }
 
 test('a newer release shows in the header until it has been seen', async ({ page }) => {
 	await offer(page, null);
 	await signIn(page);
-	await page.evaluate(() => localStorage.removeItem('cogsend:update-seen'));
+	await page.evaluate(() => localStorage.removeItem('posteasy:update-seen'));
 	await load(page, () => page.reload());
 	await openMenu(page, 'Profile menu');
 	await expect(page.getByTestId('update-menu-item')).toHaveCount(0);
@@ -61,7 +62,7 @@ test('a newer release shows in the header until it has been seen', async ({ page
 	await expect(page.getByTestId('update-dot')).toHaveCount(0);
 
 	// Seen stays seen, but the menu keeps the line until the update is installed.
-	await load(page, () => page.goto('/compose'));
+	await load(page, () => page.goto('/posts'));
 	await expect(page.getByTestId('update-dot')).toHaveCount(0);
 	await openMenu(page, 'Profile menu');
 	await expect(page.getByTestId('update-menu-item')).toBeVisible();

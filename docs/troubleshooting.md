@@ -6,9 +6,9 @@ for you.
 
 ## The R2 step says the bucket name already exists
 
-R2 bucket names are unique across all Cloudflare accounts, so `cogsend-media`
+R2 bucket names are unique across all Cloudflare accounts, so `posteasy-media`
 is only a starting point. Set `bucket_name` in `wrangler.personal.jsonc` (or pass
-`--bucket my-cogsend-media` to `setup`) and deploy again. With the Deploy to Cloudflare button, change the bucket's name in the form instead. R2 also refuses to create anything until the account has a payment
+`--bucket my-posteasy-media` to `setup`) and deploy again. With the Deploy to Cloudflare button, change the bucket's name in the form instead. R2 also refuses to create anything until the account has a payment
 method on file, even for free-tier usage.
 
 ## The deploy complains about cron triggers (10072)
@@ -27,7 +27,7 @@ slot.
 `npm run deploy` handles this for you: it retries once with the trigger removed
 (`"crons": []`) and exits 0, printing the same explanation, so the build is not
 marked failed and the app is live. Publishing now works; only scheduled posts
-need a tick. Set `COGSEND_STRICT_CRON=1` to get the plain failure instead.
+need a tick. Set `POSTEASY_STRICT_CRON=1` to get the plain failure instead.
 
 Pick one of these:
 
@@ -103,7 +103,7 @@ one go.
 
 Give the second instance its own names, or it will adopt the first one's
 resources: D1 provisioning matches on `database_name`, and R2 bucket names are
-global. `npm run setup -- --name my-cogsend --db my-cogsend --bucket my-cogsend-media`
+global. `npm run setup -- --name my-posteasy --db my-posteasy --bucket my-posteasy-media`
 writes them into `wrangler.personal.jsonc` (gitignored) — the Worker name, the
 database's name _and_ its id, and the bucket — so the deploy output, `wrangler
 d1 …` and `npm run doctor` all name the instance you think they do.
@@ -112,7 +112,7 @@ d1 …` and `npm run doctor` all name the instance you think they do.
 
 The command would reach a different Cloudflare account than the last deploy from this checkout, usually because `WRANGLER_PROFILE` was left off or the checkout moved out of a folder with a bound Wrangler profile. Nothing was changed. Run it again with the profile the instance uses, or bind the checkout to that profile once with `npx wrangler auth activate <profile>`, so no command needs `WRANGLER_PROFILE`; see [More than one Cloudflare account](configuration.md#more-than-one-cloudflare-account).
 
-Moving the instance on purpose? `COGSEND_ALLOW_ACCOUNT_CHANGE=1 npm run deploy` deploys to the new account and records it.
+Moving the instance on purpose? `POSTEASY_ALLOW_ACCOUNT_CHANGE=1 npm run deploy` deploys to the new account and records it.
 
 ## The deploy asks you to register a workers.dev subdomain
 
@@ -124,10 +124,10 @@ The Cloudflare account is new and has never picked its workers.dev subdomain; ad
 
 ## A post failed with "may have been published"
 
-CogSend sent the post to X, LinkedIn, Threads or Instagram, but no answer came back
+PostEasy sent the post to X, LinkedIn, Threads or Instagram, but no answer came back
 in time, or Instagram answered with a server error, so it cannot tell whether the
 platform published it. Those platforms take no id
-that would let a second attempt be recognised as the same post, so CogSend does
+that would let a second attempt be recognised as the same post, so PostEasy does
 not retry on its own: a blind retry could post it twice. Open the account on the
 platform. If the post is there, press **Discard** next to that account in
 **Posts → Failed**; if it is not, press **Retry**.
@@ -136,10 +136,10 @@ platform. If the post is there, press **Discard** next to that account in
 
 The old version keeps serving whatever step fails; **Abort the unfinished update** tidies up, and you can start again.
 
-- **"…not signed by a CogSend release key"** or **"did not download intact"**: the bundle is not the one the release published. Try again; if it repeats, report it, and update from a checkout meanwhile.
+- **"…not signed by a PostEasy release key"** or **"did not download intact"**: the bundle is not the one the release published. Try again; if it repeats, report it, and update from a checkout meanwhile.
 - **"…does not exist: the release has no update bundle (yet)"**: bundles are attached a few minutes after a release is published.
 - **Cloudflare: Authentication error**, or a 403: the token lacks a permission, or belongs to another account. Create it from the link next to the field, which fills in Workers Scripts (edit) and Account Settings (read). If it cannot list accounts, enter the account ID under **More options**; it is in the dashboard URL.
-- **"Your password is incorrect"**, or **"Too many attempts"**: the password that locks the saved token is your CogSend password, and it shares the login's lockout. Wait a few minutes after the lockout.
+- **"Your password is incorrect"**, or **"Too many attempts"**: the password that locks the saved token is your PostEasy password, and it shares the login's lockout. Wait a few minutes after the lockout.
 - **"The saved token was locked with an earlier password"**: the password changed from the terminal (`npm run admin:reset`), so the saved copy could not be opened and is gone. Paste the token once more.
 - **"Enter your password again to continue the update"**: an update left open for most of an hour lost its one-update key. Press the button again; it continues where it stopped.
 - **"…is splitting traffic between versions"**: a gradual deployment is in progress. Finish it or roll it back under Workers & Pages → your Worker → Deployments.
@@ -149,9 +149,9 @@ The old version keeps serving whatever step fails; **Abort the unfinished update
 
 ## A deploy refuses: "the Worker runs vX, newer than …"
 
-The instance was updated from Settings, and this checkout (or the Deploy-button copy Workers Builds deploys) holds an older release. Deploying it would roll the instance back, so the deploy stops before changing anything. Pull the newer release first; or, if going back is what you want, pass `--allow-downgrade` (or set `COGSEND_ALLOW_DOWNGRADE=1`, which is also how a Workers Builds variable allows it). For a Deploy-button install, update through its repository's **Update CogSend** action instead, which moves the copy forward ([Updating](updates.md#installed-with-the-deploy-to-cloudflare-button)).
+The instance was updated from Settings, and this checkout (or the Deploy-button copy Workers Builds deploys) holds an older release. Deploying it would roll the instance back, so the deploy stops before changing anything. Pull the newer release first; or, if going back is what you want, pass `--allow-downgrade` (or set `POSTEASY_ALLOW_DOWNGRADE=1`, which is also how a Workers Builds variable allows it). For a Deploy-button install, update through its repository's **Update PostEasy** action instead, which moves the copy forward ([Updating](updates.md#installed-with-the-deploy-to-cloudflare-button)).
 
-## The Update CogSend action fails
+## The Update PostEasy action fails
 
 Nothing is committed when it fails, so your instance keeps running what it ran.
 
@@ -161,11 +161,11 @@ Nothing is committed when it fails, so your instance keeps running what it ran.
 - **"…has no commit for vX"**: the release was published moments ago and its files are not in `cogsend/deploy` yet. Try again in a few minutes.
 - **No Run workflow button**: Actions are turned off for the repository. Turn them on under the repository's Settings → Actions → General.
 
-The action succeeded but CogSend still shows the old version? Its commit starts a Workers Builds run: Workers & Pages → your Worker → Deployments shows the build and its log.
+The action succeeded but PostEasy still shows the old version? Its commit starts a Workers Builds run: Workers & Pages → your Worker → Deployments shows the build and its log.
 
 ## `wrangler login` fails on Cloudflare's approval page
 
-The browser shows **Application authorization failed**, with "Unable to authenticate request" or "Something went wrong!". The login asks for every permission wrangler knows about, and Cloudflare can refuse that list for some accounts. Ask only for what CogSend needs, one `--scopes` per permission:
+The browser shows **Application authorization failed**, with "Unable to authenticate request" or "Something went wrong!". The login asks for every permission wrangler knows about, and Cloudflare can refuse that list for some accounts. Ask only for what PostEasy needs, one `--scopes` per permission:
 
 ```sh
 npx wrangler login --scopes account:read --scopes user:read --scopes workers:write --scopes workers_scripts:write --scopes workers_routes:write --scopes workers_kv:write --scopes workers_tail:read --scopes d1:write --scopes zone:read

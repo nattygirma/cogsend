@@ -3,7 +3,7 @@ import { checkAccountPassword } from '#lib/server/auth-gate.js';
 import { getAdminUser } from '#lib/server/auth.js';
 import { fail, handleError, ok } from '#lib/server/http.js';
 import { rateLimitKey } from '#lib/server/rate-limit.js';
-import { requireSession } from '#lib/server/require.js';
+import { requireOwner, requireSession } from '#lib/server/require.js';
 import { SavedTokenError, unlockToken } from '#lib/server/updater/saved-token.js';
 
 /**
@@ -13,10 +13,10 @@ import { SavedTokenError, unlockToken } from '#lib/server/updater/saved-token.js
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		requireSession(locals.user, locals.authMethod);
+		await requireOwner(locals.db, requireSession(locals.user, locals.authMethod));
 		const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 		const password = typeof body?.password === 'string' ? body.password : '';
-		if (!password) return fail('Enter your CogSend password', 400);
+		if (!password) return fail('Enter your PostEasy password', 400);
 		const user = await getAdminUser(locals.db);
 		if (!user) return fail('This instance has no account yet', 409);
 		const check = await checkAccountPassword(

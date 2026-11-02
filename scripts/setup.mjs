@@ -25,7 +25,7 @@
 //   npm run setup -- --skip-deploy      # everything except the deploy
 //   npm run setup -- --rotate-secrets   # also overwrite APP_ENCRYPTION_KEY (rotates the derived secrets too)
 //   npm run setup -- --reset-login      # also replace the account's password (revokes every session)
-//   npm run setup -- --name my-cogsend --bucket my-cogsend-media --db my-cogsend
+//   npm run setup -- --name my-posteasy --bucket my-posteasy-media --db my-posteasy
 //   npm run setup -- --admin-email you@example.com --admin-password '…'
 //   npm run setup -- --subdomain my-name   # a new account's workers.dev subdomain, without the prompt
 //   npm run setup -- --verbose          # print every command and its raw output
@@ -103,7 +103,7 @@ const ROTATE_SECRETS = has('--rotate-secrets');
 const RESET_LOGIN = has('--reset-login');
 const VERBOSE = has('--verbose') || ui.isVerbose();
 // Children (the wrangler wrapper, vite) ask the same question through the env.
-if (VERBOSE) process.env.COGSEND_VERBOSE = '1';
+if (VERBOSE) process.env.POSTEASY_VERBOSE = '1';
 
 // Removed because workerd rejects PBKDF2 counts above 100,000: the old 600k
 // option wrote a hash the Worker could never verify. Fail loudly rather than
@@ -447,7 +447,7 @@ async function ensureSubdomain({ accountId, accountName, workerName }) {
 }
 
 async function main() {
-	console.log(`CogSend setup${DRY ? ' (dry run — nothing will be created or changed)' : ''}`);
+	console.log(`PostEasy setup${DRY ? ' (dry run — nothing will be created or changed)' : ''}`);
 
 	// 1. Who are we deploying as?
 	say('1. Cloudflare account');
@@ -901,7 +901,7 @@ async function main() {
 	say('Done');
 	console.log(
 		ui.box([
-			ui.bold('CogSend is live'),
+			ui.bold('PostEasy is live'),
 			ui.url(siteUrl || 'your Worker URL'),
 			ui.dim(adminEmail ? `sign in as ${adminEmail}` : 'sign in with the account you created')
 		])

@@ -2,7 +2,7 @@ import workflow from './github-update-workflow.yml?raw';
 
 /**
  * Updating a Deploy-button install through its own GitHub repository: the
- * repository's "Update CogSend" Action installs a release and Workers Builds
+ * repository's "Update PostEasy" Action installs a release and Workers Builds
  * deploys it, so no Cloudflare token is involved (scripts/lib/github-update.mjs
  * has the checks it runs).
  *
@@ -19,7 +19,7 @@ const BRANCH = /^[\w./-]+$/;
 export type GithubUpdateTarget = { repo: string; branch: string };
 
 /** The repository a button install was deployed from, as its deploy script
- *  recorded it (COGSEND_REPO, COGSEND_BRANCH), or null when unknown. */
+ *  recorded it (POSTEASY_REPO, POSTEASY_BRANCH), or null when unknown. */
 export function githubUpdateTarget(
 	repo: string | null | undefined,
 	branch: string | null | undefined

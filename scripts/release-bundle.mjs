@@ -82,11 +82,11 @@ if (!verifyManifest(bytes, sig, keys)) problems.push('the signature does not ver
 if (problems.length) fail(`The bundle is inconsistent: ${problems.join('; ')}`);
 
 mkdirSync(outDir, { recursive: true });
-const base = join(outDir, `cogsend-${version}`);
+const base = join(outDir, `posteasy-${version}`);
 writeFileSync(`${base}.manifest.json`, bytes);
 writeFileSync(`${base}.manifest.sig`, `${JSON.stringify(sig)}\n`);
 writeFileSync(`${base}.pack`, pack);
 ui.ok(
-	`cogsend ${version}: ${manifest.worker.modules.length} module(s), ${manifest.assets.length} assets, ` +
+	`posteasy ${version}: ${manifest.worker.modules.length} module(s), ${manifest.assets.length} assets, ` +
 		`${(pack.length / 1024).toFixed(0)} KiB pack, signed with ${keyId}`
 );

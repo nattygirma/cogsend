@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { carriesCredential, isCrossSiteForgery } from '#lib/server/csrf.js';
 
-const SELF = 'https://cogsend.example.com';
+const SELF = 'https://posteasy.example.com';
 
 function request(method: string, headers: Record<string, string> = {}) {
 	return new Request(`${SELF}/api/drafts/d1`, { method, headers });
@@ -55,8 +55,8 @@ describe('the cross-site request check', () => {
 		for (const credential of <Record<string, string>[]>[
 			{ authorization: 'Bearer cs_key' },
 			{ 'x-api-key': 'cs_key' },
-			{ 'x-cogsend-token': 'tick' },
-			{ 'x-cogsend-scheduler': 'tick' }
+			{ 'x-posteasy-token': 'tick' },
+			{ 'x-posteasy-scheduler': 'tick' }
 		]) {
 			expect(carriesCredential(new Headers(credential))).toBe(true);
 			// curl -X DELETE, or a pinger's bodiless POST.

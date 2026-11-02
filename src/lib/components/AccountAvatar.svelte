@@ -35,18 +35,22 @@
 	);
 	const badgeBg: Record<string, string> = {
 		bluesky: '#0085ff',
-		mastodon: '#6364ff',
 		linkedin: '#0a66c2',
 		threads: '#000000',
 		instagram: '#e4405f',
+		facebook: '#1877f2',
+		youtube: '#ff0000',
+		tiktok: '#000000',
 		x: '#000000'
 	};
 	const badgeLabel: Record<string, string> = {
 		bluesky: 'Bluesky',
-		mastodon: 'Mastodon',
 		linkedin: 'LinkedIn',
 		threads: 'Threads',
 		instagram: 'Instagram',
+		facebook: 'Facebook',
+		youtube: 'YouTube',
+		tiktok: 'TikTok',
 		x: 'X'
 	};
 	const bg = $derived(badgeBg[platform] ?? '#6b7280');

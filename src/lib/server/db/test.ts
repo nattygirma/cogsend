@@ -15,10 +15,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const TEST_ENV: AppEnv = {
 	APP_URL: 'http://localhost:5173',
 	appUrlSource: 'configured',
-	APP_NAME: 'CogSend',
+	APP_NAME: 'PostEasy',
 	APP_ENCRYPTION_KEY: 'feedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedface',
 	AUTH_SECRET: 'test-auth-secret-at-least-8',
-	skipTotp: false
+	skipTotp: false,
+	appkeep: false,
+	updates: true
 };
 
 /**

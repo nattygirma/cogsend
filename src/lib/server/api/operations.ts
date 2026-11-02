@@ -11,15 +11,19 @@ import {
 } from 'drizzle-orm';
 import {
 	countGraphemes,
-	mastodonWeightedLength,
 	validateBlueskyText,
 	validateLinkedinText,
-	validateMastodonText,
 	validateInstagramText,
 	validateThreadsText,
 	validateXText
 } from '#lib/domain/validation/text.js';
-import { getProvider, isPlatformId, type PlatformId } from '#lib/server/providers/index.js';
+import {
+	getProvider,
+	isPlatformId,
+	PLATFORM_IDS,
+	type PlatformId
+} from '#lib/server/providers/index.js';
+import { platformName } from '#lib/domain/platforms.js';
 import {
 	connections,
 	drafts,
@@ -60,7 +64,6 @@ import type { SubrequestBudget } from '#lib/server/budget.js';
 import { randomHex } from '#lib/domain/bytes.js';
 import { MAX_VIDEO_BYTES, validateImageUpload } from '#lib/domain/media-limits.js';
 import type { Mp4Facts } from '#lib/domain/mp4-probe.js';
-import { validatePollConfig } from '#lib/domain/poll.js';
 import {
 	assertSafeStorageKey,
 	coverKey,
@@ -103,7 +106,6 @@ export function validatePost(input: {
 	const platform = input.platform as PlatformId | undefined;
 	const maxCharacters = input.maxCharacters as number | undefined;
 	const bluesky = validateBlueskyText(text),
-		mastodon = validateMastodonText(text, maxCharacters ?? 500),
 		linkedin = validateLinkedinText(text),
 		threads = validateThreadsText(text),
 		instagram = validateInstagramText(text),
@@ -114,9 +116,7 @@ export function validatePost(input: {
 			: [];
 	return {
 		graphemes: countGraphemes(text),
-		mastodonLength: mastodonWeightedLength(text),
 		bluesky,
-		mastodon,
 		linkedin,
 		threads,
 		instagram,
@@ -231,6 +231,32 @@ async function refuseUnfitForInstagram(
 	}
 }
 
+/**
+ * YouTube and TikTok take one video and settings the person has to choose
+ * (a title, a privacy level), so a post without them cannot go out at any
+ * time: refused now, for the same reason as Instagram above.
+ */
+const CHECKED_BEFORE_SENDING = ['youtube', 'tiktok'] as const;
+
+async function refuseUnfitPosts(
+	ctx: OperationContext,
+	draftId: string,
+	conns: Array<{ platform: string }>
+) {
+	await refuseUnfitForInstagram(ctx, draftId, conns);
+	for (const platform of CHECKED_BEFORE_SENDING) {
+		if (!conns.some((c) => c.platform === platform)) continue;
+		const content = await buildNormalizedPost(ctx.db, draftId, platform);
+		const issues = getProvider(platform).validate(content);
+		if (issues.length) {
+			invalid(`${platformName(platform)}: ${issues[0].message}`, 400, {
+				platform,
+				issues: issues.map((issue) => issue.message)
+			});
+		}
+	}
+}
+
 export async function scheduleDraft(
 	ctx: OperationContext,
 	userId: string,
@@ -275,7 +301,7 @@ export async function scheduleDraft(
 			alreadyPublished: already,
 			inFlight: flight
 		});
-	await refuseUnfitForInstagram(ctx, draftId, conns);
+	await refuseUnfitPosts(ctx, draftId, conns);
 	const ensured = await ensureTargets(ctx.db, draftId, conns, 'schedule', runAt, now);
 	const blocked = ensured.filter((i) => i.alreadyPublished || i.inFlight);
 	if (blocked.length)
@@ -464,8 +490,7 @@ export async function rescheduleDelivery(
 const ALLOWED_MEDIA_EXTENSIONS = new Set(['jpg', 'png', 'webp', 'gif', 'mp4']);
 // 12 bound parameters per media row; D1 caps a query at 100.
 const MEDIA_INSERT_CHUNK = 8;
-const VARIANT_PLATFORMS = new Set(['mastodon', 'bluesky', 'linkedin', 'threads', 'instagram', 'x']);
-const VISIBILITIES = new Set(['public', 'unlisted', 'private', 'direct']);
+const VARIANT_PLATFORMS = new Set<string>(PLATFORM_IDS);
 
 /**
  * Copy a stored video in storage, without reading it into the isolate (a
@@ -761,12 +786,6 @@ function validateVariantOptions(options: unknown): string | null {
 	if (!options || typeof options !== 'object' || Array.isArray(options))
 		return 'options must be an object';
 	const value = options as Record<string, unknown>;
-	if (value.visibility !== undefined && !VISIBILITIES.has(String(value.visibility)))
-		return 'Invalid visibility';
-	if (value.poll !== undefined && value.poll !== null) {
-		const poll = validatePollConfig(value.poll);
-		if (!poll.ok) return poll.error;
-	}
 	if (
 		value.threadSegments !== undefined &&
 		(!Array.isArray(value.threadSegments) ||
@@ -815,7 +834,7 @@ export async function setDraftVariant(
 	}
 	const platform = String(fields.platform || '');
 	if (!VARIANT_PLATFORMS.has(platform))
-		invalid('platform must be mastodon, bluesky, linkedin, threads, instagram, or x');
+		invalid(`platform must be one of ${PLATFORM_IDS.join(', ')}`);
 	const existing = await first(
 		ctx.db
 			.select()
@@ -942,7 +961,7 @@ export async function publishDraft(
 	const published = new Set(
 		classified.filter((item) => item.kind === 'published').map((item) => item.connectionId)
 	);
-	await refuseUnfitForInstagram(
+	await refuseUnfitPosts(
 		ctx,
 		draftId,
 		userConnections.filter((row) => !published.has(row.id))

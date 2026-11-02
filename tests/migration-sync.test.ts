@@ -188,9 +188,9 @@ describe('db:migrate wrapper', () => {
 
 	it('records what a bootstrapped database satisfies, then applies the rest', async () => {
 		const state = await introspectionOnBootstrap();
-		const created = mkdtempSync(join(tmpdir(), 'cogsend-migrate-'));
+		const created = mkdtempSync(join(tmpdir(), 'posteasy-migrate-'));
 		dir = created;
-		writeFileSync(join(created, 'wrangler.jsonc'), '{\n\t"name": "cogsend"\n}\n');
+		writeFileSync(join(created, 'wrangler.jsonc'), '{\n\t"name": "posteasy"\n}\n');
 		const bin = join(created, 'bin');
 		mkdirSync(bin);
 		const payload = JSON.stringify([{ results: [rowFor(state)], success: true, meta: {} }]);
@@ -242,7 +242,7 @@ describe('npm run setup', () => {
 	 */
 	it('records what the database satisfies before replaying migrations', async () => {
 		const state = await introspectionOnBootstrap();
-		const created = mkdtempSync(join(tmpdir(), 'cogsend-setup-'));
+		const created = mkdtempSync(join(tmpdir(), 'posteasy-setup-'));
 		dir = created;
 		cpSync(join(process.cwd(), 'scripts'), join(created, 'scripts'), { recursive: true });
 		cpSync(join(process.cwd(), 'wrangler.jsonc'), join(created, 'wrangler.jsonc'));
@@ -271,7 +271,7 @@ if (args.includes('secret') && args.includes('list')) {
 	process.exit(0);
 }
 if (args.includes('d1') && args.includes('list')) {
-	console.log(JSON.stringify([{ name: 'cogsend', uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }]));
+	console.log(JSON.stringify([{ name: 'posteasy', uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }]));
 	process.exit(0);
 }
 if (args.includes('d1') && args.includes('execute')) {
@@ -295,7 +295,7 @@ if (args.includes('r2') && args.includes('create')) {
 	console.error('ERROR A request to the Cloudflare API (/accounts/x/r2/buckets) failed.\\n  The bucket you tried to create already exists, and you own it. [code: 10004]');
 	process.exit(1);
 }
-if (args.includes('deploy')) { console.log('Deployed sent https://cogsend.invalid'); process.exit(0); }
+if (args.includes('deploy')) { console.log('Deployed sent https://posteasy.invalid'); process.exit(0); }
 process.exit(0);
 `
 		);
@@ -336,7 +336,7 @@ process.exit(0);
 		expect(calls.some((line) => line.includes('INSERT INTO users'))).toBe(false);
 		// A bucket that already exists is the normal answer on a re-run, so the
 		// operator gets the verdict, not wrangler's red error block.
-		expect(result.stdout).toContain('cogsend-media already exists');
+		expect(result.stdout).toContain('posteasy-media already exists');
 		expect(result.stdout + result.stderr).not.toContain('The bucket you tried to create');
 	});
 });

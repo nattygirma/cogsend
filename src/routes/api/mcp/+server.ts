@@ -2,6 +2,7 @@ import { createMcpHandler, isJsonContentType, McpServer } from '@modelcontextpro
 import { z } from 'zod';
 import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
 import { humanizedCause } from '#lib/domain/human-error.js';
+import { PLATFORM_IDS, type PlatformId } from '#lib/domain/platforms.js';
 import {
 	cancelDelivery,
 	createDraft,
@@ -26,7 +27,7 @@ import type { OperationContext } from '#lib/server/api/operations.js';
 
 const id = z.string().min(1).max(128);
 const boundedLimit = z.number().int().min(1).max(100).default(50);
-const platform = z.enum(['mastodon', 'bluesky', 'linkedin', 'threads', 'instagram', 'x']);
+const platform = z.enum(PLATFORM_IDS as [PlatformId, ...PlatformId[]]);
 const runAt = z.string().min(1).max(64);
 const connectionIds = z.array(id).min(1).max(10);
 const draftFields = {
@@ -36,19 +37,21 @@ const draftFields = {
 };
 const variantOptions = z
 	.object({
-		visibility: z.enum(['public', 'unlisted', 'private', 'direct']).optional(),
-		spoilerText: z.string().max(100_000).optional(),
-		langs: z.array(z.string().max(100)).max(100).optional(),
-		poll: z
-			.object({
-				options: z.array(z.string().max(50)).min(2).max(4),
-				expiresIn: z.number().int().min(300).max(604_800),
-				multiple: z.boolean().optional(),
-				hideTotals: z.boolean().optional()
-			})
-			.nullable()
-			.optional(),
-		threadSegments: z.array(z.string().max(100_000)).max(100).optional()
+		threadSegments: z.array(z.string().max(100_000)).max(100).optional(),
+		// YouTube: the video's title and audience (the post text is its description).
+		title: z.string().max(100).optional(),
+		privacy: z.enum(['public', 'unlisted', 'private']).optional(),
+		madeForKids: z.boolean().optional(),
+		notifySubscribers: z.boolean().optional(),
+		// TikTok: who can watch, interactions and disclosure. TikTok requires a privacy level.
+		privacyLevel: z.string().max(64).optional(),
+		allowComment: z.boolean().optional(),
+		allowDuet: z.boolean().optional(),
+		allowStitch: z.boolean().optional(),
+		discloseCommercial: z.boolean().optional(),
+		brandOrganic: z.boolean().optional(),
+		brandedContent: z.boolean().optional(),
+		aiGenerated: z.boolean().optional()
 	})
 	.strict()
 	.optional();
@@ -241,9 +244,7 @@ const mcpOutputSchemas = {
 	validate_post: z
 		.object({
 			graphemes: z.number(),
-			mastodonLength: z.number(),
 			bluesky: validationCheck,
-			mastodon: validationCheck,
 			linkedin: validationCheck,
 			threads: validationCheck,
 			instagram: validationCheck,
@@ -398,7 +399,7 @@ function registerForEvent<T extends z.ZodType>(
 }
 
 function createServer(event: RequestEvent) {
-	const server = new McpServer({ name: 'cogsend', version: '1.0.0' });
+	const server = new McpServer({ name: 'posteasy', version: '1.0.0' });
 	const register = <T extends z.ZodType>(
 		server: McpServer,
 		name: string,

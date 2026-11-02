@@ -99,9 +99,10 @@ test.beforeEach(async ({ page }) => {
 	await page.goto('/compose');
 	if (/\/login$/.test(new URL(page.url()).pathname)) {
 		await page.getByLabel('Email').fill(E2E_ACCOUNT.email);
-		await page.getByLabel('Password').fill(E2E_ACCOUNT.password);
+		await page.getByLabel('Password', { exact: true }).fill(E2E_ACCOUNT.password);
 		await page.getByRole('button', { name: 'Sign in' }).click();
-		await expect(page).toHaveURL(/\/compose$/, { timeout: 20000 });
+		await expect(page).toHaveURL(/\/$/, { timeout: 20000 });
+		await page.goto('/compose');
 	}
 });
 

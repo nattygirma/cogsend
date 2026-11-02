@@ -1,13 +1,2 @@
-<script lang="ts">
-	import Editor from '#lib/components/Editor.svelte';
-
-	let { data } = $props();
-</script>
-
-<Editor
-	initialConnections={data.connections}
-	initialSettings={data.settings}
-	initialDraft={data.draft}
-	displayName={data.displayName}
-	canMakeJpegCopies={data.canMakeJpegCopies}
-/>
+<!-- The composer is a modal the root layout opens over whatever page is
+     behind it; on this route there is none, so the canvas stays empty. -->

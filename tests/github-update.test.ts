@@ -41,10 +41,10 @@ import {
  */
 describe('GitHub update helpers', () => {
 	it('reads owner/repo from any form of GitHub remote, and never its credentials', () => {
-		expect(githubRepoOf('https://github.com/me/cogsend.git')).toBe('me/cogsend');
-		expect(githubRepoOf('https://x-access-token:abc@github.com/me/cogsend\n')).toBe('me/cogsend');
-		expect(githubRepoOf('git@github.com:me/my.cogsend.git')).toBe('me/my.cogsend');
-		expect(githubRepoOf('https://gitlab.com/me/cogsend.git')).toBeNull();
+		expect(githubRepoOf('https://github.com/me/posteasy.git')).toBe('me/posteasy');
+		expect(githubRepoOf('https://x-access-token:abc@github.com/me/posteasy\n')).toBe('me/posteasy');
+		expect(githubRepoOf('git@github.com:me/my.posteasy.git')).toBe('me/my.posteasy');
+		expect(githubRepoOf('https://gitlab.com/me/posteasy.git')).toBeNull();
 		expect(githubRepoOf('https://github.com/me')).toBeNull();
 		expect(githubRepoOf('')).toBeNull();
 	});
@@ -108,7 +108,7 @@ describe('verifying a release before an update through GitHub', () => {
 	let unsignedRepo: { manifestBytes: Buffer; sigText: string; pack: Buffer };
 
 	beforeAll(() => {
-		tmp = mkdtempSync(join(tmpdir(), 'cogsend-github-update-'));
+		tmp = mkdtempSync(join(tmpdir(), 'posteasy-github-update-'));
 		repo = join(tmp, 'repo');
 		mkdirSync(join(repo, 'worker'), { recursive: true });
 		mkdirSync(join(repo, 'assets/_app'), { recursive: true });
@@ -257,7 +257,7 @@ describe('verifying a release before an update through GitHub', () => {
 
 describe('the update script, before it reaches the network', () => {
 	function run(holds: string, env: Record<string, string>) {
-		const dir = mkdtempSync(join(tmpdir(), 'cogsend-update-run-'));
+		const dir = mkdtempSync(join(tmpdir(), 'posteasy-update-run-'));
 		cpSync('scripts/lib', join(dir, 'lib'), { recursive: true });
 		cpSync('src/lib/domain/release-keys.json', join(dir, 'lib/release-keys.json'));
 		writeFileSync(join(dir, 'package.json'), JSON.stringify({ version: holds }));
@@ -298,14 +298,14 @@ describe('the update script, before it reaches the network', () => {
 	});
 });
 
-describe('the Update CogSend action, as Settings offers it', () => {
+describe('the Update PostEasy action, as Settings offers it', () => {
 	it('knows a button install’s repository only when it reads as one', () => {
-		expect(githubUpdateTarget('me/my-cogsend', 'main')).toEqual({
-			repo: 'me/my-cogsend',
+		expect(githubUpdateTarget('me/my-posteasy', 'main')).toEqual({
+			repo: 'me/my-posteasy',
 			branch: 'main'
 		});
-		expect(githubUpdateTarget('me/my-cogsend', undefined)).toEqual({
-			repo: 'me/my-cogsend',
+		expect(githubUpdateTarget('me/my-posteasy', undefined)).toEqual({
+			repo: 'me/my-posteasy',
 			branch: 'main'
 		});
 		expect(githubUpdateTarget('me/x', 'feat/a b')?.branch).toBe('main');
@@ -315,16 +315,18 @@ describe('the Update CogSend action, as Settings offers it', () => {
 	});
 
 	it('links to the action, and to GitHub’s new-file page with the workflow filled in', () => {
-		const links = githubUpdateLinks({ repo: 'me/my-cogsend', branch: 'main' });
-		expect(links.run).toBe('https://github.com/me/my-cogsend/actions/workflows/update.yml');
+		const links = githubUpdateLinks({ repo: 'me/my-posteasy', branch: 'main' });
+		expect(links.run).toBe('https://github.com/me/my-posteasy/actions/workflows/update.yml');
 		const enable = new URL(links.enable);
-		expect(enable.origin + enable.pathname).toBe('https://github.com/me/my-cogsend/new/main');
+		expect(enable.origin + enable.pathname).toBe('https://github.com/me/my-posteasy/new/main');
 		expect(enable.searchParams.get('filename')).toBe('.github/workflows/update.yml');
 		expect(enable.searchParams.get('value')).toBe(GITHUB_UPDATE_WORKFLOW);
 		expect(links.edit).toBe(
-			'https://github.com/me/my-cogsend/edit/main/.github/workflows/update.yml'
+			'https://github.com/me/my-posteasy/edit/main/.github/workflows/update.yml'
 		);
-		expect(links.variables).toBe('https://github.com/me/my-cogsend/settings/variables/actions/new');
+		expect(links.variables).toBe(
+			'https://github.com/me/my-posteasy/settings/variables/actions/new'
+		);
 	});
 
 	it('runs daily only when AUTO_UPDATE is set, patch releases only, and never with an older updater', () => {

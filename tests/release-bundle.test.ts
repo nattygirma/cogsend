@@ -41,7 +41,7 @@ describe('release bundle', () => {
 	let keys: Array<{ id: string; publicKey: string }>;
 
 	beforeAll(() => {
-		dir = mkdtempSync(join(tmpdir(), 'cogsend-bundle-'));
+		dir = mkdtempSync(join(tmpdir(), 'posteasy-bundle-'));
 		const assets = join(dir, 'assets');
 		mkdirSync(join(assets, '_app/immutable'), { recursive: true });
 		writeFileSync(join(assets, '_app/immutable/start.abc.js'), 'export const a = 1;\n');
@@ -156,7 +156,7 @@ describe('release bundle', () => {
 		expect(ours).toBe(wranglers);
 	});
 
-	it("requires the same bindings the app treats as CogSend's own", () => {
+	it("requires the same bindings the app treats as PostEasy's own", () => {
 		expect(REQUIRED_BINDINGS).toEqual(CORE_BINDINGS);
 	});
 
@@ -198,7 +198,7 @@ describe('update blockers', () => {
 		{ name: 'MEDIA', type: 'r2_bucket', bucket_name: 'm' },
 		{ name: 'ASSETS', type: 'assets' },
 		{ name: 'APP_ENCRYPTION_KEY', type: 'secret_text' },
-		{ name: 'COGSEND_INSTALL', type: 'plain_text', text: 'button' }
+		{ name: 'POSTEASY_INSTALL', type: 'plain_text', text: 'button' }
 	];
 
 	it('lets a newer release through', () => {
@@ -268,14 +268,14 @@ describe('update blockers', () => {
 			'DB',
 			'MEDIA',
 			'ASSETS',
-			'COGSEND_INSTALL'
+			'POSTEASY_INSTALL'
 		]);
 		expect(bindingSignature(present)).toEqual([
 			'APP_ENCRYPTION_KEY:secret_text',
 			'ASSETS:assets',
-			'COGSEND_INSTALL:plain_text',
 			'DB:d1',
-			'MEDIA:r2_bucket'
+			'MEDIA:r2_bucket',
+			'POSTEASY_INSTALL:plain_text'
 		]);
 	});
 });

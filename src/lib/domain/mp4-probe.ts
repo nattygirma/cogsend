@@ -25,7 +25,7 @@ export interface Mp4Facts {
 export type RangeReader = (start: number, end: number) => Promise<Uint8Array | null>;
 
 // A ten-minute 1080p video has a moov of a few MB; anything far beyond this is
-// not a video CogSend can publish, and reading it would cost Worker memory.
+// not a video PostEasy can publish, and reading it would cost Worker memory.
 const MAX_MOOV_BYTES = 16 * 1024 * 1024;
 const MAX_TOP_LEVEL_BOXES = 64;
 

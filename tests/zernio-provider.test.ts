@@ -415,11 +415,11 @@ describe('zernioProviderFor: a create whose answer was lost', () => {
 			},
 			{ status: 409 }
 		);
-	const existing = (cogsendRequestId: string) => () =>
+	const existing = (posteasyRequestId: string) => () =>
 		Response.json({
 			post: {
 				_id: 'post-ours',
-				metadata: { cogsendRequestId, usageCounted: true },
+				metadata: { posteasyRequestId, usageCounted: true },
 				platforms: [
 					{
 						platform: 'twitter',
@@ -446,7 +446,7 @@ describe('zernioProviderFor: a create whose answer was lost', () => {
 			idempotencyKey: (i) => `target-9:${i}`
 		});
 		expect(((await seen[0].json()) as { metadata?: unknown }).metadata).toEqual({
-			cogsendRequestId: 'target-9-0'
+			posteasyRequestId: 'target-9-0'
 		});
 	});
 

@@ -8,8 +8,8 @@ import { PUT as variantsPUT } from '../src/routes/api/drafts/[id]/variants/+serv
 /**
  * The editor sends `body: null` on purpose when a platform keeps its options
  * but loses its custom text. A validator that only accepted strings rejected
- * that write with 400, which broke every save after customising a Mastodon
- * option — caught by the e2e suite, pinned here.
+ * that write with 400, which broke every save after choosing a platform's
+ * settings — caught by the e2e suite, pinned here.
  */
 describe('PUT /api/drafts/[id]/variants', () => {
 	let db: AppDb;
@@ -81,12 +81,12 @@ describe('PUT /api/drafts/[id]/variants', () => {
 
 	it('accepts null as "clear the override", keeping the options', async () => {
 		const res = await put({
-			platform: 'mastodon',
+			platform: 'youtube',
 			body: null,
-			options: { visibility: 'unlisted' }
+			options: { privacy: 'unlisted' }
 		});
 		expect(res.status).toBe(200);
-		const row = await stored('mastodon');
+		const row = await stored('youtube');
 		expect(row?.body).toBeNull();
 		expect(row?.optionsJson).toContain('unlisted');
 	});

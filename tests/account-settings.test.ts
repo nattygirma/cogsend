@@ -31,9 +31,8 @@ function login(db: AppDb, email: string, password: string) {
 }
 
 /**
- * The account comes from `npm run setup`, or from the claim form, which needs
- * APP_ENCRYPTION_KEY (tests/claim-route.test.ts). Until then sign-in has nothing
- * to check against.
+ * Accounts come from sign-up (tests/signup-route.test.ts). Until the first one
+ * exists, sign-in has nothing to check against.
  */
 describe('an instance with no account yet', () => {
 	let db: AppDb;
@@ -48,21 +47,16 @@ describe('an instance with no account yet', () => {
 		expect(await needsSetup(db)).toBe(true);
 	});
 
-	it('shows the claim form instead of the sign-in form', async () => {
-		await expect(loginLoad({ locals: { db, env: TEST_ENV } } as never)).resolves.toEqual({
-			notConfigured: true
-		});
+	it('points the sign-in page at creating the first account', async () => {
+		await expect(
+			loginLoad({ locals: { db, env: TEST_ENV, user: null } } as never)
+		).resolves.toEqual({ firstAccount: true });
 	});
 
-	it('refuses a sign-in attempt outright', async () => {
+	it('refuses a sign-in attempt like any unknown address', async () => {
 		const res = await login(db, 'anyone@localhost', 'anything at all');
-		expect(res.status).toBe(409);
-		expect((await res.json()).error).toBe('This instance has no account yet');
-	});
-
-	it('cannot be talked into creating one over HTTP', async () => {
-		const res = await login(db, 'owner@localhost', 'a long enough password');
-		expect(res.status).toBe(409);
+		expect(res.status).toBe(401);
+		expect((await res.json()).error).toBe('Invalid email or password');
 		expect(await db.select().from(users)).toHaveLength(0);
 	});
 });

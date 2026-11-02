@@ -31,24 +31,24 @@ describe('remembered app URL', () => {
 	});
 
 	it('records an origin, and reads it back from the cache', async () => {
-		await rememberAppUrl(db, 'https://cogsend.acct.workers.dev');
+		await rememberAppUrl(db, 'https://posteasy.acct.workers.dev');
 		reset();
-		expect(await readStoredAppUrl(db)).toBe('https://cogsend.acct.workers.dev');
+		expect(await readStoredAppUrl(db)).toBe('https://posteasy.acct.workers.dev');
 		expect(count()).toBe(0);
 	});
 
 	it('updates the stored value when the instance moves', async () => {
-		await rememberAppUrl(db, 'https://cogsend.example.com');
+		await rememberAppUrl(db, 'https://posteasy.example.com');
 		reset();
-		expect(await readStoredAppUrl(db)).toBe('https://cogsend.example.com');
+		expect(await readStoredAppUrl(db)).toBe('https://posteasy.example.com');
 		const rows = await db.select().from(appSettings);
 		expect(rows.filter((row) => row.key === APP_URL_SETTING)).toHaveLength(1);
-		expect(rows[0]?.value).toBe('https://cogsend.example.com');
+		expect(rows[0]?.value).toBe('https://posteasy.example.com');
 	});
 
 	it('ignores an empty origin', async () => {
 		await rememberAppUrl(db, '');
-		expect(await readStoredAppUrl(db)).toBe('https://cogsend.example.com');
+		expect(await readStoredAppUrl(db)).toBe('https://posteasy.example.com');
 	});
 });
 

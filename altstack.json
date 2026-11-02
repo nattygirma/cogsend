@@ -1,0 +1,210 @@
+{
+	"schema": 1,
+	"slug": "posteasy",
+	"name": "PostEasy",
+	"version": "1.22.0",
+	"tagline": "Write once, schedule everywhere: X, Instagram, Facebook, YouTube, TikTok, LinkedIn, Threads and Bluesky",
+	"description": "A social media scheduler. Connect your accounts, write a post once, tailor it per platform, and publish now or on a schedule. Includes a calendar, drafts, video uploads, and an MCP server so AI agents can draft and schedule for you.",
+	"category": "marketing",
+	"replaces": [
+		{
+			"name": "Buffer",
+			"monthly_cents": 600
+		},
+		{
+			"name": "Hootsuite",
+			"monthly_cents": 9900
+		}
+	],
+	"license": "MIT",
+	"original_source": "https://github.com/cogsend/cogsend",
+	"entry": "dist-appkeep/_worker.js",
+	"migrations": "drizzle",
+	"healthcheck": "/api/health",
+	"services": [
+		{
+			"name": "storage",
+			"why": "Keeps the images and videos you attach to posts"
+		}
+	],
+	"cron": ["* * * * *"],
+	"ratelimits": [
+		{
+			"name": "AUTH_RATE_LIMITER",
+			"limit": 20,
+			"period": 60
+		}
+	],
+	"egress": [
+		{
+			"host": "api.x.com",
+			"why": "Publish to X"
+		},
+		{
+			"host": "publish.x.com",
+			"why": "Show previews of X posts you quote"
+		},
+		{
+			"host": "graph.instagram.com",
+			"why": "Publish to Instagram"
+		},
+		{
+			"host": "api.instagram.com",
+			"why": "Connect Instagram accounts"
+		},
+		{
+			"host": "graph.facebook.com",
+			"why": "Publish to Facebook Pages"
+		},
+		{
+			"host": "graph.threads.net",
+			"why": "Publish to Threads"
+		},
+		{
+			"host": "www.googleapis.com",
+			"why": "Upload videos to YouTube"
+		},
+		{
+			"host": "oauth2.googleapis.com",
+			"why": "Connect YouTube channels"
+		},
+		{
+			"host": "open.tiktokapis.com",
+			"why": "Publish to TikTok"
+		},
+		{
+			"host": "api.linkedin.com",
+			"why": "Publish to LinkedIn"
+		},
+		{
+			"host": "www.linkedin.com",
+			"why": "Connect LinkedIn accounts"
+		},
+		{
+			"host": "bsky.social",
+			"why": "Publish to Bluesky"
+		},
+		{
+			"host": "*.bsky.network",
+			"why": "Reach your Bluesky account's server"
+		},
+		{
+			"host": "plc.directory",
+			"why": "Find your Bluesky account's server"
+		},
+		{
+			"host": "video.bsky.app",
+			"why": "Upload videos to Bluesky"
+		},
+		{
+			"host": "zernio.com",
+			"why": "Optional: publish through Zernio if you connect it"
+		},
+		{
+			"host": "api.resend.com",
+			"why": "Optional: email you when a post fails, if you add a Resend key"
+		}
+	],
+	"settings": [
+		{
+			"key": "APP_ENCRYPTION_KEY",
+			"label": "Encryption key",
+			"secret": true,
+			"generate": "secret"
+		},
+		{
+			"key": "INSTAGRAM_APP_ID",
+			"label": "Instagram app ID",
+			"secret": true,
+			"help": "Optional: lets everyone connect Instagram without setting up an app"
+		},
+		{
+			"key": "INSTAGRAM_APP_SECRET",
+			"label": "Instagram app secret",
+			"secret": true
+		},
+		{
+			"key": "FACEBOOK_APP_ID",
+			"label": "Facebook app ID",
+			"secret": true,
+			"help": "Optional: lets everyone connect Facebook Pages"
+		},
+		{
+			"key": "FACEBOOK_APP_SECRET",
+			"label": "Facebook app secret",
+			"secret": true
+		},
+		{
+			"key": "FACEBOOK_CONFIG_ID",
+			"label": "Facebook Login config ID",
+			"secret": true,
+			"help": "Only for Facebook Login for Business"
+		},
+		{
+			"key": "TIKTOK_CLIENT_KEY",
+			"label": "TikTok client key",
+			"secret": true,
+			"help": "Optional: lets everyone connect TikTok"
+		},
+		{
+			"key": "TIKTOK_CLIENT_SECRET",
+			"label": "TikTok client secret",
+			"secret": true
+		},
+		{
+			"key": "YOUTUBE_CLIENT_ID",
+			"label": "YouTube (Google) client ID",
+			"secret": true,
+			"help": "Optional: lets everyone connect YouTube"
+		},
+		{
+			"key": "YOUTUBE_CLIENT_SECRET",
+			"label": "YouTube (Google) client secret",
+			"secret": true
+		},
+		{
+			"key": "X_CLIENT_ID",
+			"label": "X client ID",
+			"secret": true,
+			"help": "Optional: lets everyone connect X"
+		},
+		{
+			"key": "X_CLIENT_SECRET",
+			"label": "X client secret",
+			"secret": true
+		},
+		{
+			"key": "LINKEDIN_CLIENT_ID",
+			"label": "LinkedIn client ID",
+			"secret": true,
+			"help": "Optional: lets everyone connect LinkedIn"
+		},
+		{
+			"key": "LINKEDIN_CLIENT_SECRET",
+			"label": "LinkedIn client secret",
+			"secret": true
+		},
+		{
+			"key": "THREADS_APP_ID",
+			"label": "Threads app ID",
+			"secret": true,
+			"help": "Optional: lets everyone connect Threads"
+		},
+		{
+			"key": "THREADS_APP_SECRET",
+			"label": "Threads app secret",
+			"secret": true
+		},
+		{
+			"key": "RESEND_API_KEY",
+			"label": "Resend API key",
+			"secret": true,
+			"help": "Optional: email when a post fails to publish"
+		},
+		{
+			"key": "NOTIFY_EMAIL",
+			"label": "Failure email address",
+			"help": "Where failure emails go, if a Resend key is set"
+		}
+	]
+}

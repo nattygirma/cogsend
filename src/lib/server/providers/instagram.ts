@@ -6,6 +6,7 @@ import {
 import { formatThreadsMetaMarker } from '#lib/domain/threads-error.js';
 import { INSTAGRAM_MAX_CHARS, validateInstagramText } from '#lib/domain/validation/text.js';
 import { singlePost } from './flatten';
+import { parseMetaError } from './meta-graph';
 import { providerFetch } from './timed-fetch';
 import {
 	mediaByteLength,
@@ -59,32 +60,6 @@ const DAILY_LIMIT_SUBCODE = 2207042;
 // error code 2207052"), and these are the codes worth another try. 2207001 is
 // Meta's own server error.
 const RETRIED_PHOTO_CODES = new Set([...MEDIA_FETCH_SUBCODES, 2207001]);
-
-function parseMetaError(body: string): { code?: number; subcode?: number; message?: string } {
-	try {
-		const err = (
-			JSON.parse(body) as {
-				error?: {
-					code?: unknown;
-					error_subcode?: unknown;
-					error_user_msg?: unknown;
-					message?: unknown;
-				};
-			}
-		)?.error;
-		if (!err || typeof err !== 'object') return {};
-		const userMessage = typeof err.error_user_msg === 'string' ? err.error_user_msg : undefined;
-		return {
-			...(typeof err.code === 'number' ? { code: err.code } : {}),
-			...(typeof err.error_subcode === 'number' ? { subcode: err.error_subcode } : {}),
-			...(userMessage || typeof err.message === 'string'
-				? { message: userMessage || (err.message as string) }
-				: {})
-		};
-	} catch {
-		return {};
-	}
-}
 
 /**
  * Classify a Graph API failure by Meta's numeric code, never by its text: the
@@ -152,8 +127,6 @@ export const instagramProvider: PlatformProvider = {
 	capabilities: {
 		maxImages: INSTAGRAM_MAX_ITEMS,
 		maxImageBytes: INSTAGRAM_MAX_IMAGE_BYTES,
-		supportsCW: false,
-		supportsVisibility: false,
 		supportsThreads: false
 	},
 

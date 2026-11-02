@@ -43,7 +43,7 @@ export function parseSubrequestLimit(raw: unknown): number {
 }
 
 /** Reached through a counting wrapper, so per-binding caches keep one key. */
-const RAW_BINDING = Symbol.for('cogsend.rawBinding');
+const RAW_BINDING = Symbol.for('posteasy.rawBinding');
 
 /** The binding a counting wrapper stands for (or the value itself). */
 export function rawBinding<T>(value: T): T {

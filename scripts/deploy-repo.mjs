@@ -10,7 +10,7 @@
  *   assets/             the static files, exactly what the release bundle carries
  *   wrangler.jsonc      the app's own config with paths rewritten, `no_bundle`, an
  *                       empty database_id for the button to provision, and
- *                       COGSEND_INSTALL=button so Settings knows how it was installed
+ *                       POSTEASY_INSTALL=button so Settings knows how it was installed
  *   .dev.vars.example   APP_ENCRYPTION_KEY alone: the button asks for every entry
  *                       in it, and treats each as required
  *   package.json        a pinned wrangler, the deploy script, and the field
@@ -18,7 +18,7 @@
  *   deploy.mjs          tags the deploy, refuses a downgrade, survives a full set
  *                       of cron triggers, and records which GitHub repository
  *                       it was deployed from (copies of this repository's helpers)
- *   lib/                those helpers, and the update script the "Update CogSend"
+ *   lib/                those helpers, and the update script the "Update PostEasy"
  *                       Action runs, with the release keys it trusts
  *   drizzle/            the migrations, for a manual `wrangler d1 migrations apply`
  *
@@ -71,7 +71,7 @@ function deployRepoConfig(source) {
 		no_bundle: true,
 		assets: { ...assets, directory: 'assets' },
 		d1_databases: (rest.d1_databases ?? []).map((db) => ({ ...db, database_id: '' })),
-		vars: { ...vars, COGSEND_INSTALL: 'button' }
+		vars: { ...vars, POSTEASY_INSTALL: 'button' }
 	};
 }
 
@@ -96,7 +96,7 @@ writeFileSync(
 
 writeFileSync(
 	join(outDir, '.dev.vars.example'),
-	`# The one secret CogSend needs. It encrypts the account tokens CogSend stores,
+	`# The one secret PostEasy needs. It encrypts the account tokens PostEasy stores,
 # and you type it once more, on your first visit, to create your account.
 # Generate one at https://cogsend.com/key/ and keep a copy somewhere safe.
 APP_ENCRYPTION_KEY=
@@ -107,11 +107,11 @@ writeFileSync(
 	join(outDir, 'package.json'),
 	`${JSON.stringify(
 		{
-			name: 'cogsend',
+			name: 'posteasy',
 			version,
 			private: true,
 			type: 'module',
-			description: `CogSend ${version}, prebuilt for the Deploy to Cloudflare button.`,
+			description: `PostEasy ${version}, prebuilt for the Deploy to Cloudflare button.`,
 			license: pkg.license,
 			homepage: pkg.homepage,
 			scripts: { deploy: 'node deploy.mjs' },
@@ -134,7 +134,7 @@ writeFileSync(
 						description:
 							'The R2 bucket for images and videos. R2 asks for a payment method on file, even on the free tier.'
 					},
-					COGSEND_INSTALL: {
+					POSTEASY_INSTALL: {
 						description: 'Leave as `button`: it tells Settings how this instance was installed.'
 					}
 				}
@@ -182,17 +182,17 @@ ui.ok(`deploy repository for ${version} written to ${outDir}`);
 function DEPLOY_SCRIPT() {
 	return `#!/usr/bin/env node
 /**
- * Deploy this prebuilt CogSend. Workers Builds runs it (\`npm run deploy\`) on
+ * Deploy this prebuilt PostEasy. Workers Builds runs it (\`npm run deploy\`) on
  * every push to this repository.
  *
  * - The deploy is tagged with this release, so Settings and later deploys can
  *   tell what is running.
  * - It refuses to replace a newer release: after an update from Settings this
  *   copy is older than your instance, and pushing to it must not roll you back.
- *   COGSEND_ALLOW_DOWNGRADE=1 (a build variable) overrides that, and so does a
- *   rollback the "Update CogSend" Action made on purpose, for that release only.
+ *   POSTEASY_ALLOW_DOWNGRADE=1 (a build variable) overrides that, and so does a
+ *   rollback the "Update PostEasy" Action made on purpose, for that release only.
  * - It tells the Worker which GitHub repository it came from, so Settings can
- *   offer that repository's "Update CogSend" Action.
+ *   offer that repository's "Update PostEasy" Action.
  * - An account with no cron-trigger slot left still deploys; Settings →
  *   Scheduled publishing then offers an external tick instead.
  */
@@ -223,7 +223,7 @@ function wrangler(args, { show = false } = {}) {
 }
 
 const allowDowngrade =
-	['1', 'true', 'yes'].includes((process.env.COGSEND_ALLOW_DOWNGRADE ?? '').toLowerCase()) ||
+	['1', 'true', 'yes'].includes((process.env.POSTEASY_ALLOW_DOWNGRADE ?? '').toLowerCase()) ||
 	rollbackAllowed(existsSync(ROLLBACK_MARKER) ? readFileSync(ROLLBACK_MARKER, 'utf8') : null, version);
 if (!allowDowngrade) {
 	const problem = downgradeProblem(servingTag(wrangler).tag, version);
@@ -237,7 +237,7 @@ const origin = spawnSync('git', ['remote', 'get-url', 'origin'], { encoding: 'ut
 const repo = githubRepoOf(origin.stdout ?? '');
 const branch = process.env.WORKERS_CI_BRANCH;
 const repoVars = repo
-	? ['--var', \`COGSEND_REPO:\${repo}\`, ...(branch ? ['--var', \`COGSEND_BRANCH:\${branch}\`] : [])]
+	? ['--var', \`POSTEASY_REPO:\${repo}\`, ...(branch ? ['--var', \`POSTEASY_BRANCH:\${branch}\`] : [])]
 	: [];
 
 const deployArgs = [
@@ -245,7 +245,7 @@ const deployArgs = [
 	'--tag',
 	\`v\${version}\`,
 	'--message',
-	\`CogSend \${version}\`,
+	\`PostEasy \${version}\`,
 	...repoVars
 ];
 let result = wrangler(deployArgs, { show: true });
@@ -266,9 +266,9 @@ process.exit(result.status ?? 1);
 }
 
 function README() {
-	return `# CogSend ${version}, ready to deploy
+	return `# PostEasy ${version}, ready to deploy
 
-This repository is [CogSend](https://github.com/cogsend/cogsend), a self-hosted social scheduler, prebuilt for one click. It is regenerated on every release; the source, issues and pull requests live in [cogsend/cogsend](https://github.com/cogsend/cogsend).
+This repository is [PostEasy](https://github.com/cogsend/cogsend), a self-hosted social scheduler, prebuilt for one click. It is regenerated on every release; the source, issues and pull requests live in [cogsend/cogsend](https://github.com/cogsend/cogsend).
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cogsend/deploy)
 
@@ -282,7 +282,7 @@ The full guide is at [cogsend.com/docs/deploy](https://cogsend.com/docs/deploy/)
 
 ## Updating
 
-**Through GitHub (no Cloudflare token).** In CogSend, **Settings → Instance** links to this repository's **Update CogSend** Action. The first time, it opens GitHub with the Action's file filled in: commit it (the Deploy button cannot copy workflow files). Then run the Action: it checks the release's signature against every file, commits the release, and Workers Builds deploys it. Leave Workers Builds connected.
+**Through GitHub (no Cloudflare token).** In PostEasy, **Settings → Instance** links to this repository's **Update PostEasy** Action. The first time, it opens GitHub with the Action's file filled in: commit it (the Deploy button cannot copy workflow files). Then run the Action: it checks the release's signature against every file, commits the release, and Workers Builds deploys it. Leave Workers Builds connected.
 
 **From Settings, with a Cloudflare API token.** Also works, and does not change this repository. While Workers Builds is connected, a push to the older copy here is refused by its deploy script, so nothing rolls back by accident.
 `;

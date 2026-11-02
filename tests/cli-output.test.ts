@@ -23,7 +23,7 @@ import {
 const DEPLOY = ` ⛅️ wrangler 4.131.2 (update available 4.136.1)
 ───────────────────────────────────────────────
 🌀 Building list of assets...
-✨ Read 52 files from the assets directory /tmp/cogsend/.svelte-kit/cloudflare
+✨ Read 52 files from the assets directory /tmp/posteasy/.svelte-kit/cloudflare
 🌀 Starting asset upload...
 + /_app/immutable/chunks/BvRk9kiK.js
 + /robots.txt
@@ -33,14 +33,14 @@ Total Upload: 2174.43 KiB / gzip: 401.01 KiB
 Worker Startup Time: 34 ms
 Your Worker has access to the following bindings:
 Binding                                      Resource
-env.DB (cogsend)                             D1 Database
-env.MEDIA (cogsend-media)                    R2 Bucket
+env.DB (posteasy)                             D1 Database
+env.MEDIA (posteasy-media)                    R2 Bucket
 env.AUTH_RATE_LIMITER (20 requests/60s)      Rate Limit
 env.ASSETS                                   Assets
 
-Uploaded cogsend (10.91 sec)
-Deployed cogsend triggers (4.35 sec)
-  https://cogsend.your-subdomain.workers.dev
+Uploaded posteasy (10.91 sec)
+Deployed posteasy triggers (4.35 sec)
+  https://posteasy.your-subdomain.workers.dev
   schedule: * * * * *
 Current Version ID: 93116b57-041a-416e-8224-aeaddd3ab446`;
 
@@ -73,8 +73,8 @@ describe('tool output', () => {
 		expect(cleaned).not.toContain('update available');
 		expect(cleaned).not.toContain('─────');
 		expect(cleaned).not.toContain('Using fallback value');
-		expect(cleaned).toContain('env.DB (cogsend)');
-		expect(cleaned).toContain('https://cogsend.your-subdomain.workers.dev');
+		expect(cleaned).toContain('env.DB (posteasy)');
+		expect(cleaned).toContain('https://posteasy.your-subdomain.workers.dev');
 	});
 
 	it('keeps the migration tables themselves out of the summary path', () => {
@@ -90,14 +90,14 @@ describe('tool output', () => {
 describe('deployFacts', () => {
 	it('reads the URL, bindings and version out of the deploy output', () => {
 		const facts = deployFacts(DEPLOY);
-		expect(facts.url).toBe('https://cogsend.your-subdomain.workers.dev');
+		expect(facts.url).toBe('https://posteasy.your-subdomain.workers.dev');
 		expect(facts.bindings).toEqual(['DB', 'MEDIA', 'AUTH_RATE_LIMITER', 'ASSETS']);
 		expect(facts.versionId).toBe('93116b57-041a-416e-8224-aeaddd3ab446');
 		expect(facts.startupMs).toBe(34);
 	});
 
 	it('does not invent a URL', () => {
-		const facts = deployFacts('Deployed sent https://cogsend.invalid');
+		const facts = deployFacts('Deployed sent https://posteasy.invalid');
 		expect(facts.url).toBe(null);
 		expect(facts.bindings).toEqual([]);
 	});
@@ -130,7 +130,7 @@ describe('printing', () => {
 	});
 
 	it('pads a box to one visible width, colour aside', () => {
-		const lines = box(['CogSend is live', 'https://cogsend.your-subdomain.workers.dev']).split(
+		const lines = box(['PostEasy is live', 'https://posteasy.your-subdomain.workers.dev']).split(
 			'\n'
 		);
 		expect(lines).toHaveLength(4);

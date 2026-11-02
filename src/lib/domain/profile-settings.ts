@@ -1,23 +1,46 @@
-export const MASTO_VISIBILITIES = ['public', 'unlisted', 'private', 'direct'] as const;
-export type MastoVisibility = (typeof MASTO_VISIBILITIES)[number];
+export type OnboardingStep = 1 | 2 | 3;
+
+/**
+ * The setup guide's progress. Absent for accounts that never saw it (the
+ * first owner seeded from the terminal, accounts from before it existed), so
+ * they are not interrupted; sign-up stores `{ step: 1, done: false }`.
+ */
+export interface OnboardingState {
+	step: OnboardingStep;
+	/** Finished: the guide no longer opens by itself or shows on the dashboard. */
+	done: boolean;
+	/** Closed with ×: it stops opening by itself, the dashboard still offers it. */
+	dismissed?: boolean;
+}
 
 export interface ProfileSettings {
-	/** Default Mastodon visibility for new drafts. */
-	mastoVisibility: MastoVisibility;
 	/** Default selected account ids for new drafts (empty = all active). */
 	defaultAccountIds: string[];
 	/** Global profile picture URL (used in top navigation and editor main tab). */
 	profilePictureUrl: string;
+	onboarding?: OnboardingState;
 }
 
 export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = {
-	mastoVisibility: 'public',
 	defaultAccountIds: [],
-	profilePictureUrl: ''
+	profilePictureUrl: '',
+	// Listed so a PATCH carrying it is written; undefined drops out of JSON.
+	onboarding: undefined
 };
 
-function isVisibility(v: unknown): v is MastoVisibility {
-	return typeof v === 'string' && (MASTO_VISIBILITIES as readonly string[]).includes(v);
+/** A stored or submitted guide state, or null when it is not one. */
+export function parseOnboarding(raw: unknown): OnboardingState | null {
+	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+	const r = raw as Record<string, unknown>;
+	if (r.step !== 1 && r.step !== 2 && r.step !== 3) return null;
+	if (typeof r.done !== 'boolean') return null;
+	if (r.dismissed !== undefined && typeof r.dismissed !== 'boolean') return null;
+	return { step: r.step, done: r.done, ...(r.dismissed ? { dismissed: true } : {}) };
+}
+
+/** True while the guide should open by itself. */
+export function onboardingAutoOpens(state: OnboardingState | null | undefined): boolean {
+	return Boolean(state && !state.done && !state.dismissed);
 }
 
 export const PROFILE_PICTURE_URL_MAX = 2000;
@@ -60,10 +83,11 @@ export function parseProfileSettings(raw: unknown): ProfileSettings {
 	}
 	if (!raw || typeof raw !== 'object') return { ...DEFAULT_PROFILE_SETTINGS };
 	const r = raw as Record<string, unknown>;
+	const onboarding = parseOnboarding(r.onboarding);
 	return {
-		mastoVisibility: isVisibility(r.mastoVisibility) ? r.mastoVisibility : 'public',
 		defaultAccountIds: sanitizeAccountIds(r.defaultAccountIds),
-		profilePictureUrl: sanitizeProfilePictureUrl(r.profilePictureUrl)
+		profilePictureUrl: sanitizeProfilePictureUrl(r.profilePictureUrl),
+		...(onboarding ? { onboarding } : {})
 	};
 }
 
@@ -73,9 +97,6 @@ export function normalizeProfileSettings(
 ): { ok: true; settings: ProfileSettings } | { ok: false; error: string } {
 	if (!input || typeof input !== 'object') return { ok: false, error: 'Invalid settings' };
 	const r = input as Record<string, unknown>;
-	if (r.mastoVisibility !== undefined && !isVisibility(r.mastoVisibility)) {
-		return { ok: false, error: 'Invalid visibility' };
-	}
 	if (r.defaultAccountIds !== undefined) {
 		if (
 			!Array.isArray(r.defaultAccountIds) ||
@@ -95,6 +116,9 @@ export function normalizeProfileSettings(
 		if (trimmed.length > 0 && !isValidProfilePictureUrl(trimmed)) {
 			return { ok: false, error: 'Invalid profile picture URL' };
 		}
+	}
+	if (r.onboarding !== undefined && !parseOnboarding(r.onboarding)) {
+		return { ok: false, error: 'Invalid onboarding state' };
 	}
 	return { ok: true, settings: parseProfileSettings(input) };
 }

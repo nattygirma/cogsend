@@ -35,7 +35,7 @@ describe('MCP authentication', () => {
 	afterAll(() => close());
 
 	const call = (headers: HeadersInit = {}, stateOverrides: Record<string, unknown> = {}) => {
-		const request = new Request('https://cogsend.example/api/mcp', { method: 'POST', headers });
+		const request = new Request('https://posteasy.example/api/mcp', { method: 'POST', headers });
 		return authorizeMcpRequest(request, new URL(request.url), db, {
 			authMethod: 'bearer',
 			authCredential: 'personal_api_key',
@@ -77,7 +77,7 @@ describe('MCP authentication', () => {
 		const oldKey = rawKey;
 		rawKey = (await rotateApiKey(db, userId)).raw;
 		expect(await call({ Authorization: `Bearer ${oldKey}` })).toEqual({ ok: false, status: 401 });
-		const request = new Request(`https://cogsend.example/api/mcp?token=${rawKey}`, {
+		const request = new Request(`https://posteasy.example/api/mcp?token=${rawKey}`, {
 			method: 'POST'
 		});
 		expect(
@@ -92,15 +92,15 @@ describe('MCP authentication', () => {
 	it('allows missing origins and validates every present Origin and Referer', async () => {
 		const authorization = `Bearer ${rawKey}`;
 		expect(await call({ Authorization: authorization })).toEqual({ ok: true });
-		expect(await call({ Authorization: authorization, Origin: 'https://cogsend.example' })).toEqual(
-			{
-				ok: true
-			}
-		);
+		expect(
+			await call({ Authorization: authorization, Origin: 'https://posteasy.example' })
+		).toEqual({
+			ok: true
+		});
 		expect(
 			await call({
 				Authorization: authorization,
-				Origin: 'https://cogsend.example',
+				Origin: 'https://posteasy.example',
 				Referer: 'https://other.example/page'
 			})
 		).toEqual({ ok: false, status: 403 });

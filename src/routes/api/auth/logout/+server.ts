@@ -7,7 +7,7 @@ import { ok } from '#lib/server/http.js';
 
 export const POST: RequestHandler = async ({ locals, cookies, url }) => {
 	// Look up the session owner first: MFA challenges must die with logout or
-	// a stolen cog_mfa cookie stays usable for its full 10-minute window.
+	// a stolen pe_mfa cookie stays usable for its full 10-minute window.
 	const raw = cookies.get(SESSION_COOKIE);
 	const session = await getSessionUser(locals.db, locals.env, raw);
 	await destroySession(locals.db, locals.env, raw);

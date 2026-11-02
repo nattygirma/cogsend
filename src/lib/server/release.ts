@@ -110,14 +110,14 @@ export async function checkForRelease(
 const GITHUB_HEADERS = {
 	accept: 'application/vnd.github+json',
 	// GitHub rejects requests without a User-Agent.
-	'user-agent': 'cogsend'
+	'user-agent': 'posteasy'
 };
 
 /** The newest release from the Atom feed, or null for the API to answer instead. */
 async function fromFeed(doFetch: typeof fetch, prereleases: boolean): Promise<ReleaseInfo | null> {
 	try {
 		const res = await doFetch(RELEASES_FEED_URL, {
-			headers: { accept: 'application/atom+xml', 'user-agent': 'cogsend' },
+			headers: { accept: 'application/atom+xml', 'user-agent': 'posteasy' },
 			signal: AbortSignal.timeout(TIMEOUT_MS)
 		});
 		return res.ok ? newestOf(parseReleaseFeed(await res.text()), prereleases) : null;

@@ -1,6 +1,6 @@
 /**
  * Which release the deployed Worker is running, read from the `workers/tag`
- * annotation every CogSend deploy now carries (`wrangler deploy --tag v<version>`
+ * annotation every PostEasy deploy now carries (`wrangler deploy --tag v<version>`
  * from a checkout, the same annotation from the in-app updater).
  *
  * It exists to stop a downgrade nobody asked for: an instance updated from
@@ -109,6 +109,6 @@ export function downgradeProblem(serving, localVersion) {
 	return (
 		`The Worker runs ${serving}, newer than the ${localVersion} this would deploy ` +
 		'(it was probably updated from Settings). Update this copy first, or pass ' +
-		'--allow-downgrade (COGSEND_ALLOW_DOWNGRADE=1) to deploy the older version anyway.'
+		'--allow-downgrade (POSTEASY_ALLOW_DOWNGRADE=1) to deploy the older version anyway.'
 	);
 }

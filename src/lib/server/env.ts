@@ -11,7 +11,7 @@ const envSchema = z.object({
 	APP_URL: z.string().optional(),
 	// Instance display name: the UI title, header and login screen. Self-hosters
 	// can rename their instance from config without touching code.
-	APP_NAME: z.string().min(1).default('CogSend'),
+	APP_NAME: z.string().min(1).default('PostEasy'),
 	// 32+ chars (≈256-bit when random). TEST/dev use 64-hex; weak keys make the
 	// DB-stored OAuth/TOTP ciphertexts trivially brute-forceable on DB leak.
 	APP_ENCRYPTION_KEY: z.string().min(32),
@@ -32,6 +32,13 @@ const envSchema = z.object({
 	THREADS_APP_SECRET: z.string().min(1).optional(),
 	INSTAGRAM_APP_ID: z.string().min(1).optional(),
 	INSTAGRAM_APP_SECRET: z.string().min(1).optional(),
+	FACEBOOK_APP_ID: z.string().min(1).optional(),
+	FACEBOOK_APP_SECRET: z.string().min(1).optional(),
+	FACEBOOK_CONFIG_ID: z.string().min(1).optional(),
+	YOUTUBE_CLIENT_ID: z.string().min(1).optional(),
+	YOUTUBE_CLIENT_SECRET: z.string().min(1).optional(),
+	TIKTOK_CLIENT_KEY: z.string().min(1).optional(),
+	TIKTOK_CLIENT_SECRET: z.string().min(1).optional(),
 	X_CLIENT_ID: z.string().min(1).optional(),
 	X_CLIENT_SECRET: z.string().min(1).optional(),
 	// Failure-digest email (Resend). All optional: when unset, the digest is
@@ -45,7 +52,15 @@ const envSchema = z.object({
 	// crawler fetch. Deliberately not schema-validated: a bad value degrades
 	// to the signed route (publicMediaUrlFor) instead of 500ing every
 	// request over an optional optimization.
-	MEDIA_PUBLIC_BASE_URL: z.string().optional()
+	MEDIA_PUBLIC_BASE_URL: z.string().optional(),
+	// Set by appkeep when it hosts this copy: who is signed in then comes from
+	// appkeep, and APP_URL defaults to the copy's address there.
+	ALTSTACK_DEPLOYMENT_ID: z.string().min(1).optional(),
+	// "on" turns on the in-app updater, which installs releases of the upstream
+	// project this one was forked from: off by default, as those would replace
+	// this app's own changes. Never on under appkeep, which rolls out versions.
+	UPSTREAM_UPDATES: z.string().optional(),
+	ALTSTACK_APP_URL: z.string().min(1).optional()
 });
 
 export type AppEnv = z.infer<typeof envSchema> & {
@@ -59,6 +74,10 @@ export type AppEnv = z.infer<typeof envSchema> & {
 	 *  by the time anything signs a session. */
 	AUTH_SECRET: string;
 	skipTotp: boolean;
+	/** Hosted by appkeep: sign-in, sign-out and accounts belong to appkeep. */
+	appkeep: boolean;
+	/** The in-app updater and release check run (UPSTREAM_UPDATES=on). */
+	updates: boolean;
 };
 
 /** Example values that must never reach a real deployment. Exported so
@@ -110,15 +129,19 @@ export function readAppEnv(
 		APP_URL: parsed.data.APP_URL ?? '',
 		AUTH_SECRET: parsed.data.AUTH_SECRET ?? '',
 		appUrlSource,
-		skipTotp
+		skipTotp,
+		appkeep: Boolean(parsed.data.ALTSTACK_DEPLOYMENT_ID),
+		updates: parsed.data.UPSTREAM_UPDATES === 'on' && !parsed.data.ALTSTACK_DEPLOYMENT_ID
 	};
 }
 
 function procEnv(): Record<string, string | undefined> {
 	try {
-		return (
-			(globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
-		);
+		const raw =
+			(globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+		// On Workers process.env mirrors the bindings, and a host such as appkeep
+		// passes a setting left blank as "": that means unset, as it does above.
+		return Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== ''));
 	} catch {
 		return {};
 	}
@@ -137,7 +160,8 @@ export async function envFromPlatform(
 ): Promise<AppEnv> {
 	const fallback = procEnv();
 	const resolved = resolveAppUrl({
-		configured: asString(platformEnv?.APP_URL) ?? fallback.APP_URL,
+		configured:
+			asString(platformEnv?.APP_URL) ?? fallback.APP_URL ?? asString(platformEnv?.ALTSTACK_APP_URL),
 		requestUrl: options.requestUrl,
 		stored: options.storedAppUrl
 	});
@@ -156,9 +180,21 @@ export async function envFromPlatform(
 		INSTAGRAM_APP_ID: asString(platformEnv?.INSTAGRAM_APP_ID) ?? fallback.INSTAGRAM_APP_ID,
 		INSTAGRAM_APP_SECRET:
 			asString(platformEnv?.INSTAGRAM_APP_SECRET) ?? fallback.INSTAGRAM_APP_SECRET,
+		FACEBOOK_APP_ID: asString(platformEnv?.FACEBOOK_APP_ID) ?? fallback.FACEBOOK_APP_ID,
+		FACEBOOK_APP_SECRET: asString(platformEnv?.FACEBOOK_APP_SECRET) ?? fallback.FACEBOOK_APP_SECRET,
+		FACEBOOK_CONFIG_ID: asString(platformEnv?.FACEBOOK_CONFIG_ID) ?? fallback.FACEBOOK_CONFIG_ID,
+		YOUTUBE_CLIENT_ID: asString(platformEnv?.YOUTUBE_CLIENT_ID) ?? fallback.YOUTUBE_CLIENT_ID,
+		YOUTUBE_CLIENT_SECRET:
+			asString(platformEnv?.YOUTUBE_CLIENT_SECRET) ?? fallback.YOUTUBE_CLIENT_SECRET,
+		TIKTOK_CLIENT_KEY: asString(platformEnv?.TIKTOK_CLIENT_KEY) ?? fallback.TIKTOK_CLIENT_KEY,
+		TIKTOK_CLIENT_SECRET:
+			asString(platformEnv?.TIKTOK_CLIENT_SECRET) ?? fallback.TIKTOK_CLIENT_SECRET,
 		X_CLIENT_ID: asString(platformEnv?.X_CLIENT_ID) ?? fallback.X_CLIENT_ID,
 		X_CLIENT_SECRET: asString(platformEnv?.X_CLIENT_SECRET) ?? fallback.X_CLIENT_SECRET,
 		RESEND_API_KEY: asString(platformEnv?.RESEND_API_KEY) ?? fallback.RESEND_API_KEY,
+		ALTSTACK_DEPLOYMENT_ID: asString(platformEnv?.ALTSTACK_DEPLOYMENT_ID),
+		UPSTREAM_UPDATES: asString(platformEnv?.UPSTREAM_UPDATES) ?? fallback.UPSTREAM_UPDATES,
+		ALTSTACK_APP_URL: asString(platformEnv?.ALTSTACK_APP_URL),
 		NOTIFY_EMAIL: asString(platformEnv?.NOTIFY_EMAIL) ?? fallback.NOTIFY_EMAIL,
 		NOTIFY_FROM: asString(platformEnv?.NOTIFY_FROM) ?? fallback.NOTIFY_FROM,
 		MEDIA_PUBLIC_BASE_URL:

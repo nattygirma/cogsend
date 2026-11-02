@@ -40,18 +40,16 @@ describe('which paths are rate limited', () => {
 	it('covers exactly the endpoints that take a secret', () => {
 		expect(RATE_LIMITED_PATHS).toEqual([
 			'/api/auth/login',
-			'/api/auth/claim',
-			'/api/auth/totp/verify',
+			'/api/auth/signup',
 			'/api/update/unlock',
 			'/api/update/remember'
 		]);
 		expect(isRateLimitedPath('/api/auth/login')).toBe(true);
 		expect(isRateLimitedPath('/api/auth/login/')).toBe(true);
-		expect(isRateLimitedPath('/api/auth/totp/verify')).toBe(true);
+		expect(isRateLimitedPath('/api/auth/signup')).toBe(true);
 		expect(isRateLimitedPath('/api/update/unlock')).toBe(true);
 		expect(isRateLimitedPath('/api/update/prepare')).toBe(false);
 		// Everything else is either session-guarded or bearer-guarded.
-		expect(isRateLimitedPath('/api/auth/totp/enroll/start')).toBe(false);
 		expect(isRateLimitedPath('/api/auth/me')).toBe(false);
 		expect(isRateLimitedPath('/api/internal/tick')).toBe(false);
 		expect(isRateLimitedPath('/')).toBe(false);
@@ -127,12 +125,12 @@ describe('the hook', () => {
 		options: { limiter?: RateLimiter; ip?: string; media?: boolean } = {}
 	): Promise<{ routed: boolean; status: number; body: string }> {
 		let routed = false;
-		const url = new URL(`https://cogsend.example.com${path}`);
+		const url = new URL(`https://posteasy.example.com${path}`);
 		const headers: Record<string, string> = { 'content-type': 'application/json' };
 		if (options.ip) headers['cf-connecting-ip'] = options.ip;
 		useWorkerEnv({
 			DB: binding,
-			APP_URL: 'https://cogsend.example.com',
+			APP_URL: 'https://posteasy.example.com',
 			APP_ENCRYPTION_KEY: 'feedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedface',
 			AUTH_RATE_LIMITER: options.limiter,
 			// A binding, so the hook takes the R2 path: a warn per request
@@ -224,10 +222,9 @@ describe('the hook', () => {
 				return { success: false };
 			}
 		};
-		const result = await request('/api/auth/totp/enroll/start', { limiter, ip: '203.0.113.9' });
+		const result = await request('/api/auth/me', { limiter, ip: '203.0.113.9' });
 		expect(calls).toEqual([]);
-		// Public (it needs a challenge token, not a session) but not limited: a
-		// flood guard on top of a token-guarded route buys nothing.
+		// Public (it answers "not signed in") but not limited: it takes no secret.
 		expect(result.status).toBe(200);
 		expect(result.routed).toBe(true);
 	});
