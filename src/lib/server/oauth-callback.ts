@@ -79,11 +79,11 @@ export function findExistingConnection<
 }
 
 /** Keep one row per account: revive the stored one, or add it. */
-async function upsertConnection(
+export async function upsertConnection(
 	db: AppDb,
 	env: AppEnv,
 	userId: string,
-	opts: OAuthCallbackOptions,
+	opts: Pick<OAuthCallbackOptions, 'platform' | 'accountIdKey' | 'reconcileMeta'>,
 	exchanged: CallbackExchange
 ): Promise<void> {
 	const encrypted = await encryptJson(exchanged.credentials, env.APP_ENCRYPTION_KEY);

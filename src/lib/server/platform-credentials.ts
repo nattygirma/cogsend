@@ -13,6 +13,7 @@
  * land on another.
  */
 import { like, eq } from 'drizzle-orm';
+import { isAppkeepPlatform } from './appkeep-connections';
 import {
 	PLATFORM_SETUP,
 	platformConfigured,
@@ -168,7 +169,8 @@ export async function platformCredentialStatus(
 				? Boolean(winner.values[name])
 				: Boolean(fromEnv[name] || fromApp[name]);
 		}
-		configured[id] = platformConfigured(id, secrets);
+		// On appkeep these connect through appkeep's apps, which need no keys here.
+		configured[id] = (env.appkeep && isAppkeepPlatform(id)) || platformConfigured(id, secrets);
 	}
 	return { configured, secrets, sources, savedClientIds };
 }

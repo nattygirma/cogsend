@@ -15,6 +15,7 @@ export {
 import { xProvider } from './x';
 import { youtubeProvider } from './youtube';
 import { zernioProviderFor } from './zernio';
+import { appkeepConnectionId, viaAppkeep } from './appkeep';
 import type { PlatformId, PlatformProvider } from './types';
 
 const providers: Record<PlatformId, PlatformProvider> = {
@@ -36,11 +37,13 @@ export function getProvider(platform: PlatformId | string): PlatformProvider {
 
 type ConnectionLike = { platform: string; metaJson?: string | null };
 
-/** The provider a stored connection publishes through: the platform's own, or
- *  Zernio when the row carries the marker. */
+/** The provider a stored connection publishes through: the platform's own, the
+ *  same through appkeep when appkeep holds the token, or Zernio when the row
+ *  carries the marker. */
 export function providerFor(conn: ConnectionLike): PlatformProvider {
 	if (isZernioConnection(conn.metaJson)) return zernioProviderFor(conn.platform as PlatformId);
-	return getProvider(conn.platform);
+	const appkeepId = appkeepConnectionId(conn.metaJson);
+	return appkeepId ? viaAppkeep(getProvider(conn.platform), appkeepId) : getProvider(conn.platform);
 }
 
 /** Key for publishCallEstimate: Zernio costs the same whatever the platform. */
@@ -51,6 +54,7 @@ export function estimateKeyFor(conn: ConnectionLike): string {
 export * from './types';
 export { zernioProviderFor, buildZernioPostBody, ZERNIO_MAX_POLLS } from './zernio';
 export { providerFetch, timedFetch } from './timed-fetch';
+export { APPKEEP_TOKEN, appkeepConnectionId, appkeepFetch, viaAppkeep } from './appkeep';
 export { blueskyProvider, blueskyCreateSession, buildLinkFacets } from './bluesky';
 export {
 	linkedinProvider,

@@ -624,6 +624,11 @@
 		const failure = params.get('error');
 		if (connected) msg = `Connected ${connected}`;
 		if (failure) err = humanizeError(failure);
+		// Connected on appkeep, but the account couldn't be read back into this app.
+		if (data.importError) {
+			msg = null;
+			err = humanizeError(data.importError);
+		}
 		// Read once, then drop them from the address bar. The callback redirect
 		// is a full page load, so a stale `?error=` used to be replayed on every
 		// reload — an old failure sitting above a connection that has since

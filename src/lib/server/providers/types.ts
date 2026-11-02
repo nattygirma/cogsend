@@ -121,6 +121,8 @@ export interface ConnectionMeta {
 	pageId?: string;
 	channelId?: string;
 	tiktokOpenId?: string;
+	/** Set when appkeep holds the token: calls go out with this connection id instead. */
+	appkeepConnectionId?: string;
 }
 
 export type FetchLike = typeof fetch;

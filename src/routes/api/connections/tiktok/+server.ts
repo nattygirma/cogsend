@@ -4,6 +4,7 @@ import { OAUTH_PENDING_TTL_MS } from '#lib/domain/oauth-pending.js';
 import { encryptSecret } from '#lib/server/crypto.js';
 import { oauthPending } from '#lib/server/db/schema.js';
 import { handleError, ok } from '#lib/server/http.js';
+import { appkeepConnectUrl } from '#lib/server/appkeep-connections.js';
 import { resolvePlatformCredentials } from '#lib/server/platform-credentials.js';
 import { platformNotConfigured } from '#lib/server/platform-setup.js';
 import { tiktokAuthorizeUrl } from '#lib/server/providers/tiktok.js';
@@ -14,6 +15,8 @@ import { requireSession } from '#lib/server/require.js';
 export const POST: RequestHandler = async ({ locals, cookies }) => {
 	try {
 		const user = requireSession(locals.user, locals.authMethod);
+		// On appkeep, appkeep's own TikTok app runs the login and keeps the token.
+		if (locals.env.appkeep) return ok({ authorizeUrl: appkeepConnectUrl('tiktok') });
 		const credentials = await resolvePlatformCredentials(locals.db, locals.env, 'tiktok');
 		const clientKey = credentials?.values.TIKTOK_CLIENT_KEY;
 		const clientSecret = credentials?.values.TIKTOK_CLIENT_SECRET;

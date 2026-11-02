@@ -21,6 +21,8 @@ import {
 } from '#lib/server/providers/index.js';
 import { xLimitFor, type XLimitMeta } from '#lib/domain/x-limits.js';
 import { requireSession } from '#lib/server/require.js';
+import { appkeepConnectionId } from '#lib/server/providers/index.js';
+import { isAppkeepPlatform, verifyAppkeepConnection } from '#lib/server/appkeep-connections.js';
 import { isZernioAccountDead, listAccounts } from '#lib/server/zernio.js';
 
 export const POST: RequestHandler = async ({ params, locals }) => {
@@ -58,6 +60,23 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 			conn.credentialsEncrypted,
 			locals.env.APP_ENCRYPTION_KEY
 		);
+
+		// Appkeep keeps this token fresh; reading the profile through it proves it still works.
+		const appkeepId = appkeepConnectionId(conn.metaJson);
+		if (appkeepId && isAppkeepPlatform(conn.platform)) {
+			const info = await verifyAppkeepConnection(conn.platform, appkeepId, creds);
+			await locals.db
+				.update(connections)
+				.set({
+					status: 'active',
+					displayName: info.displayName || conn.displayName,
+					avatarUrl: info.avatarUrl || conn.avatarUrl,
+					handle: info.handle || conn.handle,
+					updatedAt: new Date()
+				})
+				.where(owned);
+			return ok({ ok: true, status: 'active' });
+		}
 
 		if (isZernioConnection(conn.metaJson)) {
 			const meta = parseJson<{ zernioAccountId?: string; zernioProfileId?: string }>(

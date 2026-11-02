@@ -2,7 +2,7 @@
 	"schema": 1,
 	"slug": "posteasy",
 	"name": "PostEasy",
-	"version": "1.22.0",
+	"version": "1.23.0",
 	"tagline": "Write once, schedule everywhere: X, Instagram, Facebook, YouTube, TikTok, LinkedIn, Threads and Bluesky",
 	"description": "A social media scheduler. Connect your accounts, write a post once, tailor it per platform, and publish now or on a schedule. Includes a calendar, drafts, video uploads, and an MCP server so AI agents can draft and schedule for you.",
 	"category": "marketing",
@@ -27,12 +27,46 @@
 			"why": "Keeps the images and videos you attach to posts"
 		}
 	],
-	"cron": ["* * * * *"],
+	"cron": [
+		"* * * * *"
+	],
 	"ratelimits": [
 		{
 			"name": "AUTH_RATE_LIMITER",
 			"limit": 20,
 			"period": 60
+		}
+	],
+	"connections": [
+		{
+			"provider": "instagram",
+			"why": "Publish posts, reels and stories to your Instagram account",
+			"scopes": [
+				"instagram_business_content_publish"
+			]
+		},
+		{
+			"provider": "facebook",
+			"why": "Publish to the Facebook Pages you choose",
+			"scopes": [
+				"pages_read_engagement",
+				"pages_manage_posts"
+			]
+		},
+		{
+			"provider": "tiktok",
+			"why": "Publish your videos to TikTok",
+			"scopes": [
+				"video.publish",
+				"video.upload"
+			]
+		},
+		{
+			"provider": "youtube",
+			"why": "Upload your videos to your YouTube channel",
+			"scopes": [
+				"https://www.googleapis.com/auth/youtube.upload"
+			]
 		}
 	],
 	"egress": [
@@ -45,32 +79,12 @@
 			"why": "Show previews of X posts you quote"
 		},
 		{
-			"host": "graph.instagram.com",
-			"why": "Publish to Instagram"
-		},
-		{
-			"host": "api.instagram.com",
-			"why": "Connect Instagram accounts"
-		},
-		{
-			"host": "graph.facebook.com",
-			"why": "Publish to Facebook Pages"
+			"host": "open-upload.tiktokapis.com",
+			"why": "Upload your videos to TikTok"
 		},
 		{
 			"host": "graph.threads.net",
 			"why": "Publish to Threads"
-		},
-		{
-			"host": "www.googleapis.com",
-			"why": "Upload videos to YouTube"
-		},
-		{
-			"host": "oauth2.googleapis.com",
-			"why": "Connect YouTube channels"
-		},
-		{
-			"host": "open.tiktokapis.com",
-			"why": "Publish to TikTok"
 		},
 		{
 			"host": "api.linkedin.com",
