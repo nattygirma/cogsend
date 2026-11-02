@@ -35,8 +35,8 @@ const none: PlatformConfigured = oauthPlatformRecord(() => false);
 describe('platform setup data', () => {
 	it('knows the platforms that need an app, and only those', () => {
 		for (const id of OAUTH) expect(isOAuthPlatform(id)).toBe(true);
-		// Bluesky takes an app password: it cannot be blocked on missing credentials.
-		for (const id of ['bluesky', '']) {
+		// Anything that is not a platform (an unknown or removed id) needs no app.
+		for (const id of ['mastodon', '']) {
 			expect(isOAuthPlatform(id)).toBe(false);
 			expect(setupFor(id)).toBeNull();
 			expect(needsSetup(id, none)).toBe(false);
@@ -194,21 +194,25 @@ describe('platform setup data', () => {
 describe('empty-state sentence', () => {
 	it('lists only the platforms that can be connected', () => {
 		expect(emptyStateSentence(all)).toBe(
-			'No accounts yet. Connect Bluesky, LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok, or X to start posting.'
+			'No accounts yet. Connect LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok, or X to start posting.'
 		);
 		// The case behind the change: no app credentials anywhere, so naming
 		// LinkedIn, Threads or X would offer something this deployment cannot do.
-		expect(emptyStateSentence(none)).toBe('No accounts yet. Connect Bluesky to start posting.');
+		// Every platform needs an app, so with none there is nothing to offer.
+		expect(emptyStateSentence(none)).toBe('No accounts yet.');
 		expect(emptyStateSentence({ ...none, linkedin: true })).toBe(
-			'No accounts yet. Connect Bluesky or LinkedIn to start posting.'
+			'No accounts yet. Connect LinkedIn to start posting.'
 		);
-		expect(connectableNames(none)).toEqual(['Bluesky']);
+		expect(emptyStateSentence({ ...none, linkedin: true, x: true })).toBe(
+			'No accounts yet. Connect LinkedIn or X to start posting.'
+		);
+		expect(connectableNames(none)).toEqual([]);
 	});
 
 	it('joins names the way the sentence reads', () => {
 		expect(joinPlatformNames([])).toBe('');
-		expect(joinPlatformNames(['Bluesky'])).toBe('Bluesky');
-		expect(joinPlatformNames(['Bluesky', 'LinkedIn'])).toBe('Bluesky or LinkedIn');
-		expect(joinPlatformNames(['Bluesky', 'LinkedIn', 'X'])).toBe('Bluesky, LinkedIn, or X');
+		expect(joinPlatformNames(['LinkedIn'])).toBe('LinkedIn');
+		expect(joinPlatformNames(['LinkedIn', 'X'])).toBe('LinkedIn or X');
+		expect(joinPlatformNames(['LinkedIn', 'Threads', 'X'])).toBe('LinkedIn, Threads, or X');
 	});
 });

@@ -50,7 +50,7 @@ describe('POST /api/targets/bulk', () => {
 		connB = newId();
 		for (const [id, platform] of [
 			[connA, 'mastodon'],
-			[connB, 'bluesky']
+			[connB, 'linkedin']
 		]) {
 			await db.insert(connections).values({
 				id,

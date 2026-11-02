@@ -116,9 +116,9 @@ describe('counting wrappers', () => {
 describe('publishCallEstimate', () => {
 	const image = { mime: 'image/png', size: 1000, storageKey: 'k' };
 	it('grows with segments and attachments', () => {
-		const one = publishCallEstimate('bluesky', { text: 'hi' });
-		const withImages = publishCallEstimate('bluesky', { text: 'hi', media: [image, image] });
-		const thread = publishCallEstimate('bluesky', {
+		const one = publishCallEstimate('x', { text: 'hi' });
+		const withImages = publishCallEstimate('x', { text: 'hi', media: [image, image] });
+		const thread = publishCallEstimate('x', {
 			text: 'a',
 			thread: [{ text: 'a' }, { text: 'b' }, { text: 'c' }]
 		});
@@ -131,9 +131,10 @@ describe('publishCallEstimate', () => {
 		expect(publishCallEstimate('zernio', withImages)).toBe(
 			publishCallEstimate('zernio', { text: 'hi' })
 		);
-		// Bluesky is sent the bytes: each image is a read on top of its upload.
-		expect(publishCallEstimate('bluesky', withImages)).toBe(
-			publishCallEstimate('bluesky', { text: 'hi' }) + 2 * (1 + 1)
+		// LinkedIn is sent the bytes: each image is a read on top of its two
+		// upload calls (initialize, then the PUT).
+		expect(publishCallEstimate('linkedin', withImages)).toBe(
+			publishCallEstimate('linkedin', { text: 'hi' }) + 2 * (1 + 2)
 		);
 	});
 
@@ -148,7 +149,7 @@ describe('publishCallEstimate', () => {
 
 	it('counts a video as work that parks, so its size does not decide', () => {
 		const video = (size: number) => ({ mime: 'video/mp4', size, storageKey: 'v.mp4' });
-		for (const platform of ['x', 'linkedin', 'bluesky', 'threads']) {
+		for (const platform of ['x', 'linkedin', 'threads', 'facebook']) {
 			const small = publishCallEstimate(platform, { text: 'hi', media: [video(1_000_000)] });
 			const huge = publishCallEstimate(platform, { text: 'hi', media: [video(300_000_000)] });
 			expect(huge, platform).toBe(small);

@@ -107,8 +107,6 @@ function limitsFor(platform: string, meta: VideoRuleMeta | null | undefined): Li
 				maxFps: 60
 			};
 		}
-		case 'bluesky':
-			return { maxMs: 10 * 60_000, maxBytes: 300_000_000 };
 		case 'linkedin':
 			return { minMs: 3_000, maxMs: 30 * 60_000, minBytes: 75_000, maxBytes: 500_000_000 };
 		case 'threads':

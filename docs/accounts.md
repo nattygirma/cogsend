@@ -3,12 +3,6 @@
 **Accounts** lists every connected account and how to add another. **Connect new**
 opens the platform picker.
 
-## Bluesky
-
-Bluesky connects with what you already have: enter your handle and an **app
-password**, which you create in Bluesky under Settings → Privacy and security →
-App passwords. Never use your main password.
-
 ## LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X
 
 These need a developer app of your own before they can connect, because the

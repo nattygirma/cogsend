@@ -115,12 +115,12 @@ describe('refreshImpossibleReason', () => {
 	});
 
 	it('providers without refreshable tokens omit the check', () => {
-		expect(getProvider('bluesky').refreshImpossibleReason).toBeUndefined();
+		expect(getProvider('facebook').refreshImpossibleReason).toBeUndefined();
 	});
 });
 
 describe('publish failure decisions', () => {
-	const err500 = 'Bluesky createRecord failed (500): x';
+	const err500 = 'LinkedIn post failed (500): x';
 	const err403 = 'X post failed (403): policy';
 
 	it('expires on 401 but never on 403', () => {

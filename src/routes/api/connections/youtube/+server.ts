@@ -16,7 +16,8 @@ export const POST: RequestHandler = async ({ locals, cookies }) => {
 	try {
 		const user = requireSession(locals.user, locals.authMethod);
 		// On appkeep, appkeep's own Youtube app runs the login and keeps the token.
-		if (locals.env.appkeep) return ok({ authorizeUrl: appkeepConnectUrl('youtube') });
+		if (locals.env.appkeep)
+			return ok({ authorizeUrl: appkeepConnectUrl(locals.bindings, 'youtube') });
 		const credentials = await resolvePlatformCredentials(locals.db, locals.env, 'youtube');
 		const clientId = credentials?.values.YOUTUBE_CLIENT_ID;
 		const clientSecret = credentials?.values.YOUTUBE_CLIENT_SECRET;

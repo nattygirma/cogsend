@@ -62,18 +62,18 @@ describe('what a preview link shows', () => {
 		const versions = shareVersions({
 			baseBody: 'main',
 			variants: [
-				{ platform: 'bluesky', body: 'short one' },
+				{ platform: 'linkedin', body: 'short one' },
 				// Options only (a Mastodon poll, visibility): publishes the main text.
 				{ platform: 'mastodon', body: null },
 				{ platform: 'x', body: 'for x' }
 			],
 			media: [],
-			platforms: ['bluesky', 'mastodon', 'x']
+			platforms: ['linkedin', 'mastodon', 'x']
 		});
 		expect(versions.map((v) => [v.key, v.label])).toEqual([
 			['post', 'Post'],
 			['x', 'X'],
-			['bluesky', 'Bluesky']
+			['linkedin', 'LinkedIn']
 		]);
 		expect(versions[1]!.cards).toEqual([{ text: 'for x', media: [] }]);
 	});
@@ -101,12 +101,12 @@ describe('what a preview link shows', () => {
 			baseBody: 'main',
 			variants: [
 				{ platform: 'x', body: 'for x' },
-				{ platform: 'bluesky', body: 'for bluesky' }
+				{ platform: 'linkedin', body: 'for linkedin' }
 			],
 			media: [],
-			platforms: ['bluesky']
+			platforms: ['linkedin']
 		});
-		expect(versions.map((v) => v.key)).toEqual(['post', 'bluesky']);
+		expect(versions.map((v) => v.key)).toEqual(['post', 'linkedin']);
 	});
 });
 
@@ -301,8 +301,8 @@ describe('preview links, end to end', () => {
 	it('makes a link anyone can open, showing the saved draft and no account', async () => {
 		const { id, key } = await seedDraft();
 		await addTarget(id, 'scheduled');
-		await addVariant(id, 'bluesky');
-		await selectAccounts(id, [await addAccount('bluesky')]);
+		await addVariant(id, 'linkedin');
+		await selectAccounts(id, [await addAccount('linkedin')]);
 		const made = await share('POST', id);
 		expect(made.status).toBe(201);
 		expect(made.body.share.url).toMatch(/^http:\/\/localhost:5173\/p\/[0-9a-f]{64}$/);
@@ -313,7 +313,7 @@ describe('preview links, end to end', () => {
 		const page = await view(tokenOf(made.body.share.url));
 		expect(page.title).toBe('Launch post');
 		const versions = page.versions as Array<{ key: string; cards: Array<{ text: string }> }>;
-		expect(versions.map((v) => v.key)).toEqual(['post', 'bluesky']);
+		expect(versions.map((v) => v.key)).toEqual(['post', 'linkedin']);
 		expect(versions[0]!.cards.map((c) => c.text)).toEqual(['hello', 'world']);
 		const serialized = JSON.stringify(page);
 		expect(serialized).not.toContain('secret-handle');
@@ -328,10 +328,10 @@ describe('preview links, end to end', () => {
 	it('shows a version only for a platform the draft is going to', async () => {
 		const { id } = await seedDraft();
 		await addVariant(id, 'x');
-		await addVariant(id, 'bluesky');
+		await addVariant(id, 'linkedin');
 		// Deselecting X in the composer keeps its variant row.
-		await selectAccounts(id, [await addAccount('bluesky'), await addAccount('x', 'disconnected')]);
-		expect(await versionKeys(id)).toEqual(['post', 'bluesky']);
+		await selectAccounts(id, [await addAccount('linkedin'), await addAccount('x', 'disconnected')]);
+		expect(await versionKeys(id)).toEqual(['post', 'linkedin']);
 
 		await selectAccounts(id, []);
 		expect(await versionKeys(id)).toEqual(['post']);
@@ -340,9 +340,9 @@ describe('preview links, end to end', () => {
 	it('falls back to the publish targets when the draft never saved a selection', async () => {
 		const { id } = await seedDraft();
 		await addVariant(id, 'x');
-		await addVariant(id, 'bluesky');
+		await addVariant(id, 'linkedin');
 		await addTarget(id, 'scheduled', null, 'x');
-		await addTarget(id, 'cancelled', null, 'bluesky');
+		await addTarget(id, 'cancelled', null, 'linkedin');
 		expect(await versionKeys(id)).toEqual(['post', 'x']);
 	});
 

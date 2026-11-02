@@ -27,7 +27,6 @@ export interface ChecksInput {
 	/** Each selected platform's text limit, for those the text is over. */
 	overLimit: Array<{ platform: string; max: number }>;
 	threadsLinks: number;
-	blueskyBytesOver: number;
 }
 
 /**
@@ -75,9 +74,6 @@ export function composeChecks(input: ChecksInput): ComposeCheck[] {
 			message: `Threads allows up to 5 links per post (${input.threadsLinks} found)`,
 			level: 'error'
 		});
-	}
-	if (input.blueskyBytesOver > 0 && input.selectedPlatforms.has('bluesky')) {
-		add({ platform: 'bluesky', message: 'A Bluesky post is over 3,000 bytes', level: 'error' });
 	}
 	return out;
 }

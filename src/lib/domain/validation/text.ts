@@ -1,4 +1,3 @@
-import { utf8ByteLength } from '../bytes';
 import { cleanUrl } from '../links';
 
 export function countGraphemes(text: string): number {
@@ -22,31 +21,6 @@ function tooLong(length: number, max: number, label: string) {
 		max,
 		message: `${length} / ${max} characters (${label})`
 	};
-}
-
-export function validateBlueskyText(
-	text: string,
-	maxGraphemes = 300
-): { ok: boolean; length: number; max: number; message?: string } {
-	const length = countGraphemes(text);
-	if (length > maxGraphemes) {
-		return {
-			ok: false,
-			length,
-			max: maxGraphemes,
-			message: `${length} graphemes — over by ${length - maxGraphemes} (max ${maxGraphemes})`
-		};
-	}
-	const bytes = utf8ByteLength(text);
-	if (bytes > 3000) {
-		return {
-			ok: false,
-			length,
-			max: maxGraphemes,
-			message: `Text exceeds 3000 UTF-8 bytes (${bytes})`
-		};
-	}
-	return { ok: true, length, max: maxGraphemes };
 }
 
 export const LINKEDIN_MAX_CHARS = 3000;

@@ -36,7 +36,7 @@ type Row = {
 
 /**
  * A post with one target per row, each on its own seeded (never contacted)
- * Bluesky account, all ticked. Returns the accounts with the short name the
+ * LinkedIn account, all ticked. Returns the accounts with the short name the
  * composer shows for them.
  */
 async function seedPost(page: Page, rows: Row[]) {
@@ -56,7 +56,7 @@ async function seedPost(page: Page, rows: Row[]) {
 	const sql = [
 		...accounts.map(
 			(a) =>
-				`INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${a.id}', '${userId}', 'bluesky', '${a.short}.bsky.social', 'enc', '{}', 'active', ${now}, ${now})`
+				`INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${a.id}', '${userId}', 'linkedin', '${a.short}', 'enc', '{}', 'active', ${now}, ${now})`
 		),
 		`INSERT INTO drafts (id, user_id, title, base_body, selected_connection_ids, status, created_at, updated_at) VALUES ('${draftId}', '${userId}', NULL, '${body}', '${selection}', 'scheduled', ${now}, ${now})`,
 		...rows.map((row, i) => {
@@ -92,7 +92,7 @@ async function targetStatuses(page: Page, draftId: string) {
 }
 
 async function untick(page: Page, short: string) {
-	const row = page.locator(`button[title="Bluesky: ${short}.bsky.social"]`);
+	const row = page.locator(`button[title="LinkedIn: ${short}"]`);
 	// The account avatars render with the page; clicks before hydration are lost.
 	await waitForLiveComposer(page);
 	await clickUntilVisible(page, page.getByTestId('destinations-toggle'), row);
@@ -217,7 +217,7 @@ test('Publish now unschedules the accounts left unticked', async ({ page }) => {
 	await page.getByTestId('confirm-dialog-ok').click();
 
 	await expect(page.getByTestId('publish-toast')).toContainText(
-		`unscheduled on Bluesky · ${accounts[1].short}`
+		`unscheduled on LinkedIn · ${accounts[1].short}`
 	);
 	const after = await targetStatuses(page, draftId);
 	expect(after.targets[accounts[1].id]).toBe('cancelled');
@@ -261,11 +261,11 @@ test('a video the platform is processing is left to finish, in the composer and 
 	page
 }) => {
 	const { draftId, body, accounts } = await seedPost(page, [
-		{ status: 'scheduled', error: 'Bluesky is processing the video' }
+		{ status: 'scheduled', error: 'LinkedIn is processing the video' }
 	]);
 	await openPost(page, draftId, body);
 	await expect(page.getByTestId('post-status-processing')).toContainText(
-		`Bluesky · ${accounts[0].short} is processing the video`
+		`LinkedIn · ${accounts[0].short} is processing the video`
 	);
 	await expect(page.getByTestId('post-status-retrying')).toHaveCount(0);
 	await expect(page.getByTestId('post-status-change-time')).toHaveCount(0);
@@ -288,8 +288,8 @@ test('a partly published post says where it went and points to Posts', async ({ 
 
 	// Where it went, in one line; the error itself is read on Posts.
 	const summary = page.getByTestId('post-status-summary');
-	await expect(summary).toContainText(`Published on Bluesky · ${accounts[0].short}.`);
-	await expect(summary).toContainText(`Failed on Bluesky · ${accounts[1].short}.`);
+	await expect(summary).toContainText(`Published on LinkedIn · ${accounts[0].short}.`);
+	await expect(summary).toContainText(`Failed on LinkedIn · ${accounts[1].short}.`);
 	await expect(summary).not.toContainText('suspended');
 	await expect(summary.getByRole('link', { name: 'Details in Posts' })).toHaveAttribute(
 		'href',

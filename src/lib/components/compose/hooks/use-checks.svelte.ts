@@ -3,11 +3,7 @@ import {
 	type PlatformId,
 	isPlatformCustomized
 } from '#lib/domain/platform-sync.js';
-import {
-	flattenThreadBody,
-	maxThreadSegmentLength,
-	splitThreadSegments
-} from '#lib/domain/thread-segments.js';
+import { flattenThreadBody, maxThreadSegmentLength } from '#lib/domain/thread-segments.js';
 import { countGraphemes, xWeightedLength } from '#lib/domain/validation/text.js';
 import {
 	PLATFORM_LIMITS,
@@ -15,7 +11,6 @@ import {
 	type LimitedPlatform,
 	isOverSelectedPlatformLimit
 } from '#lib/domain/editor-limits.js';
-import { utf8ByteLength } from '#lib/domain/bytes.js';
 import {
 	LINKEDIN_MAX_IMAGES,
 	instagramMediaProblems,
@@ -30,10 +25,9 @@ import { field, provide } from './expose';
 
 /** What each selected platform would refuse, worked out as the post changes. */
 export interface ChecksApi {
-	readonly blueskyBytesOver: number;
 	readonly cardMedia: (index: number) => MediaItem[];
 	readonly counters: Record<
-		'youtube' | 'x' | 'tiktok' | 'threads' | 'linkedin' | 'instagram' | 'facebook' | 'bluesky',
+		'youtube' | 'x' | 'tiktok' | 'threads' | 'linkedin' | 'instagram' | 'facebook',
 		{ len: number; max: number }
 	>;
 	readonly getPlatformStatus: (platform: PlatformId) => {
@@ -53,17 +47,12 @@ export interface ChecksApi {
 export function useChecks(ed: Composer): void {
 	// Publish-time validation across the SELECTED platforms (unchanged rules).
 	const counters = $derived.by(() => {
-		const bskyText = effectivePlatformBody(ed.baseBody, ed.overrides, 'bluesky');
 		const linkedinText = effectivePlatformBody(ed.baseBody, ed.overrides, 'linkedin');
 		const threadsText = effectivePlatformBody(ed.baseBody, ed.overrides, 'threads');
 		const instagramText = effectivePlatformBody(ed.baseBody, ed.overrides, 'instagram');
 		const xText = effectivePlatformBody(ed.baseBody, ed.overrides, 'x');
 		const linkedinFlat = flattenThreadBody(linkedinText);
 		return {
-			bluesky: {
-				len: maxThreadSegmentLength(bskyText, countGraphemes),
-				max: PLATFORM_LIMITS.bluesky
-			},
 			linkedin: { len: countGraphemes(linkedinFlat), max: PLATFORM_LIMITS.linkedin },
 			threads: {
 				len: maxThreadSegmentLength(threadsText, countGraphemes),
@@ -89,14 +78,6 @@ export function useChecks(ed: Composer): void {
 				])
 			)
 		} as Record<LimitedPlatform, { len: number; max: number }>;
-	});
-	const blueskyBytesOver = $derived.by(() => {
-		const bskyText = effectivePlatformBody(ed.baseBody, ed.overrides, 'bluesky');
-		let over = 0;
-		for (const seg of splitThreadSegments(bskyText)) {
-			over = Math.max(over, utf8ByteLength(seg) - 3000);
-		}
-		return over;
 	});
 	const threadsLinkCount = $derived.by(() => {
 		const text = effectivePlatformBody(ed.baseBody, ed.overrides, 'threads');
@@ -161,8 +142,6 @@ export function useChecks(ed: Composer): void {
 	const overSelectedLimit = $derived(
 		isOverSelectedPlatformLimit({
 			selectedPlatforms: ed.selectedPlatforms,
-			blueskyLen: counters.bluesky.len,
-			blueskyMax: counters.bluesky.max,
 			linkedinLen: counters.linkedin.len,
 			linkedinMax: counters.linkedin.max,
 			threadsLen: counters.threads.len,
@@ -177,9 +156,7 @@ export function useChecks(ed: Composer): void {
 			SINGLE_POST_PLATFORMS.some(
 				(platform) =>
 					ed.selectedPlatforms.has(platform) && counters[platform].len > counters[platform].max
-			) ||
-			(blueskyBytesOver > 0 &&
-				(ed.selectedPlatforms.has('bluesky') || isPlatformCustomized(ed.overrides, 'bluesky')))
+			)
 	);
 
 	function getPlatformStatus(platform: PlatformId) {
@@ -203,7 +180,6 @@ export function useChecks(ed: Composer): void {
 		return mediaBySegment.get(index) ?? [];
 	}
 
-	field(ed, 'blueskyBytesOver', () => blueskyBytesOver);
 	field(ed, 'counters', () => counters);
 	field(ed, 'instagramMediaProblem', () => instagramMediaProblem);
 	field(ed, 'linkedinMediaOver', () => linkedinMediaOver);

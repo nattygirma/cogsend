@@ -73,8 +73,6 @@
 		needsReconnection: boolean;
 		imported: boolean;
 	};
-	// Bluesky is imported, never connected from here: Zernio's hosted Bluesky
-	// page cannot bring the visitor back with a usable result yet.
 	const ZERNIO_PLATFORMS = ['x', 'threads', 'instagram', 'linkedin'] as const;
 	const isZernioPlatform = (p: string): p is (typeof ZERNIO_PLATFORMS)[number] =>
 		(ZERNIO_PLATFORMS as readonly string[]).includes(p);
@@ -119,8 +117,6 @@
 	let appForm = $state<Record<string, string>>({});
 	let appFormBusy = $state(false);
 	let appFormError = $state<string | null>(null);
-	let handle = $state('');
-	let appPassword = $state('');
 	let msg = $state<string | null>(null);
 	// svelte-ignore state_referenced_locally
 	let err = $state<string | null>(data.loadFailed ? 'Could not load accounts' : null);
@@ -136,7 +132,7 @@
 	let pendingDisconnect = $state<{ id: string; label: string } | null>(null);
 	let disconnectBusy = $state(false);
 	let showConnectDialog = $state(false);
-	let modalForm = $state<'none' | 'bluesky' | 'zernio'>('none');
+	let modalForm = $state<'none' | 'zernio'>('none');
 	// Set when the picked platform has no credentials on this deployment: the
 	// dialog shows its setup steps instead of a request that can only fail.
 	let setupPanel = $state<OAuthPlatformId | null>(null);
@@ -195,12 +191,6 @@
 			name: 'LinkedIn',
 			description: 'Connect your personal or company page',
 			form: null
-		},
-		{
-			id: 'bluesky',
-			name: 'Bluesky',
-			description: 'Connect with handle + app password',
-			form: 'bluesky' as const
 		}
 	];
 
@@ -211,8 +201,7 @@
 		facebook: 'bg-blue-50',
 		youtube: 'bg-red-50',
 		tiktok: 'bg-stone-100',
-		linkedin: 'bg-blue-50',
-		bluesky: 'bg-sky-50'
+		linkedin: 'bg-blue-50'
 	};
 
 	const needsAttention = $derived(connections.filter((c) => c.status !== 'active').length);
@@ -271,30 +260,6 @@
 			err = humanizeError(e instanceof Error ? e.message : 'Could not load accounts');
 		} finally {
 			initialLoading = false;
-		}
-	}
-
-	async function connectBluesky(e: Event) {
-		e.preventDefault();
-		loading = true;
-		err = null;
-		msg = null;
-		try {
-			const res = await fetch('/api/connections/bluesky', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ handle, appPassword })
-			});
-			const payload = await res.json();
-			if (!res.ok) throw new Error(payload.error || 'Failed');
-			msg = `Connected Bluesky as ${payload.connection.handle}`;
-			appPassword = '';
-			closeConnectDialog();
-			await load();
-		} catch (e) {
-			err = humanizeError(e instanceof Error ? e.message : 'Failed');
-		} finally {
-			loading = false;
 		}
 	}
 
@@ -543,28 +508,16 @@
 
 	// Re-enter the OAuth flow for a dead connection. Server callbacks upsert
 	// by (user, platform, handle) and flip status back to active, so targets
-	// stay attached to the same connection row. Bluesky is credential-based:
-	// open its dialog prefilled instead.
+	// stay attached to the same connection row.
 	function reconnectAccount(account: Connection) {
 		err = null;
 		if (viaZernio(account)) {
 			const profileId = account.metaJson?.zernioProfileId ?? '';
-			if (account.platform === 'bluesky') {
-				err = 'Reconnect Bluesky in Zernio, then press Check';
-				return;
-			}
 			if (!isZernioPlatform(account.platform) || !profileId) {
 				err = 'This account has no Zernio profile recorded — import it again';
 				return;
 			}
 			void connectThroughZernio(account.platform, profileId);
-			return;
-		}
-		if (account.platform === 'bluesky') {
-			handle = account.handle ?? '';
-			appPassword = '';
-			openConnectDialog();
-			modalForm = 'bluesky';
 			return;
 		}
 		if (isOAuthPlatform(account.platform)) {
@@ -742,10 +695,25 @@
 						onclick={() => connectFromCard(platform.id)}
 						disabled={loading}
 					>
-						<Plug class="h-3.5 w-3.5" /> Connect
+						<Plug class="h-3.5 w-3.5" />
+						{list.length ? 'Add another' : 'Connect'}
 					</button>
 				{/if}
 			</div>
+
+			{#if data.appkeep && platform.id === 'x'}
+				<p
+					class="mt-3 rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-600"
+					data-testid="x-fee-note"
+				>
+					X charges for every post, so each one is paid from your AppKeep balance: $0.02, or $0.25
+					with a link.
+					<a
+						href="/_altstack/wallet?next=/accounts"
+						class="font-semibold text-accent hover:underline">Add money</a
+					>
+				</p>
+			{/if}
 
 			{#if setupNeeded && isOAuthPlatform(platform.id)}
 				{@const setup = PLATFORM_SETUP[platform.id as OAuthPlatformId]}
@@ -926,26 +894,30 @@
 	{/each}
 </div>
 
-<section
-	class="card mt-5 flex flex-wrap items-center gap-4 border-dashed p-5"
-	data-testid="zernio-banner"
->
-	<span
-		class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-600"
-		aria-hidden="true"
+{#if !data.appkeep}
+	<section
+		class="card mt-5 flex flex-wrap items-center gap-4 border-dashed p-5"
+		data-testid="zernio-banner"
 	>
-		<Plug class="h-5 w-5" />
-	</span>
-	<div class="min-w-0 flex-1">
-		<h2 class="text-[15px] font-semibold tracking-tight text-stone-900">Connect through Zernio</h2>
-		<p class="text-xs text-stone-500">
-			No developer app of your own for X, Threads, Instagram or LinkedIn. Free plan available.
-		</p>
-	</div>
-	<button type="button" class="btn btn-secondary btn-sm" onclick={() => openZernioForm()}>
-		Use Zernio
-	</button>
-</section>
+		<span
+			class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-600"
+			aria-hidden="true"
+		>
+			<Plug class="h-5 w-5" />
+		</span>
+		<div class="min-w-0 flex-1">
+			<h2 class="text-[15px] font-semibold tracking-tight text-stone-900">
+				Connect through Zernio
+			</h2>
+			<p class="text-xs text-stone-500">
+				No developer app of your own for X, Threads, Instagram or LinkedIn. Free plan available.
+			</p>
+		</div>
+		<button type="button" class="btn btn-secondary btn-sm" onclick={() => openZernioForm()}>
+			Use Zernio
+		</button>
+	</section>
+{/if}
 
 {#if showConnectDialog}
 	<div
@@ -1275,81 +1247,38 @@
 							>{/each}
 					</p>
 				{/if}
-				<div class="my-5 flex items-center gap-3" aria-hidden="true">
-					<span class="h-px flex-1 bg-stone-200"></span>
-					<span class="text-[11px] font-bold tracking-widest text-stone-400 uppercase">or</span>
-					<span class="h-px flex-1 bg-stone-200"></span>
-				</div>
-				<button
-					type="button"
-					class="group flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-stone-300 bg-stone-50/60 p-3.5 text-left transition-all hover:border-stone-400 hover:bg-white"
-					onclick={() => openZernioForm()}
-					data-testid="zernio-card"
-				>
-					<div class="flex items-center gap-4">
-						<span
-							class="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-stone-600 shadow-sm transition-colors group-hover:text-stone-900"
-						>
-							<Plug class="h-5 w-5" />
-						</span>
-						<div>
-							<h3 class="text-[14px] font-semibold tracking-tight text-stone-900">
-								Connect through Zernio
-							</h3>
-							<p class="mt-0.5 text-xs text-stone-500">No developer apps needed</p>
-						</div>
+				<!-- On appkeep every platform connects in one click, so there's nothing to route through Zernio. -->
+				{#if !data.appkeep}
+					<div class="my-5 flex items-center gap-3" aria-hidden="true">
+						<span class="h-px flex-1 bg-stone-200"></span>
+						<span class="text-[11px] font-bold tracking-widest text-stone-400 uppercase">or</span>
+						<span class="h-px flex-1 bg-stone-200"></span>
 					</div>
-					<span
-						class="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold tracking-tight text-emerald-700"
-						>Free plan</span
-					>
-				</button>
-			{:else if modalForm === 'bluesky'}
-				<form onsubmit={connectBluesky} class="space-y-3">
 					<button
 						type="button"
-						onclick={backToPlatforms}
-						class="text-[13px] font-semibold text-stone-500 hover:text-stone-900"
-						>← All platforms</button
+						class="group flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-stone-300 bg-stone-50/60 p-3.5 text-left transition-all hover:border-stone-400 hover:bg-white"
+						onclick={() => openZernioForm()}
+						data-testid="zernio-card"
 					>
-					<h3 class="text-[17px] font-semibold tracking-tight text-stone-900">Bluesky</h3>
-					<ol class="list-decimal space-y-1 pl-4 text-xs font-medium text-stone-500">
-						<li>
-							Open
-							<a
-								href="https://bsky.app/settings/app-passwords"
-								target="_blank"
-								rel="noreferrer"
-								class="underline">bsky.app → Settings → App passwords</a
+						<div class="flex items-center gap-4">
+							<span
+								class="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-stone-600 shadow-sm transition-colors group-hover:text-stone-900"
 							>
-						</li>
-						<li>Create an app password. Never use your main password.</li>
-						<li>Paste handle + the xxxx-xxxx-xxxx-xxxx code below.</li>
-					</ol>
-					<input
-						type="text"
-						placeholder="handle.bsky.social"
-						aria-label="Bluesky handle"
-						bind:value={handle}
-						class="field pointer-coarse:text-base"
-						required
-					/>
-					<input
-						type="password"
-						placeholder="App password (xxxx-xxxx-xxxx-xxxx)"
-						aria-label="Bluesky app password"
-						bind:value={appPassword}
-						class="field pointer-coarse:text-base"
-						required
-						autocomplete="off"
-					/>
-					{#if err}
-						<p class="text-sm text-red-600">{err}</p>
-					{/if}
-					<button type="submit" disabled={loading} class="btn btn-primary w-full"
-						>{loading ? 'Connecting…' : 'Connect Bluesky'}</button
-					>
-				</form>
+								<Plug class="h-5 w-5" />
+							</span>
+							<div>
+								<h3 class="text-[14px] font-semibold tracking-tight text-stone-900">
+									Connect through Zernio
+								</h3>
+								<p class="mt-0.5 text-xs text-stone-500">No developer apps needed</p>
+							</div>
+						</div>
+						<span
+							class="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold tracking-tight text-emerald-700"
+							>Free plan</span
+						>
+					</button>
+				{/if}
 			{:else if modalForm === 'zernio'}
 				<div class="space-y-4">
 					<button
@@ -1360,9 +1289,9 @@
 					>
 					<h3 class="text-[17px] font-semibold tracking-tight text-stone-900">Zernio</h3>
 					<p class="text-xs font-medium text-stone-500">
-						Zernio publishes with its own approved apps, so X, Threads, LinkedIn and Bluesky connect
-						without a developer app of your own. It has a free plan (X needs a card), and posts
-						still live and schedule here.
+						Zernio publishes with its own approved apps, so X, Threads and LinkedIn connect without
+						a developer app of your own. It has a free plan (X needs a card), and posts still live
+						and schedule here.
 						<a
 							href={zernioLink({ placement: 'accounts-dialog' })}
 							target="_blank"
@@ -1399,7 +1328,7 @@
 					{#if zernioAccounts !== null}
 						{#if zernioAccounts.length === 0}
 							<p class="text-xs font-medium text-stone-500">
-								No X, Threads, LinkedIn or Bluesky accounts on this key yet. Connect one below.
+								No X, Threads or LinkedIn accounts on this key yet. Connect one below.
 							</p>
 						{:else}
 							<ul

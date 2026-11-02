@@ -5,7 +5,7 @@
 <h1 align="center">PostEasy</h1>
 
 <p align="center">
-  Self-hosted social scheduler for Bluesky, LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X.<br />
+  Self-hosted social scheduler for LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X.<br />
   Write a draft, customize it per platform, then publish it now or schedule it.
 </p>
 
@@ -33,7 +33,7 @@
 
 https://github.com/user-attachments/assets/d704f9fa-5c0e-429a-90ab-bbab4c341d85
 
-<p align="center"><strong>Supported by <a href="https://zernio.link/cogsend?utm_source=cogsend&utm_medium=sponsorship&utm_campaign=cogsend-integration&utm_content=readme-sponsor">Zernio</a></strong>, which lets you connect X, Threads, LinkedIn and Bluesky <a href="docs/zernio.md">without your own developer apps</a>.</p>
+<p align="center"><strong>Supported by <a href="https://zernio.link/cogsend?utm_source=cogsend&utm_medium=sponsorship&utm_campaign=cogsend-integration&utm_content=readme-sponsor">Zernio</a></strong>, which lets you connect X, Threads and LinkedIn <a href="docs/zernio.md">without your own developer apps</a>.</p>
 
 ## Why PostEasy
 
@@ -82,7 +82,7 @@ cd posteasy && npm install && npm run setup
 
 `setup` creates the Cloudflare resources, your admin account and the secrets, deploys, and prints your URL. Sign in there. It is safe to re-run; [docs/deploy.md](docs/deploy.md#one-command) lists every step and flag.
 
-Next, [connect your accounts](docs/accounts.md). Bluesky works straight away; LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X need an [OAuth app](docs/oauth-apps.md) first, which the accounts dialog walks you through (or hands to a browser agent), or you can connect them through [Zernio](docs/zernio.md).
+Next, [connect your accounts](docs/accounts.md). LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X each need an [OAuth app](docs/oauth-apps.md) first, which the accounts dialog walks you through (or hands to a browser agent), or you can connect them through [Zernio](docs/zernio.md).
 
 ## Updating
 

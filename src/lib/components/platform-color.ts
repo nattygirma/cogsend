@@ -3,7 +3,6 @@
  * two cannot drift (they already had two identical copies).
  */
 export const PLATFORM_COLOR: Record<string, string> = {
-	bluesky: 'text-sky-500',
 	linkedin: 'text-blue-600',
 	threads: 'text-stone-900',
 	instagram: 'text-pink-600',

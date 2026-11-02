@@ -10,8 +10,7 @@ const TO_ZERNIO: Partial<Record<PlatformId, string>> = {
 	x: 'twitter',
 	threads: 'threads',
 	instagram: 'instagram',
-	linkedin: 'linkedin',
-	bluesky: 'bluesky'
+	linkedin: 'linkedin'
 };
 
 const FROM_ZERNIO: Record<string, PlatformId> = Object.fromEntries(

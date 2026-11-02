@@ -40,11 +40,11 @@ async function seedScheduledDraft(page: Page, body: string, scheduledFor: string
 	const connId = randomUUID();
 	const draftId = randomUUID();
 	const now = Date.now();
-	const handle = `sched-${connId.slice(0, 8)}.bsky.social`;
+	const handle = `sched-${connId.slice(0, 8)}`;
 	const when = scheduledFor === null ? 'NULL' : String(new Date(scheduledFor).getTime());
 	const status = scheduledFor === null ? 'cancelled' : 'scheduled';
 	d1(
-		`INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${connId}', '${userId}', 'bluesky', '${handle}', 'enc', '{}', 'active', ${now}, ${now}); ` +
+		`INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${connId}', '${userId}', 'linkedin', '${handle}', 'enc', '{}', 'active', ${now}, ${now}); ` +
 			`INSERT INTO drafts (id, user_id, title, base_body, status, created_at, updated_at) VALUES ('${draftId}', '${userId}', NULL, '${body}', '${scheduledFor === null ? 'draft' : 'scheduled'}', ${now}, ${now}); ` +
 			`INSERT INTO publish_targets (id, draft_id, connection_id, status, scheduled_for, attempt_count, created_at, updated_at) VALUES ('${randomUUID()}', '${draftId}', '${connId}', '${status}', ${when}, 0, ${now}, ${now})`
 	);

@@ -13,12 +13,11 @@ import {
 const base: ChecksInput = {
 	connectionCount: 2,
 	selectedCount: 2,
-	selectedPlatforms: new Set(['bluesky', 'youtube']),
+	selectedPlatforms: new Set(['x', 'youtube']),
 	singlePostProblems: new Map(),
 	fitProblems: [],
 	overLimit: [],
-	threadsLinks: 0,
-	blueskyBytesOver: 0
+	threadsLinks: 0
 };
 
 describe('composeChecks', () => {
@@ -45,14 +44,14 @@ describe('composeChecks', () => {
 			singlePostProblems: new Map([['youtube', { message: 'YouTube needs a video' }]]),
 			fitProblems: [
 				{ platform: 'youtube', message: 'YouTube needs a video', level: 'error' },
-				{ platform: 'bluesky', message: 'An image is over Bluesky’s 2MB limit', level: 'error' }
+				{ platform: 'x', message: 'An image is over X’s 5MB limit', level: 'error' }
 			],
-			overLimit: [{ platform: 'bluesky', max: 300 }]
+			overLimit: [{ platform: 'x', max: 280 }]
 		});
 		expect(checks.map((c) => c.message)).toEqual([
 			'YouTube needs a video',
-			'An image is over Bluesky’s 2MB limit',
-			'Bluesky: the text is over its 300-character limit'
+			'An image is over X’s 5MB limit',
+			'X: the text is over its 280-character limit'
 		]);
 	});
 
@@ -62,9 +61,6 @@ describe('composeChecks', () => {
 			composeChecks({ ...base, threadsLinks: 7, selectedPlatforms: new Set(['threads']) })[0]
 				.message
 		).toBe('Threads allows up to 5 links per post (7 found)');
-		expect(composeChecks({ ...base, blueskyBytesOver: 12 })[0].message).toBe(
-			'A Bluesky post is over 3,000 bytes'
-		);
 	});
 });
 

@@ -47,7 +47,7 @@ async function seedPost(page: Page, state: 'scheduled' | 'published') {
 			? `'scheduled', ${now + 2 * 60 * 60 * 1000}, NULL`
 			: `'published', NULL, 'remote-${draftId.slice(0, 8)}'`;
 	d1(
-		`INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${connId}', '${userId}', 'bluesky', 'np-${connId.slice(0, 8)}.bsky.social', 'enc', '{}', 'active', ${now}, ${now}); ` +
+		`INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${connId}', '${userId}', 'linkedin', 'np-${connId.slice(0, 8)}', 'enc', '{}', 'active', ${now}, ${now}); ` +
 			`INSERT INTO drafts (id, user_id, title, base_body, status, created_at, updated_at) VALUES ('${draftId}', '${userId}', NULL, '${body}', '${state}', ${now}, ${now}); ` +
 			`INSERT INTO publish_targets (id, draft_id, connection_id, status, scheduled_for, remote_post_id, attempt_count, created_at, updated_at) VALUES ('${randomUUID()}', '${draftId}', '${connId}', ${target}, 0, ${now}, ${now})`
 	);

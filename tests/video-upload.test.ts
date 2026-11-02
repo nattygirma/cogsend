@@ -77,7 +77,7 @@ describe('videoIssues', () => {
 		videoIssues(platform, { ...fine, ...facts }, meta as never).map((i) => i.message);
 
 	it('passes an ordinary phone video everywhere', () => {
-		for (const p of ['x', 'bluesky', 'linkedin', 'threads']) {
+		for (const p of ['x', 'linkedin', 'threads', 'instagram', 'facebook']) {
 			expect([p, errors(p, {})]).toEqual([p, []]);
 		}
 	});
@@ -116,12 +116,9 @@ describe('videoIssues', () => {
 		expect(errors('threads', { videoCodec: 'hevc' })).toEqual([]);
 	});
 
-	it('checks LinkedIn and Bluesky for length', () => {
+	it('checks LinkedIn for length', () => {
 		expect(errors('linkedin', { durationMs: 2_000 })).toEqual([
 			'LinkedIn needs a video of at least 3 seconds'
-		]);
-		expect(errors('bluesky', { durationMs: 11 * 60_000 })).toEqual([
-			'Bluesky takes videos up to 10:00 — this one is 11:00'
 		]);
 	});
 

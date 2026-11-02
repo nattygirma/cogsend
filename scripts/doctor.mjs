@@ -513,8 +513,8 @@ function checkNode() {
  * validity: a wrong id still counts as set up and is rejected by the provider
  * when someone tries to connect.
  *
- * `ok` either way, on purpose. A deployment without them is complete — Bluesky
- * connects with what the user already has — so the line says what is
+ * `ok` either way, on purpose. A deployment without them is complete — apps can
+ * be added whenever someone wants a platform — so the line says what is
  * possible rather than adding a warning to every fresh install.
  *
  * @param {string[]} secretNames
@@ -543,7 +543,9 @@ export function platformVerdict(secretNames) {
 		id: 'platforms',
 		status: 'ok',
 		label: `${missing.join(', ')}: no app credentials (optional)`,
-		detail: ready.length ? `${ready.join(', ')} can be connected` : 'Bluesky can be connected',
+		detail: ready.length
+			? `${ready.join(', ')} can be connected`
+			: 'Add an app to connect a platform',
 		fix: 'docs/oauth-apps.md — register the app, then `npm run secrets:put`'
 	};
 }

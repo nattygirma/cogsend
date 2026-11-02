@@ -14,11 +14,6 @@ import {
 const vars = e2eVars();
 const DRAFT_TEXT = `e2e smoke ${Date.now()}`;
 
-/**
- * Seed a firewalled Bluesky connection directly in the test D1. Its PDS is
- * rejected by server-side validation, so publishing fails fast and offline
- * without ever touching the network.
- */
 /** Encrypt credentials the way the Worker expects (v1:iv:tag:ciphertext). */
 async function encryptForTest(creds: Record<string, unknown>): Promise<string> {
 	const { webcrypto } = await import('node:crypto');
@@ -35,20 +30,31 @@ async function encryptForTest(creds: Record<string, unknown>): Promise<string> {
 	return `v1:${b64(Buffer.from(iv))}:${b64(packed.subarray(-16))}:${b64(packed.subarray(0, -16))}`;
 }
 
-async function seedFirewalledBluesky(page: Page, handle: string): Promise<string> {
+/**
+ * Two cashtags in one post: X's own validation refuses it before any request
+ * is made, so a post carrying this to a seeded X account fails fast, offline
+ * and for good, and the account stays active for the specs that follow.
+ */
+const REFUSED_BY_X = '$AAA $BBB';
+
+/**
+ * Seed a firewalled X connection directly in the test D1. Its token is fake,
+ * so every post published to it carries REFUSED_BY_X and fails server-side
+ * validation without ever touching the network.
+ */
+async function seedFirewalledX(page: Page, handle: string): Promise<string> {
 	const { execSync } = await import('node:child_process');
 	const { randomUUID } = await import('node:crypto');
 	const blob = await encryptForTest({
-		handle,
-		appPassword: 'xxxx',
-		did: `did:plc:${handle}`,
-		pdsHost: 'https://localhost:1'
+		accessToken: 'firewalled',
+		xUserId: `e2e-${handle}`,
+		xUsername: handle
 	});
 	const me = await page.request.get('/api/auth/me').then((r) => r.json());
 	const connId = randomUUID();
 	const now = Date.now();
 	execSync(
-		`node scripts/wrangler.mjs d1 execute DB --local ${E2E_D1_FLAGS} --command "INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${connId}', '${me.user.id}', 'bluesky', '${handle}', '${blob}', '{}', 'active', ${now}, ${now})"`,
+		`node scripts/wrangler.mjs d1 execute DB --local ${E2E_D1_FLAGS} --command "INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${connId}', '${me.user.id}', 'x', '${handle}', '${blob}', '{}', 'active', ${now}, ${now})"`,
 		{ stdio: 'pipe' }
 	);
 	return connId;
@@ -171,7 +177,6 @@ test('a platform without app credentials shows its setup steps, not a failure', 
 	const emptyState = page.getByText(/^No accounts yet\./);
 	await expect(emptyState).toBeVisible();
 	const promised = (await emptyState.textContent()) ?? '';
-	expect(promised).toContain('Bluesky');
 	for (const platform of OAUTH_SETUP) {
 		const configured = !missing.some((p) => p.id === platform.id);
 		expect([platform.id, promised.includes(platform.name)]).toEqual([platform.id, configured]);
@@ -392,26 +397,26 @@ test('profile menu and sidebar navigation appear after login', async () => {
 
 test('publish asks for confirmation listing destinations', async () => {
 	test.setTimeout(120_000);
-	await seedFirewalledBluesky(page, 'test.bsky.social');
+	await seedFirewalledX(page, 'test');
 	await page.goto('/compose');
 	// The account avatars render with the page; clicks before hydration are lost.
 	await waitForLiveComposer(page);
 	await clickUntilVisible(
 		page,
 		page.getByTestId('destinations-toggle'),
-		page.getByRole('button', { name: /test\.bsky\.social/ }).first()
+		page.getByRole('button', { name: /\btest on X\b/ }).first()
 	);
 	// The row shows the handle as "test"; match its accessible name.
-	await expect(page.getByRole('button', { name: /test\.bsky\.social/ }).first()).toBeVisible({
+	await expect(page.getByRole('button', { name: /\btest on X\b/ }).first()).toBeVisible({
 		timeout: 15000
 	});
 	await page.keyboard.press('Escape');
-	await fillUntilKept(page.getByTestId('segment-input-0'), 'confirm flow probe');
+	await fillUntilKept(page.getByTestId('segment-input-0'), `confirm flow probe ${REFUSED_BY_X}`);
 	// Button opens the dialog instead of publishing.
 	await page.getByRole('button', { name: 'Publish', exact: true }).click();
 	const dialog = page.getByTestId('publish-confirm-destinations');
 	await expect(dialog).toBeVisible();
-	await expect(dialog.locator('[title="Bluesky: test.bsky.social"]')).toBeVisible();
+	await expect(dialog.locator('[title="X: test"]')).toBeVisible();
 	// It is a dialog, so focus moves into it: a keyboard user can confirm with
 	// Enter or leave with Escape without hunting for the popover.
 	await expect
@@ -442,14 +447,14 @@ test('publish asks for confirmation listing destinations', async () => {
 		await new Promise((resolve) => setTimeout(resolve, 1500));
 		await route.continue();
 	});
-	// Confirm sends; the firewalled PDS fails deterministically server-side.
+	// Confirm sends; X's validation refuses it deterministically server-side.
 	await page.getByTestId('confirm-dialog-ok').click();
 	await expect(dialog).toBeHidden();
 	await expect(page.getByTestId('segment-input-0')).toHaveValue('');
 	await expect(page.getByTestId('publish-toast')).toContainText('Publishing to 1 account');
 	// The failure comes back as a toast that stays, and links to the failures.
 	const toast = page.getByTestId('publish-toast');
-	await expect(toast).toContainText('Failed on Bluesky · test', { timeout: 30000 });
+	await expect(toast).toContainText('Failed on X · test', { timeout: 30000 });
 	await expect(toast).toHaveAttribute('role', 'alert');
 	await expect(toast.getByTestId('toast-action')).toHaveAttribute('href', '/posts?tab=failed');
 	await expect(page.getByTestId('publish-failure-dot')).toBeVisible();
@@ -464,9 +469,9 @@ test('publish asks for confirmation listing destinations', async () => {
 
 test('publishing to two destinations reports each one', async () => {
 	test.setTimeout(120_000);
-	await seedFirewalledBluesky(page, 'second.bsky.social');
+	await seedFirewalledX(page, 'second');
 	await page.goto('/compose');
-	await fillUntilKept(page.getByTestId('segment-input-0'), 'fan-out probe');
+	await fillUntilKept(page.getByTestId('segment-input-0'), `fan-out probe ${REFUSED_BY_X}`);
 	await clickUntilVisible(
 		page,
 		page.getByRole('button', { name: 'Publish', exact: true }),
@@ -474,8 +479,8 @@ test('publishing to two destinations reports each one', async () => {
 	);
 	const dialog = page.getByTestId('publish-confirm-destinations');
 	await expect(dialog).toBeVisible();
-	await expect(dialog.locator('[title="Bluesky: test.bsky.social"]')).toBeVisible();
-	await expect(dialog.locator('[title="Bluesky: second.bsky.social"]')).toBeVisible();
+	await expect(dialog.locator('[title="X: test"]')).toBeVisible();
+	await expect(dialog.locator('[title="X: second"]')).toBeVisible();
 	await page.getByTestId('confirm-dialog-ok').click();
 	await expect(dialog).toBeHidden();
 	// Each destination is sent on its own and reported as it lands; once the
@@ -483,15 +488,15 @@ test('publishing to two destinations reports each one', async () => {
 	const toast = page.getByTestId('publish-toast');
 	await expect(toast).toContainText('Failed on', { timeout: 30000 });
 	await expect(toast).not.toContainText('still sending', { timeout: 30000 });
-	await expect(toast).toContainText('Bluesky · test');
-	await expect(toast).toContainText('Bluesky · second');
+	await expect(toast).toContainText('X · test');
+	await expect(toast).toContainText('X · second');
 	await page.getByTestId('toast-dismiss').click();
 	await expect(page.getByTestId('publish-toast')).toHaveCount(0);
 });
 
 test('a saved draft restores the accounts it was written for', async () => {
 	test.setTimeout(120_000);
-	// Both bluesky accounts exist by now (seeded by the two tests above);
+	// Both X accounts exist by now (seeded by the two tests above);
 	// reuse them so the shared connection list stays unchanged.
 	await page.goto('/compose');
 	// The account avatars render with the page; clicks before hydration are lost.
@@ -499,10 +504,10 @@ test('a saved draft restores the accounts it was written for', async () => {
 	await clickUntilVisible(
 		page,
 		page.getByTestId('destinations-toggle'),
-		page.locator('button[title="Bluesky: test.bsky.social"]')
+		page.locator('button[title="X: test"]')
 	);
-	const first = page.locator('button[title="Bluesky: test.bsky.social"]');
-	const second = page.locator('button[title="Bluesky: second.bsky.social"]');
+	const first = page.locator('button[title="X: test"]');
+	const second = page.locator('button[title="X: second"]');
 	await expect(first).toBeVisible({ timeout: 15000 });
 	// Select just one of the two accounts, clearing the default (all active).
 	await page.getByRole('button', { name: 'Clear all' }).click();
@@ -529,17 +534,12 @@ test('a saved draft restores the accounts it was written for', async () => {
 	await clickUntilVisible(
 		page,
 		page.getByTestId('destinations-toggle'),
-		page.locator('button[title="Bluesky: test.bsky.social"]')
+		page.locator('button[title="X: test"]')
 	);
-	await expect(page.locator('button[title="Bluesky: test.bsky.social"]')).toHaveAttribute(
-		'aria-pressed',
-		'true',
-		{ timeout: 15000 }
-	);
-	await expect(page.locator('button[title="Bluesky: second.bsky.social"]')).toHaveAttribute(
-		'aria-pressed',
-		'false'
-	);
+	await expect(page.locator('button[title="X: test"]')).toHaveAttribute('aria-pressed', 'true', {
+		timeout: 15000
+	});
+	await expect(page.locator('button[title="X: second"]')).toHaveAttribute('aria-pressed', 'false');
 	await expect(page.getByTestId('destinations-toggle')).toContainText('1 selected');
 });
 
@@ -547,7 +547,10 @@ test('publish without asking hands off at once and still reports failures', asyn
 	test.setTimeout(120_000);
 	await page.evaluate(() => localStorage.setItem('posteasy-skip-publish-confirm', '1'));
 	await page.goto('/compose');
-	await fillUntilKept(page.getByTestId('segment-input-0'), 'skip-ask fan-out probe');
+	await fillUntilKept(
+		page.getByTestId('segment-input-0'),
+		`skip-ask fan-out probe ${REFUSED_BY_X}`
+	);
 	// No confirmation dialog: the click publishes straight away.
 	await page.getByTestId('publish-now').click();
 	await expect(page.getByTestId('publish-confirm-destinations')).toHaveCount(0);
@@ -704,7 +707,7 @@ test('api key works logged out, stays out of key management', async () => {
 	expect((await fetch(`${origin}/api/key`, { headers: keyed })).status).toBe(401);
 	expect(
 		(
-			await fetch(`${origin}/api/connections/bluesky`, {
+			await fetch(`${origin}/api/connections/x`, {
 				method: 'POST',
 				headers: { ...keyed, 'Content-Type': 'application/json' },
 				body: '{}'
@@ -740,16 +743,16 @@ test('composer chrome: counts, thread cards and override tabs', async () => {
 	await expect
 		.poll(() => new URL(page.url()).searchParams.get('id'), { timeout: 30000 })
 		.toBeTruthy();
-	await expect(page.getByTestId('segment-count-0')).toContainText(/\/300|\/500/);
+	await expect(page.getByTestId('segment-count-0')).toContainText(/\/280|\/500/);
 
-	// Bluesky override: add override, edit the card, unlink to re-sync.
+	// X override: add override, edit the card, unlink to re-sync.
 	await page.getByTestId('add-override-toggle').click();
 	await page
 		.getByTestId('override-menu')
-		.getByRole('button', { name: /test\.bsky\.social/ })
+		.getByRole('button', { name: /\btest on X\b/ })
 		.click();
-	await expect(page.getByTestId('editor-tab-bluesky')).toBeVisible();
-	await fillUntilKept(page.getByTestId('segment-input-0'), 'bluesky-only text');
+	await expect(page.getByTestId('editor-tab-x')).toBeVisible();
+	await fillUntilKept(page.getByTestId('segment-input-0'), 'x-only text');
 	await expect(page.getByTestId('reset-platform-tab')).toBeVisible();
 	await page.getByTestId('reset-platform-tab').click();
 	await expect(page.getByTestId('reset-platform-tab')).toHaveCount(0);
@@ -781,19 +784,19 @@ test('overflow paste auto-splits across cards', async () => {
 	await clickUntilVisible(
 		page,
 		page.getByTestId('add-override-toggle'),
-		page.getByTestId('override-menu').getByRole('button', { name: /test\.bsky\.social/ })
+		page.getByTestId('override-menu').getByRole('button', { name: /\btest on X\b/ })
 	);
 	await page
 		.getByTestId('override-menu')
-		.getByRole('button', { name: /test\.bsky\.social/ })
+		.getByRole('button', { name: /\btest on X\b/ })
 		.click();
-	await expect(page.getByTestId('editor-tab-bluesky')).toBeVisible();
-	// 12 sentences ≈ 250+ chars: over Bluesky's 300 cap only when longer.
+	await expect(page.getByTestId('editor-tab-x')).toBeVisible();
+	// 30 sentences: well over X's 280 cap, so the paste has to split.
 	const long = Array.from(
 		{ length: 30 },
 		(_, i) => `This is sentence number ${i} and it carries a decent amount of text.`
 	).join(' ');
-	await page.getByTestId('editor-tab-bluesky').click();
+	await page.getByTestId('editor-tab-x').click();
 	await page.evaluate((text) => {
 		const dt = new DataTransfer();
 		dt.setData('text/plain', text);
@@ -845,10 +848,10 @@ test('a long link preview stays inside its thread card', async () => {
 	await clickUntilVisible(
 		page,
 		page.getByTestId('destinations-toggle'),
-		page.locator('button[title="Bluesky: test.bsky.social"]')
+		page.locator('button[title="X: test"]')
 	);
-	const bluesky = page.locator('button[title="Bluesky: test.bsky.social"]');
-	if ((await bluesky.getAttribute('aria-pressed')) !== 'true') await bluesky.click();
+	const x = page.locator('button[title="X: test"]');
+	if ((await x.getAttribute('aria-pressed')) !== 'true') await x.click();
 	await page.keyboard.press('Escape');
 
 	await fillUntilKept(page.getByTestId('segment-input-0'), 'first post');
@@ -1060,7 +1063,7 @@ test('duplicate API, insights page, and failed-tab deep link', async () => {
 test('posts account dropdown filters the feed', async () => {
 	const { execSync } = await import('node:child_process');
 	const { randomUUID } = await import('node:crypto');
-	const connId = await seedFirewalledBluesky(page, 'filtered.bsky.social');
+	const connId = await seedFirewalledX(page, 'filtered');
 	const me = await page.request.get('/api/auth/me').then((r) => r.json());
 	const now = Date.now();
 	const draftId = randomUUID();
@@ -1076,7 +1079,6 @@ test('posts account dropdown filters the feed', async () => {
 	await page.goto('/posts?tab=published');
 	const trigger = page.getByRole('button', { name: 'Filter posts by account' });
 	await expect(trigger).toBeVisible();
-	// Bluesky handles drop the .bsky.social suffix in labels.
 	const option = page.getByRole('menuitemradio', { name: 'filtered' });
 	// The trigger is server-rendered, so it is visible before Svelte hydrates and
 	// a bare click can be lost (see clickUntilVisible in tests/e2e/e2e-env.ts).
@@ -1186,7 +1188,7 @@ test('single-destination composer hides thread and override chrome', async () =>
 
 	// A second, thread-capable destination brings both affordances back.
 	await page.getByTestId('destinations-toggle').click();
-	await page.locator('button[title="Bluesky: test.bsky.social"]').click();
+	await page.locator('button[title="X: test"]').click();
 	await page.keyboard.press('Escape');
 	await expect(page.getByTestId('add-override-toggle')).toBeVisible();
 	await expect(page.getByTestId('add-thread-post')).toBeVisible();
@@ -1300,7 +1302,7 @@ test('a retryable publish failure is reported as retrying, not failed', async ()
 	test.setTimeout(120_000);
 	// Seed at the end of the suite and delete afterwards so the shared
 	// connection list stays stable for the tests above.
-	const connId = await seedFirewalledBluesky(page, 'retry.bsky.social');
+	const connId = await seedFirewalledX(page, 'retry');
 	try {
 		await page.goto('/compose');
 		await fillUntilKept(page.getByTestId('segment-input-0'), 'retry probe');
@@ -1341,7 +1343,7 @@ test('a retryable publish failure is reported as retrying, not failed', async ()
 
 test('a video attaches in parts, plays only when asked, and comes off again', async () => {
 	// The media affordance needs a destination, like every other composer test.
-	const connId = await seedFirewalledBluesky(page, 'video-probe.bsky.social');
+	const connId = await seedFirewalledX(page, 'video-probe');
 	try {
 		await page.goto('/compose');
 		const input = page.getByTestId('file-input-0');
@@ -1355,11 +1357,11 @@ test('a video attaches in parts, plays only when asked, and comes off again', as
 			{ name: 'clip.mp4', mimeType: 'video/mp4', buffer: Buffer.from(buildMp4()) },
 			strip.locator('[data-testid^="media-play-"]')
 		);
-		// Bluesky takes it, so nothing is said about Bluesky. The clip is under
+		// X takes it, so nothing is said about X. The clip is under
 		// the 75 KB LinkedIn needs, and the LinkedIn account seeded earlier in
 		// the journey is selected: one line says so, and Uncheck drops it.
 		const fit = page.getByTestId('media-fit-0');
-		await expect(page.getByTestId('media-fit-0-bluesky')).toHaveCount(0);
+		await expect(page.getByTestId('media-fit-0-x')).toHaveCount(0);
 		await expect(page.getByTestId('media-fit-0-linkedin')).toHaveAttribute('data-level', 'error');
 		await expect(fit).toContainText('LinkedIn needs a video of at least 75 KB');
 		await expect(page.getByTestId('destinations-fit-dot')).toBeVisible();

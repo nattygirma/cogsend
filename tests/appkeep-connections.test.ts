@@ -13,8 +13,9 @@ import {
 	type ConnectionCredentials,
 	type PlatformProvider
 } from '#lib/server/providers/index.js';
-import { useWorkerEnv } from './cloudflare-workers';
 import { POST as facebookPOST } from '../src/routes/api/connections/facebook/+server';
+import { DELETE as disconnectRoute } from '../src/routes/api/connections/[id]/+server';
+import { ProviderError } from '#lib/server/providers/types.js';
 
 /**
  * On appkeep, appkeep holds the Instagram, Facebook, TikTok and YouTube
@@ -115,17 +116,17 @@ describe('appkeep connections', () => {
 		});
 
 		it("sends Connect to appkeep's login instead of this app's", async () => {
-			useWorkerEnv({
-				ALTSTACK: {
-					connectUrl: (p: string, next?: string) =>
-						`/_altstack/connect/${p}?next=${encodeURIComponent(next ?? '/')}`
-				}
-			});
 			const res = await facebookPOST({
 				request: new Request('http://localhost/api/connections/facebook', { method: 'POST' }),
 				locals: {
 					db,
 					env: { ...TEST_ENV, appkeep: true },
+					bindings: {
+						ALTSTACK: {
+							connectUrl: (p: string, next?: string) =>
+								`/_altstack/connect/${p}?next=${encodeURIComponent(next ?? '/')}`
+						}
+					},
 					user: {
 						id: userId,
 						email: 'appkeep@localhost',
@@ -143,7 +144,7 @@ describe('appkeep connections', () => {
 		});
 
 		it('adds each Page appkeep connected, holding only its connection id', async () => {
-			useWorkerEnv({
+			const bindings = {
 				ALTSTACK: {
 					connections: async (p: string) =>
 						p === 'facebook'
@@ -167,7 +168,7 @@ describe('appkeep connections', () => {
 								]
 							: []
 				}
-			});
+			};
 			const { seen, fetchImpl } = recorder(() => ({
 				id: 'P1',
 				name: 'Glow Skin',
@@ -176,9 +177,11 @@ describe('appkeep connections', () => {
 			}));
 			vi.stubGlobal('fetch', fetchImpl);
 
-			expect(await importAppkeepConnections(db, TEST_ENV as never, userId, 'facebook')).toBe(1);
+			expect(
+				await importAppkeepConnections(db, TEST_ENV as never, bindings, userId, 'facebook')
+			).toBe(1);
 			// Again on a second visit: still one row for the Page.
-			await importAppkeepConnections(db, TEST_ENV as never, userId, 'facebook');
+			await importAppkeepConnections(db, TEST_ENV as never, bindings, userId, 'facebook');
 
 			const rows = await db.select().from(connections).where(eq(connections.userId, userId));
 			expect(rows).toHaveLength(1);
@@ -203,7 +206,7 @@ describe('appkeep connections', () => {
 		});
 
 		it('stores a LinkedIn member under the person URN posts go to', async () => {
-			useWorkerEnv({
+			const bindings = {
 				ALTSTACK: {
 					connections: async (p: string) =>
 						p === 'linkedin'
@@ -219,10 +222,10 @@ describe('appkeep connections', () => {
 								]
 							: []
 				}
-			});
+			};
 			const { seen, fetchImpl } = recorder(() => ({ sub: 'SUB1', name: 'Glow Founder' }));
 			vi.stubGlobal('fetch', fetchImpl);
-			await importAppkeepConnections(db, TEST_ENV as never, userId, 'linkedin');
+			await importAppkeepConnections(db, TEST_ENV as never, bindings, userId, 'linkedin');
 			const [row] = await db.select().from(connections).where(eq(connections.platform, 'linkedin'));
 			expect(JSON.parse(row.metaJson!)).toEqual({
 				personUrn: 'urn:li:person:SUB1',
@@ -237,5 +240,76 @@ describe('appkeep connections', () => {
 			expect(seen[0].url).toBe('https://api.linkedin.com/v2/userinfo');
 			expect(seen[0].headers.get('x-altstack-connection')).toBe('con_li');
 		});
+
+		it('adds every X account appkeep holds, so several can sit side by side', async () => {
+			const xAccount = (id: string, username: string) => ({
+				id,
+				provider: 'x',
+				external_id: id.toUpperCase(),
+				name: `@${username}`,
+				status: 'active',
+				scopes: ['tweet.write']
+			});
+			const bindings = {
+				ALTSTACK: {
+					connections: async (p: string) =>
+						p === 'x' ? [xAccount('con_x1', 'glowskin'), xAccount('con_x2', 'glowlabs')] : []
+				}
+			};
+			vi.stubGlobal('fetch', recorder(() => ({ data: {} })).fetchImpl);
+			expect(await importAppkeepConnections(db, TEST_ENV as never, bindings, userId, 'x')).toBe(2);
+			const rows = await db.select().from(connections).where(eq(connections.platform, 'x'));
+			expect(rows.map((r) => r.handle).sort()).toEqual(['@glowlabs', '@glowskin']);
+			const creds = await Promise.all(
+				rows.map((r) =>
+					decryptJson<ConnectionCredentials>(r.credentialsEncrypted, TEST_ENV.APP_ENCRYPTION_KEY)
+				)
+			);
+			expect(creds.map((c) => [c.xUserId, c.xUsername]).sort()).toEqual([
+				['CON_X1', 'glowskin'],
+				['CON_X2', 'glowlabs']
+			]);
+		});
+
+		it('removing an account here removes it from appkeep too', async () => {
+			const [row] = await db.select().from(connections).where(eq(connections.platform, 'x'));
+			const removed: string[] = [];
+			const res = await disconnectRoute({
+				params: { id: row.id },
+				locals: {
+					db,
+					env: { ...TEST_ENV, appkeep: true },
+					bindings: {
+						ALTSTACK: { disconnect: async (id: string) => (removed.push(id), true) }
+					},
+					user: { id: userId, email: 'appkeep@localhost', timezone: 'UTC' },
+					authMethod: 'session'
+				}
+			} as never);
+			expect(res.status).toBe(200);
+			expect(removed).toEqual([JSON.parse(row.metaJson!).appkeepConnectionId]);
+			expect(await db.select().from(connections).where(eq(connections.id, row.id))).toEqual([]);
+		});
+	});
+
+	it('says plainly when an X post needs money on the balance, instead of retrying it', async () => {
+		const fetchImpl = (async () =>
+			Response.json(
+				{
+					error: {
+						code: 'insufficient_funds',
+						message: 'Add money to your AppKeep balance to post to X. Each post costs $0.02.',
+						top_up_url: '/_altstack/wallet'
+					}
+				},
+				{ status: 402 }
+			)) as unknown as typeof fetch;
+		const err = await appkeepFetch('con_x', fetchImpl)('https://api.x.com/2/tweets', {
+			method: 'POST',
+			headers: { Authorization: `Bearer ${APPKEEP_TOKEN}` }
+		}).catch((e: unknown) => e);
+		expect(err).toBeInstanceOf(ProviderError);
+		expect(err).toMatchObject({ status: 402, code: 'forbidden', retryable: false });
+		expect((err as Error).message).toContain('Add money to your AppKeep balance');
 	});
 });

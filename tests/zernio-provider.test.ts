@@ -54,11 +54,10 @@ describe('buildZernioPostBody', () => {
 		});
 	});
 
-	it('sends a thread as threadItems on X, Threads and Bluesky', async () => {
+	it('sends a thread as threadItems on X and Threads', async () => {
 		for (const [platform, zernio] of [
 			['x', 'twitter'],
-			['threads', 'threads'],
-			['bluesky', 'bluesky']
+			['threads', 'threads']
 		] as const) {
 			const body = await buildZernioPostBody({
 				platform,

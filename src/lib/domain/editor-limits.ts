@@ -5,7 +5,6 @@ import { storedXLimit } from './x-limits';
  * account's own (280, or 25,000 on a paid plan), so this is its fallback.
  */
 export const PLATFORM_LIMITS = {
-	bluesky: 300,
 	linkedin: 3000,
 	threads: 500,
 	instagram: 2200,
@@ -55,8 +54,6 @@ export function platformLimit(platform: string, accounts: LimitedAccount[]): num
 
 export function isOverSelectedPlatformLimit(params: {
 	selectedPlatforms: Iterable<string>;
-	blueskyLen: number;
-	blueskyMax?: number;
 	linkedinLen?: number;
 	linkedinMax?: number;
 	threadsLen?: number;
@@ -67,12 +64,10 @@ export function isOverSelectedPlatformLimit(params: {
 	xMax?: number;
 }): boolean {
 	const selected = new Set(params.selectedPlatforms);
-	const blueskyMax = params.blueskyMax ?? PLATFORM_LIMITS.bluesky;
 	const linkedinMax = params.linkedinMax ?? PLATFORM_LIMITS.linkedin;
 	const threadsMax = params.threadsMax ?? PLATFORM_LIMITS.threads;
 	const instagramMax = params.instagramMax ?? PLATFORM_LIMITS.instagram;
 	const xMax = params.xMax ?? PLATFORM_LIMITS.x;
-	if (selected.has('bluesky') && params.blueskyLen > blueskyMax) return true;
 	if (selected.has('linkedin') && (params.linkedinLen ?? 0) > linkedinMax) return true;
 	if (selected.has('threads') && (params.threadsLen ?? 0) > threadsMax) return true;
 	if (selected.has('instagram') && (params.instagramLen ?? 0) > instagramMax) return true;

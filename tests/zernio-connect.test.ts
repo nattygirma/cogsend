@@ -102,11 +102,6 @@ describe('zernio connect-through', () => {
 		expect((await connect({ apiKey: 'zk', profileId: 'p1', platform: 'mastodon' })).status).toBe(
 			400
 		);
-		// Zernio's hosted Bluesky flow appends its result with a second `?`, which
-		// breaks the bound state, and reports no account id: import it instead.
-		const bluesky = await connect({ apiKey: 'zk', profileId: 'p1', platform: 'bluesky' });
-		expect(bluesky.status).toBe(400);
-		expect(((await bluesky.json()) as { error: string }).error).toMatch(/Bluesky .* Zernio/);
 		expect((await connect({ apiKey: 'zk', platform: 'x' })).status).toBe(400);
 	});
 

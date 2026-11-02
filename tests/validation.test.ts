@@ -5,9 +5,8 @@ import {
 	platformLimit
 } from '#lib/domain/editor-limits.js';
 import { platformMark } from '#lib/domain/platform-marks.js';
-import { countGraphemes, validateBlueskyText } from '#lib/domain/validation/text.js';
-import { blueskyProvider, buildLinkFacets } from '#lib/server/providers/index.js';
-import { utf8ByteLength } from '#lib/domain/bytes.js';
+import { countGraphemes } from '#lib/domain/validation/text.js';
+import { linkedinProvider } from '#lib/server/providers/index.js';
 
 describe('countGraphemes', () => {
 	it('counts ascii 1:1', () => {
@@ -21,85 +20,31 @@ describe('countGraphemes', () => {
 	});
 });
 
-describe('validateBlueskyText', () => {
-	it('allows up to 300 graphemes', () => {
-		const r = validateBlueskyText('a'.repeat(300));
-		expect(r.ok).toBe(true);
-		expect(r.length).toBe(300);
-	});
-	it('rejects over 300 graphemes', () => {
-		const r = validateBlueskyText('a'.repeat(301));
-		expect(r.ok).toBe(false);
-		expect(r.message).toMatch(/over by 1/);
-	});
-});
-
 describe('provider validate', () => {
-	it('bluesky rejects long text', () => {
-		const issues = blueskyProvider.validate({ text: 'x'.repeat(350) });
+	it('linkedin rejects long text', () => {
+		const issues = linkedinProvider.validate({ text: 'x'.repeat(PLATFORM_LIMITS.linkedin + 1) });
 		expect(issues.some((i) => i.code === 'max_length')).toBe(true);
 	});
 	it('rejects empty segment without media', () => {
-		expect(blueskyProvider.validate({ text: '   ' }).length).toBeGreaterThan(0);
-	});
-});
-
-describe('buildLinkFacets', () => {
-	it('creates facet with utf8 byte offsets', () => {
-		const text = 'go https://example.com now';
-		const facets = buildLinkFacets(text);
-		expect(facets).toHaveLength(1);
-		expect(facets[0].features[0].uri).toBe('https://example.com');
-		expect(facets[0].index.byteStart).toBe(utf8ByteLength('go '));
-	});
-});
-
-describe('bluesky media size validation', () => {
-	it('rejects path-based media when size field exceeds 2MB', () => {
-		const issues = blueskyProvider.validate({
-			text: 'pic',
-			media: [{ storageKey: 'huge.png', size: 2_000_001, mime: 'image/png' }]
-		});
-		expect(issues.some((i) => i.code === 'max_image_bytes')).toBe(true);
-	});
-	it('allows a 1.5MB image that the old 1MB cap refused', () => {
-		const issues = blueskyProvider.validate({
-			text: 'pic',
-			media: [{ bytes: new Uint8Array(1_500_000), mime: 'image/png' }]
-		});
-		expect(issues.some((i) => i.code === 'max_image_bytes')).toBe(false);
-	});
-	it('allows exactly 2MB via size field', () => {
-		const issues = blueskyProvider.validate({
-			text: 'pic',
-			media: [{ storageKey: 'ok.png', size: 2_000_000, mime: 'image/png', alt: 'ok' }]
-		});
-		expect(issues.some((i) => i.code === 'max_image_bytes')).toBe(false);
-	});
-	it('rejects oversized bytes buffer', () => {
-		const issues = blueskyProvider.validate({
-			text: 'pic',
-			media: [{ bytes: new Uint8Array(2_000_001), mime: 'image/png' }]
-		});
-		expect(issues.some((i) => i.code === 'max_image_bytes')).toBe(true);
+		expect(linkedinProvider.validate({ text: '   ' }).length).toBeGreaterThan(0);
 	});
 });
 
 describe('publish disable gates selected platforms only', () => {
-	it('allows a LinkedIn-only 400-char post when Bluesky is not selected', () => {
+	it('allows a LinkedIn-only 600-char post when Threads is not selected', () => {
 		expect(
 			isOverSelectedPlatformLimit({
 				selectedPlatforms: ['linkedin'],
-				blueskyLen: 400,
-				linkedinLen: 400
+				threadsLen: 600,
+				linkedinLen: 600
 			})
 		).toBe(false);
 	});
-	it('blocks when selected Bluesky is over limit', () => {
+	it('blocks when selected Threads is over limit', () => {
 		expect(
 			isOverSelectedPlatformLimit({
-				selectedPlatforms: ['bluesky'],
-				blueskyLen: 350,
+				selectedPlatforms: ['threads'],
+				threadsLen: 550,
 				linkedinLen: 100
 			})
 		).toBe(true);
@@ -107,8 +52,8 @@ describe('publish disable gates selected platforms only', () => {
 	it('does not block on unused platform over limit', () => {
 		expect(
 			isOverSelectedPlatformLimit({
-				selectedPlatforms: ['bluesky'],
-				blueskyLen: 100,
+				selectedPlatforms: ['threads'],
+				threadsLen: 100,
 				linkedinLen: 3500
 			})
 		).toBe(false);
@@ -116,18 +61,18 @@ describe('publish disable gates selected platforms only', () => {
 	it('blocks when both selected and one is over', () => {
 		expect(
 			isOverSelectedPlatformLimit({
-				selectedPlatforms: ['bluesky', 'linkedin'],
-				blueskyLen: 301,
+				selectedPlatforms: ['threads', 'linkedin'],
+				threadsLen: 501,
 				linkedinLen: 100
 			})
 		).toBe(true);
 	});
-	it('allows two under-limit Bluesky posts when lens is max-per-segment', () => {
+	it('allows two under-limit Threads posts when lens is max-per-segment', () => {
 		expect(
 			isOverSelectedPlatformLimit({
-				selectedPlatforms: ['bluesky'],
-				blueskyLen: 200,
-				blueskyMax: 300
+				selectedPlatforms: ['threads'],
+				threadsLen: 400,
+				threadsMax: 500
 			})
 		).toBe(false);
 	});
@@ -153,7 +98,7 @@ describe('platformLimit', () => {
 
 	it('falls back to the platform default', () => {
 		expect(platformLimit('x', [])).toBe(PLATFORM_LIMITS.x);
-		expect(platformLimit('bluesky', [])).toBe(PLATFORM_LIMITS.bluesky);
+		expect(platformLimit('instagram', [])).toBe(PLATFORM_LIMITS.instagram);
 		expect(platformLimit('linkedin', [x(200)])).toBe(PLATFORM_LIMITS.linkedin);
 		expect(platformLimit('threads', [])).toBe(PLATFORM_LIMITS.threads);
 	});
@@ -162,9 +107,9 @@ describe('platformLimit', () => {
 describe('platformMarks', () => {
 	it('answers a mark for every platform the app can connect', () => {
 		for (const platform of [
-			'bluesky',
 			'linkedin',
 			'threads',
+			'instagram',
 			'x',
 			'facebook',
 			'youtube',
@@ -173,7 +118,7 @@ describe('platformMarks', () => {
 			expect(platformMark(platform), platform).toMatch(/^M/);
 		}
 		// Case-insensitive, because platform ids arrive from D1 and from URLs.
-		expect(platformMark('Bluesky')).toBe(platformMark('bluesky'));
+		expect(platformMark('LinkedIn')).toBe(platformMark('linkedin'));
 	});
 
 	it('answers null for an unknown platform rather than another brand', () => {

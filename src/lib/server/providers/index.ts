@@ -1,5 +1,4 @@
 import { isZernioConnection } from '#lib/domain/zernio.js';
-import { blueskyProvider } from './bluesky';
 import { facebookProvider } from './facebook';
 import { instagramProvider } from './instagram';
 import { linkedinProvider } from './linkedin';
@@ -19,7 +18,6 @@ import { appkeepConnectionId, viaAppkeep } from './appkeep';
 import type { PlatformId, PlatformProvider } from './types';
 
 const providers: Record<PlatformId, PlatformProvider> = {
-	bluesky: blueskyProvider,
 	linkedin: linkedinProvider,
 	threads: threadsProvider,
 	instagram: instagramProvider,
@@ -55,7 +53,6 @@ export * from './types';
 export { zernioProviderFor, buildZernioPostBody, ZERNIO_MAX_POLLS } from './zernio';
 export { providerFetch, timedFetch } from './timed-fetch';
 export { APPKEEP_TOKEN, appkeepConnectionId, appkeepFetch, viaAppkeep } from './appkeep';
-export { blueskyProvider, blueskyCreateSession, buildLinkFacets } from './bluesky';
 export {
 	linkedinProvider,
 	linkedinAuthorizeUrl,

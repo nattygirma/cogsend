@@ -58,18 +58,13 @@ describe('claimDueTargets stale publishing', () => {
 		await db.insert(connections).values({
 			id: connId,
 			userId,
-			platform: 'bluesky',
-			handle: 'test.bsky.social',
+			platform: 'linkedin',
+			handle: 'test-linkedin',
 			credentialsEncrypted: await encryptJson(
-				{
-					handle: 'test.bsky.social',
-					appPassword: 'xxxx',
-					did: 'did:plc:test',
-					pdsHost: 'https://bsky.social'
-				},
+				{ accessToken: 'token', personUrn: 'urn:li:person:test' },
 				TEST_ENV.APP_ENCRYPTION_KEY
 			),
-			metaJson: JSON.stringify({ did: 'did:plc:test' }),
+			metaJson: JSON.stringify({ personUrn: 'urn:li:person:test' }),
 			status: 'active',
 			createdAt: now,
 			updatedAt: now
@@ -100,16 +95,11 @@ describe('claimDueTargets stale publishing', () => {
 			fetchImpl: async (input) => {
 				const url =
 					typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-				if (url.includes('createSession')) {
-					return Response.json({
-						accessJwt: 'a',
-						refreshJwt: 'r',
-						did: 'did:plc:test',
-						handle: 'test.bsky.social'
+				if (url.includes('/rest/posts')) {
+					return new Response(null, {
+						status: 201,
+						headers: { 'x-restli-id': 'urn:li:share:tick' }
 					});
-				}
-				if (url.includes('createRecord')) {
-					return Response.json({ uri: 'at://did:plc:test/app.bsky.feed.post/tick', cid: 'cid' });
 				}
 				return new Response(`unmocked ${url}`, { status: 404 });
 			}
@@ -231,18 +221,10 @@ describe('claimDueTargets stale publishing', () => {
 			async (input) => {
 				const url =
 					typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-				if (url.includes('createSession')) {
-					return Response.json({
-						accessJwt: 'a',
-						refreshJwt: 'r',
-						did: 'did:plc:test',
-						handle: 'test.bsky.social'
-					});
-				}
-				if (url.includes('createRecord')) {
-					return Response.json({
-						uri: 'at://did:plc:test/app.bsky.feed.post/recovered',
-						cid: 'cid'
+				if (url.includes('/rest/posts')) {
+					return new Response(null, {
+						status: 201,
+						headers: { 'x-restli-id': 'urn:li:share:recovered' }
 					});
 				}
 				return new Response(`unmocked ${url}`, { status: 404 });
@@ -294,16 +276,11 @@ describe('claimDueTargets stale publishing', () => {
 		const consumed = await consumePublishJob(db, TEST_ENV, store, targetId, async (input) => {
 			const url =
 				typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-			if (url.includes('createSession')) {
-				return Response.json({
-					accessJwt: 'a',
-					refreshJwt: 'r',
-					did: 'did:plc:test',
-					handle: 'test.bsky.social'
+			if (url.includes('/rest/posts')) {
+				return new Response(null, {
+					status: 201,
+					headers: { 'x-restli-id': 'urn:li:share:queued' }
 				});
-			}
-			if (url.includes('createRecord')) {
-				return Response.json({ uri: 'at://did:plc:test/app.bsky.feed.post/queued', cid: 'cid' });
 			}
 			return new Response(`unmocked ${url}`, { status: 404 });
 		});
@@ -441,8 +418,8 @@ describe('queue single-flight', () => {
 		await db.insert(connections).values({
 			id: connId,
 			userId,
-			platform: 'bluesky',
-			handle: 'test.bsky.social',
+			platform: 'linkedin',
+			handle: 'test-linkedin',
 			credentialsEncrypted: 'enc',
 			status: 'active',
 			createdAt: now,
@@ -529,8 +506,8 @@ describe('scheduler statement budget', () => {
 		await db.insert(connections).values({
 			id: connId,
 			userId,
-			platform: 'bluesky',
-			handle: 'budget.bsky.social',
+			platform: 'linkedin',
+			handle: 'budget-linkedin',
 			credentialsEncrypted: 'enc',
 			status: 'active',
 			createdAt: now,

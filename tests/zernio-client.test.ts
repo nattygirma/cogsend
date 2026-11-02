@@ -162,7 +162,7 @@ describe('zernio client', () => {
 			403,
 			JSON.stringify({
 				error:
-					'Account 696e (bluesky "me.bsky.social") is disconnected and cannot be posted to. The platform token expired or was revoked. Please reconnect the account.',
+					'Account 696e (linkedin "Me") is disconnected and cannot be posted to. The platform token expired or was revoked. Please reconnect the account.',
 				code: 'ACCOUNT_DISCONNECTED'
 			})
 		);

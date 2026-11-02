@@ -54,7 +54,7 @@ describe('zernio import', () => {
 			env: TEST_ENV,
 			userId,
 			apiKey: 'zk_1',
-			account: account({ _id: 'acc-off', platform: 'bluesky', isActive: false })
+			account: account({ _id: 'acc-off', platform: 'linkedin', isActive: false })
 		});
 		expect(row.status).toBe('expired');
 	});

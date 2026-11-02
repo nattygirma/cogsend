@@ -6,7 +6,6 @@ import { first, parseJson } from '#lib/server/db/client.js';
 import { connections } from '#lib/server/db/schema.js';
 import { fail, handleError, ok } from '#lib/server/http.js';
 import {
-	blueskyCreateSession,
 	facebookVerify,
 	getProvider,
 	instagramVerify,
@@ -121,26 +120,6 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 				})
 				.where(owned);
 			return ok({ ok: true, status: 'active' });
-		} else if (conn.platform === 'bluesky') {
-			const session = await blueskyCreateSession(
-				creds.handle || conn.handle || '',
-				creds.appPassword || '',
-				creds.pdsHost || 'https://bsky.social'
-			);
-			await locals.db
-				.update(connections)
-				.set({
-					status: 'active',
-					handle: session.handle || conn.handle,
-					displayName: session.displayName || conn.displayName,
-					avatarUrl: session.avatarUrl || conn.avatarUrl,
-					credentialsEncrypted: await encryptJson(
-						{ ...creds, ...session },
-						locals.env.APP_ENCRYPTION_KEY
-					),
-					updatedAt: new Date()
-				})
-				.where(owned);
 		} else if (conn.platform === 'linkedin') {
 			// Try a refresh first: expired-but-refreshable tokens verify without
 			// forcing a manual reconnect. Auth rejection expires the row;

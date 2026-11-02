@@ -10,6 +10,8 @@ import { refreshDraftStatuses } from '#lib/server/publish.js';
 import { draftHasInFlightPublish } from '#lib/server/publish-plan.js';
 import { requireSession } from '#lib/server/require.js';
 import { serializeConnection } from '#lib/server/serialize.js';
+import { appkeepConnectionId } from '#lib/server/providers/index.js';
+import { appkeepDisconnect } from '#lib/server/appkeep-connections.js';
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	try {
@@ -87,6 +89,14 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 			// the user retry once the publish settles.
 			return fail('Publishing in progress — try again shortly', 409);
 		}
+
+		// Appkeep holds this account's token: remove it there as well, or the next
+		// connect would bring it back. A failure there still removes it here.
+		const appkeepId = appkeepConnectionId(conn.metaJson);
+		if (appkeepId && locals.env.appkeep)
+			await appkeepDisconnect(locals.bindings, appkeepId).catch((e) =>
+				console.error('[connections] appkeep disconnect failed', e)
+			);
 
 		if (archived > 0) {
 			// Credential-free tombstone: archive joins (queue, draft history)

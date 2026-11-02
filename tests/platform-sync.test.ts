@@ -22,14 +22,14 @@ describe('platform follow / customize / reset', () => {
 		expect(isPlatformCustomized(overrides, 'threads')).toBe(true);
 		expect(effectivePlatformBody(main, overrides, 'threads')).toBe('Hello threads');
 		expect(effectivePlatformBody('Changed main', overrides, 'threads')).toBe('Hello threads');
-		expect(effectivePlatformBody('Changed main', overrides, 'bluesky')).toBe('Changed main');
+		expect(effectivePlatformBody('Changed main', overrides, 'linkedin')).toBe('Changed main');
 	});
 
 	it('reset restores following main', () => {
-		let overrides = customizePlatformBody({}, 'bluesky', 'custom bsky');
-		overrides = resetPlatformToFollow(overrides, 'bluesky');
-		expect(isPlatformCustomized(overrides, 'bluesky')).toBe(false);
-		expect(effectivePlatformBody('Main again', overrides, 'bluesky')).toBe('Main again');
+		let overrides = customizePlatformBody({}, 'linkedin', 'custom linkedin');
+		overrides = resetPlatformToFollow(overrides, 'linkedin');
+		expect(isPlatformCustomized(overrides, 'linkedin')).toBe(false);
+		expect(effectivePlatformBody('Main again', overrides, 'linkedin')).toBe('Main again');
 	});
 
 	it('empty string is still customized', () => {
@@ -40,21 +40,21 @@ describe('platform follow / customize / reset', () => {
 
 	it('customizedBodiesForSave only includes customized platforms', () => {
 		const overrides = customizePlatformBody({}, 'threads', 'm only');
-		const saved = customizedBodiesForSave('main', overrides, ['threads', 'bluesky']);
+		const saved = customizedBodiesForSave('main', overrides, ['threads', 'linkedin']);
 		expect(saved).toEqual({ threads: 'm only' });
-		expect(saved.bluesky).toBeUndefined();
+		expect(saved.linkedin).toBeUndefined();
 	});
 
 	it('overridesFromVariants treats equal-to-main as following', () => {
 		const map = overridesFromVariants(
 			[
 				{ platform: 'threads', body: 'same' },
-				{ platform: 'bluesky', body: 'different' }
+				{ platform: 'linkedin', body: 'different' }
 			],
 			'same'
 		);
 		expect(isPlatformCustomized(map, 'threads')).toBe(false);
-		expect(isPlatformCustomized(map, 'bluesky')).toBe(true);
+		expect(isPlatformCustomized(map, 'linkedin')).toBe(true);
 	});
 
 	it('platformsFromConnections unique', () => {
@@ -62,9 +62,9 @@ describe('platform follow / customize / reset', () => {
 			platformsFromConnections([
 				{ platform: 'threads' },
 				{ platform: 'threads' },
-				{ platform: 'bluesky' }
+				{ platform: 'linkedin' }
 			])
-		).toEqual(['threads', 'bluesky']);
+		).toEqual(['threads', 'linkedin']);
 	});
 });
 

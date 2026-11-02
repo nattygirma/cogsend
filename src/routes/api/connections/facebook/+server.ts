@@ -16,7 +16,8 @@ export const POST: RequestHandler = async ({ locals, cookies }) => {
 	try {
 		const user = requireSession(locals.user, locals.authMethod);
 		// On appkeep, appkeep's own Facebook app runs the login and keeps the token.
-		if (locals.env.appkeep) return ok({ authorizeUrl: appkeepConnectUrl('facebook') });
+		if (locals.env.appkeep)
+			return ok({ authorizeUrl: appkeepConnectUrl(locals.bindings, 'facebook') });
 		const credentials = await resolvePlatformCredentials(locals.db, locals.env, 'facebook');
 		const appId = credentials?.values.FACEBOOK_APP_ID;
 		const appSecret = credentials?.values.FACEBOOK_APP_SECRET;

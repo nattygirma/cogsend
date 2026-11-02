@@ -31,7 +31,7 @@ test('a new account walks through the guide and is not asked again', async ({
 	const modal = page.getByTestId('onboarding-modal');
 	await expect(modal).toBeVisible();
 	await expect(modal.getByRole('heading', { name: 'Connect your channels' })).toBeVisible();
-	await expect(page.getByTestId('onboarding-channel-bluesky')).toBeVisible();
+	await expect(page.getByTestId('onboarding-channel-x')).toBeVisible();
 
 	await page.getByTestId('onboarding-next').click();
 	await expect(modal.getByRole('heading', { name: 'Connect your AI agent' })).toBeVisible();

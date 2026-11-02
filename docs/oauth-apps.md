@@ -1,6 +1,6 @@
 # OAuth apps and platform limits
 
-Bluesky connects with what you already have. LinkedIn, Threads,
+LinkedIn, Threads,
 Instagram, Facebook, YouTube, TikTok and X need an app registered at the provider first, because they issue the client id
 and secret the Worker uses. If you would rather not register apps, the optional
 [Zernio provider](zernio.md) publishes to those platforms through Zernio's own.
@@ -183,13 +183,12 @@ again; see [Domains and URLs](domains.md).
 Without these, those platforms are listed in the accounts dialog with a
 **Needs setup** badge. Picking one shows that platform's own steps — the redirect
 URI to register and the Worker secrets to set — instead of a connect attempt that
-cannot succeed. Bluesky keeps working either way.
+cannot succeed.
 
 ## Platforms
 
 | Platform  | Auth                                                                     | Text                                         | Images                                                    | Video                                        | Threads                      |
 | --------- | ------------------------------------------------------------------------ | -------------------------------------------- | --------------------------------------------------------- | -------------------------------------------- | ---------------------------- |
-| Bluesky   | handle + app password                                                    | 300                                          | 4, 2MB                                                    | up to 10 min, 300MB                          | yes                          |
 | LinkedIn  | OAuth (`openid profile email w_member_social`)                           | 3000                                         | 4, 8MB (no WebP)                                          | 3 s to 30 min, 500MB                         | no — flattened into one post |
 | Threads   | OAuth (`threads_basic threads_content_publish` `threads_manage_replies`) | 500, max 5 links                             | 4 uploadable, 10 allowed, 8MB JPEG/PNG                    | up to 5 min, 1GB                             | yes                          |
 | Instagram | OAuth (`instagram_business_basic instagram_business_content_publish`)    | 2200, max 30 hashtags                        | required: 1 to 10, 8MB JPEG (PNG and WebP sent as a copy) | a Reel on its own: 3 s to 15 min, 300MB      | no — flattened into one post |

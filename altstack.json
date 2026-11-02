@@ -2,8 +2,8 @@
 	"schema": 1,
 	"slug": "posteasy",
 	"name": "PostEasy",
-	"version": "1.24.1",
-	"tagline": "Write once, schedule everywhere: X, Instagram, Facebook, YouTube, TikTok, LinkedIn, Threads and Bluesky",
+	"version": "1.25.0",
+	"tagline": "Write once, schedule everywhere: X, Instagram, Facebook, YouTube, TikTok, LinkedIn and Threads",
 	"description": "A social media scheduler. Connect your accounts, write a post once, tailor it per platform, and publish now or on a schedule. Includes a calendar, drafts, video uploads, and an MCP server so AI agents can draft and schedule for you.",
 	"category": "marketing",
 	"replaces": [
@@ -39,6 +39,22 @@
 	],
 	"connections": [
 		{
+			"provider": "x",
+			"why": "Publish posts and threads to your X account (each post is paid from your AppKeep balance)",
+			"scopes": [
+				"tweet.write",
+				"media.write"
+			]
+		},
+		{
+			"provider": "threads",
+			"why": "Publish to your Threads profile",
+			"scopes": [
+				"threads_content_publish",
+				"threads_manage_replies"
+			]
+		},
+		{
 			"provider": "instagram",
 			"why": "Publish posts, reels and stories to your Instagram account",
 			"scopes": [
@@ -54,18 +70,18 @@
 			]
 		},
 		{
+			"provider": "youtube",
+			"why": "Upload your videos to your YouTube channel",
+			"scopes": [
+				"https://www.googleapis.com/auth/youtube.upload"
+			]
+		},
+		{
 			"provider": "tiktok",
 			"why": "Publish your videos to TikTok",
 			"scopes": [
 				"video.publish",
 				"video.upload"
-			]
-		},
-		{
-			"provider": "youtube",
-			"why": "Upload your videos to your YouTube channel",
-			"scopes": [
-				"https://www.googleapis.com/auth/youtube.upload"
 			]
 		},
 		{
@@ -77,10 +93,6 @@
 		}
 	],
 	"egress": [
-		{
-			"host": "api.x.com",
-			"why": "Publish to X"
-		},
 		{
 			"host": "publish.x.com",
 			"why": "Show previews of X posts you quote"
@@ -94,32 +106,8 @@
 			"why": "Upload your videos to TikTok (US accounts)"
 		},
 		{
-			"host": "graph.threads.net",
-			"why": "Publish to Threads"
-		},
-		{
 			"host": "www.linkedin.com",
 			"why": "Upload your images and videos to LinkedIn"
-		},
-		{
-			"host": "bsky.social",
-			"why": "Publish to Bluesky"
-		},
-		{
-			"host": "*.bsky.network",
-			"why": "Reach your Bluesky account's server"
-		},
-		{
-			"host": "plc.directory",
-			"why": "Find your Bluesky account's server"
-		},
-		{
-			"host": "video.bsky.app",
-			"why": "Upload videos to Bluesky"
-		},
-		{
-			"host": "zernio.com",
-			"why": "Optional: publish through Zernio if you connect it"
 		},
 		{
 			"host": "api.resend.com",

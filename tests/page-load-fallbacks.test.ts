@@ -91,7 +91,7 @@ describe('page loads survive a database failure', () => {
 		await db.insert(connections).values({
 			id: connectionId,
 			userId: USER.id,
-			platform: 'bluesky',
+			platform: 'linkedin',
 			credentialsEncrypted: 'x',
 			status: 'active',
 			createdAt: now,
@@ -185,7 +185,7 @@ describe('loadOwnedDraft keeps its id lists inside the D1 cap', () => {
 			const connectionRows = Array.from({ length: 101 }, () => ({
 				id: newId(),
 				userId,
-				platform: 'bluesky',
+				platform: 'linkedin',
 				credentialsEncrypted: 'x',
 				status: 'active',
 				createdAt: now,

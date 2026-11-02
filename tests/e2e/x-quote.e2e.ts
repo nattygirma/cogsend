@@ -238,22 +238,22 @@ test('a second pasted link stays a link, and can be swapped in as the quote', as
 test('Only on X keeps the quote for X, and Share with all gives the others the link again', async ({
 	page
 }) => {
-	const blueskyId = randomUUID();
+	const linkedinId = randomUUID();
 	const now = Date.now();
-	extraConnectionIds.push(blueskyId);
+	extraConnectionIds.push(linkedinId);
 	d1(
-		`INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${blueskyId}', '${userId}', 'bluesky', 'quoter.bsky.social', 'enc', '{}', 'active', ${now}, ${now})`
+		`INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${linkedinId}', '${userId}', 'linkedin', 'quoter-li', 'enc', '{}', 'active', ${now}, ${now})`
 	);
 	try {
 		await page.goto('/compose');
 		await waitForLiveComposer(page);
 		await selectX(page);
-		await selectAccount(page, 'Bluesky: quoter.bsky.social');
+		await selectAccount(page, 'LinkedIn: quoter-li');
 
 		const box = page.getByTestId('segment-input-0');
 		await box.fill('Worth reading.');
 		await pasteAtEnd(box, ` ${LINK}`);
-		await expect(page.getByTestId('x-quote-others')).toContainText('Bluesky');
+		await expect(page.getByTestId('x-quote-others')).toContainText('LinkedIn');
 		await expect(page.getByTestId('x-quote-others')).toContainText('it as a link.');
 		await expect
 			.poll(() => new URL(page.url()).searchParams.get('id'), { timeout: 30000 })
@@ -270,7 +270,7 @@ test('Only on X keeps the quote for X, and Share with all gives the others the l
 			.poll(stored, { timeout: 30000 })
 			.toEqual({ global: `Worth reading. ${LINK}`, x: null });
 
-		// X gets its own tab with the quote; Global, which Bluesky gets, loses the link.
+		// X gets its own tab with the quote; Global, which LinkedIn gets, loses the link.
 		await page.getByTestId('x-quote-only-x').click();
 		await expect(page.getByTestId('editor-tab-x')).toBeVisible();
 		await expect(page.getByTestId('editor-tab-global')).toHaveAttribute('aria-pressed', 'true');
@@ -282,7 +282,7 @@ test('Only on X keeps the quote for X, and Share with all gives the others the l
 
 		await page.getByTestId('editor-tab-x').click();
 		await expect(page.getByTestId('x-quote-card')).toBeVisible();
-		await expect(page.getByTestId('x-quote-withheld')).toContainText('Bluesky');
+		await expect(page.getByTestId('x-quote-withheld')).toContainText('LinkedIn');
 
 		// Sharing puts the link back, and X follows Global again.
 		await page.getByTestId('x-quote-share-all').click();
@@ -294,15 +294,15 @@ test('Only on X keeps the quote for X, and Share with all gives the others the l
 			.poll(stored, { timeout: 30000 })
 			.toEqual({ global: `Worth reading. ${LINK}`, x: null });
 
-		// A card that is only the quote would leave Bluesky nothing.
+		// A card that is only the quote would leave LinkedIn nothing.
 		await page.getByTestId('x-quote-remove').click();
 		await box.fill('');
 		await pasteAtEnd(box, LINK);
 		await expect(page.getByTestId('x-quote-card')).toBeVisible();
-		await expect(page.getByTestId('x-quote-others')).toContainText('Bluesky');
+		await expect(page.getByTestId('x-quote-others')).toContainText('LinkedIn');
 		await expect(page.getByTestId('x-quote-only-x')).toHaveCount(0);
 	} finally {
-		d1(`DELETE FROM connections WHERE id='${blueskyId}'`);
+		d1(`DELETE FROM connections WHERE id='${linkedinId}'`);
 	}
 });
 

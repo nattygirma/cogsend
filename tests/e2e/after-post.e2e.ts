@@ -35,7 +35,7 @@ async function seedAccount(page: Page) {
 	const connId = randomUUID();
 	const now = Date.now();
 	d1(
-		`INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${connId}', '${userId}', 'bluesky', 'after-${connId.slice(0, 8)}.bsky.social', 'enc', '{}', 'active', ${now}, ${now})`
+		`INSERT INTO connections (id, user_id, platform, handle, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${connId}', '${userId}', 'linkedin', 'after-${connId.slice(0, 8)}', 'enc', '{}', 'active', ${now}, ${now})`
 	);
 	connIds.push(connId);
 	return { userId, connId };

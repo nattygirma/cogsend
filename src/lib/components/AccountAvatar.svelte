@@ -34,7 +34,6 @@
 			: 'ring-1 ring-[var(--border)]'
 	);
 	const badgeBg: Record<string, string> = {
-		bluesky: '#0085ff',
 		linkedin: '#0a66c2',
 		threads: '#000000',
 		instagram: '#e4405f',
@@ -44,7 +43,6 @@
 		x: '#000000'
 	};
 	const badgeLabel: Record<string, string> = {
-		bluesky: 'Bluesky',
 		linkedin: 'LinkedIn',
 		threads: 'Threads',
 		instagram: 'Instagram',

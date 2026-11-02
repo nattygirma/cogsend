@@ -13,7 +13,7 @@ import {
 describe('platforms', () => {
 	it('recognizes the platform ids, and not removed ones', () => {
 		expect(isPlatformId('mastodon')).toBe(false);
-		expect(isPlatformId('bluesky')).toBe(true);
+		expect(isPlatformId('bluesky')).toBe(false);
 		expect(isPlatformId('linkedin')).toBe(true);
 		expect(isPlatformId('threads')).toBe(true);
 		expect(isPlatformId('instagram')).toBe(true);
@@ -21,8 +21,7 @@ describe('platforms', () => {
 		expect(isPlatformId('twitter')).toBe(false);
 	});
 
-	it('bluesky, x, and threads support threads', () => {
-		expect(supportsThreads('bluesky')).toBe(true);
+	it('x and threads support threads', () => {
 		expect(supportsThreads('x')).toBe(true);
 		expect(supportsThreads('threads')).toBe(true);
 		expect(supportsThreads('linkedin')).toBe(false);
@@ -31,7 +30,6 @@ describe('platforms', () => {
 
 	it('preview priority covers every platform exactly once', () => {
 		expect([...PREVIEW_PRIORITY].sort()).toEqual([
-			'bluesky',
 			'facebook',
 			'instagram',
 			'linkedin',
@@ -42,7 +40,7 @@ describe('platforms', () => {
 		]);
 	});
 
-	it('orders X first, then the Meta platforms, the video platforms, linkedin, bluesky', () => {
+	it('orders X first, then the Meta platforms, the video platforms, linkedin', () => {
 		expect([...PLATFORM_ORDER]).toEqual([
 			'x',
 			'threads',
@@ -50,11 +48,10 @@ describe('platforms', () => {
 			'facebook',
 			'youtube',
 			'tiktok',
-			'linkedin',
-			'bluesky'
+			'linkedin'
 		]);
 		expect(platformRank('x')).toBe(0);
-		expect(platformRank('bluesky')).toBe(7);
+		expect(platformRank('linkedin')).toBe(6);
 		expect(platformRank('unknown')).toBe(99);
 	});
 });

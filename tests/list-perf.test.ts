@@ -44,7 +44,7 @@ describe('list endpoint query budgets', () => {
 				.values({ id, email, passwordHash: 'x', timezone: 'UTC', createdAt: now, updatedAt: now });
 		}
 		const connIds: string[] = [];
-		for (const platform of ['mastodon', 'bluesky']) {
+		for (const platform of ['mastodon', 'linkedin']) {
 			const id = newId();
 			connIds.push(id);
 			await db.insert(connections).values({

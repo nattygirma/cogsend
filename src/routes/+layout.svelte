@@ -236,7 +236,7 @@
 	<title>{data.appName} — write & schedule</title>
 	<meta
 		name="description"
-		content="Social media scheduler for X, Instagram, Facebook, YouTube, TikTok, LinkedIn, Threads and Bluesky"
+		content="Social media scheduler for X, Instagram, Facebook, YouTube, TikTok, LinkedIn and Threads"
 	/>
 	<link rel="icon" href={favicon} type="image/svg+xml" />
 	<link rel="icon" href={faviconDark} type="image/svg+xml" media="(prefers-color-scheme: dark)" />

@@ -43,7 +43,7 @@ describe('editing a published post', () => {
 	let close: () => void;
 	let userId: string;
 	let mastodonId: string;
-	let blueskyId: string;
+	let linkedinId: string;
 	const media = createTestMedia();
 
 	const locals = () => ({
@@ -99,7 +99,7 @@ describe('editing a published post', () => {
 			await db.insert(publishTargets).values({
 				id: newId(),
 				draftId: id,
-				connectionId: i === 0 ? mastodonId : blueskyId,
+				connectionId: i === 0 ? mastodonId : linkedinId,
 				status: 'published',
 				attemptCount: 1,
 				createdAt: now,
@@ -126,7 +126,7 @@ describe('editing a published post', () => {
 			updatedAt: now
 		});
 		mastodonId = newId();
-		blueskyId = newId();
+		linkedinId = newId();
 		await db.insert(connections).values([
 			{
 				id: mastodonId,
@@ -140,10 +140,10 @@ describe('editing a published post', () => {
 				updatedAt: now
 			},
 			{
-				id: blueskyId,
+				id: linkedinId,
 				userId,
-				platform: 'bluesky',
-				handle: 'lock.bsky.social',
+				platform: 'linkedin',
+				handle: 'lock-linkedin',
 				credentialsEncrypted: '{}',
 				metaJson: '{}',
 				status: 'active',
@@ -162,9 +162,9 @@ describe('editing a published post', () => {
 			refused
 		);
 		expect(
-			await call(variantPUT, id, 'PUT', { json: { platform: 'bluesky', body: 'x', options: {} } })
+			await call(variantPUT, id, 'PUT', { json: { platform: 'linkedin', body: 'x', options: {} } })
 		).toEqual(refused);
-		expect(await call(variantDELETE, id, 'DELETE', { query: '?platform=bluesky' })).toEqual(
+		expect(await call(variantDELETE, id, 'DELETE', { query: '?platform=linkedin' })).toEqual(
 			refused
 		);
 		const form = new FormData();

@@ -102,8 +102,8 @@ async function seedConnection(ownerId = user.id) {
 	await db.insert(connections).values({
 		id,
 		userId: ownerId,
-		platform: 'bluesky',
-		handle: 'test.bsky.social',
+		platform: 'linkedin',
+		handle: 'test-linkedin',
 		credentialsEncrypted: '{}',
 		metaJson: '{}',
 		status: 'active',
@@ -142,7 +142,7 @@ const expectedOutputFields: Record<string, string[]> = {
 	delete_draft: ['ok'],
 	set_draft_variant: ['variant'],
 	delete_draft_variant: ['ok'],
-	validate_post: ['graphemes', 'bluesky', 'linkedin', 'threads', 'instagram', 'x', 'issues'],
+	validate_post: ['graphemes', 'linkedin', 'threads', 'instagram', 'x', 'issues'],
 	publish_draft: ['results', 'stopped', 'stoppedError', 'draft'],
 	schedule_draft: ['targets', 'scheduledFor'],
 	list_queue: ['targets', 'hasMore'],
@@ -288,21 +288,21 @@ describe('MCP protocol client through the deployed route handler', () => {
 		const variant = structured(
 			await client.callTool({
 				name: 'set_draft_variant',
-				arguments: { draftId, platform: 'bluesky', body: 'variant text' }
+				arguments: { draftId, platform: 'linkedin', body: 'variant text' }
 			})
 		);
-		expect(variant.variant).toMatchObject({ platform: 'bluesky', body: 'variant text' });
+		expect(variant.variant).toMatchObject({ platform: 'linkedin', body: 'variant text' });
 		expect(
 			(
 				structured(await client.callTool({ name: 'get_draft', arguments: { draftId } }))
 					.draft as Record<string, unknown>
 			).variants
-		).toEqual(expect.arrayContaining([expect.objectContaining({ platform: 'bluesky' })]));
+		).toEqual(expect.arrayContaining([expect.objectContaining({ platform: 'linkedin' })]));
 		expect(
 			structured(
 				await client.callTool({
 					name: 'delete_draft_variant',
-					arguments: { draftId, platform: 'bluesky' }
+					arguments: { draftId, platform: 'linkedin' }
 				})
 			)
 		).toEqual({ ok: true });
@@ -310,7 +310,7 @@ describe('MCP protocol client through the deployed route handler', () => {
 			structured(
 				await client.callTool({
 					name: 'validate_post',
-					arguments: { text: 'hello', platform: 'bluesky' }
+					arguments: { text: 'hello', platform: 'linkedin' }
 				})
 			).graphemes
 		).toBe(5);
@@ -377,7 +377,7 @@ describe('MCP protocol client through the deployed route handler', () => {
 			connectionId,
 			status: 'published',
 			remotePostId: 'remote-post',
-			remoteUrl: 'https://bsky.app/profile/test.bsky.social/post/1',
+			remoteUrl: 'https://www.linkedin.com/feed/update/urn:li:share:1/',
 			attemptCount: 1,
 			createdAt: now,
 			updatedAt: now
@@ -447,7 +447,7 @@ describe('MCP protocol client through the deployed route handler', () => {
 	it('preserves a successful publish when a later destination fails', async () => {
 		const draftId = await seedDraft(user.id, 'Partial publish');
 		const connectionIds = [await seedConnection(), await seedConnection()];
-		const permalink = 'https://bsky.app/profile/test.bsky.social/post/partial';
+		const permalink = 'https://www.linkedin.com/feed/update/urn:li:share:2/';
 		vi.spyOn(publish, 'publishTarget')
 			.mockImplementationOnce(async (_db, _env, _store, targetId) => {
 				await db

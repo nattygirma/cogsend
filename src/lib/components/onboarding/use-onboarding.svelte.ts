@@ -96,27 +96,6 @@ export function useOnboarding(initial: OnboardingState | null) {
 		}
 	}
 
-	async function connectBluesky(handle: string, appPassword: string): Promise<boolean> {
-		connecting = 'bluesky';
-		error = null;
-		try {
-			const res = await fetch('/api/connections/bluesky', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ handle, appPassword })
-			});
-			const payload = await readJson(res);
-			if (!res.ok) throw new Error(String(payload.error || 'Could not connect Bluesky'));
-			await load();
-			return true;
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Could not connect Bluesky';
-			return false;
-		} finally {
-			connecting = null;
-		}
-	}
-
 	async function createKey() {
 		creatingKey = true;
 		error = null;
@@ -180,7 +159,6 @@ export function useOnboarding(initial: OnboardingState | null) {
 		load,
 		goTo,
 		connectOAuth,
-		connectBluesky,
 		createKey,
 		finish: () => saveProgress({ step: 3, done: true }),
 		dismiss: () => saveProgress({ step, done, dismissed: true })

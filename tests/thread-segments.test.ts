@@ -148,10 +148,10 @@ describe('buildPreviewModel', () => {
 		const model = buildPreviewModel({
 			platform: 'main',
 			body: 'hi',
-			connections: [{ platform: 'bluesky', handle: 'x.bsky.social', displayName: 'X' }]
+			connections: [{ platform: 'linkedin', handle: 'ada', displayName: 'Ada' }]
 		});
-		expect(model.platform).toBe('bluesky');
-		expect(model.charLimits.max).toBe(300);
+		expect(model.platform).toBe('linkedin');
+		expect(model.charLimits.max).toBe(3000);
 	});
 });
 

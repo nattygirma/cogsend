@@ -95,7 +95,6 @@ export type PreviewModel = {
 };
 
 const FALLBACK_HANDLES: Record<string, string> = {
-	bluesky: 'you.bsky.social',
 	linkedin: 'you',
 	threads: '@you',
 	instagram: 'you',
@@ -106,7 +105,6 @@ const FALLBACK_HANDLES: Record<string, string> = {
 };
 
 const PREVIEW_LIMITS: Record<string, { max: number; mode: 'grapheme' }> = {
-	bluesky: { max: 300, mode: 'grapheme' },
 	linkedin: { max: 3000, mode: 'grapheme' },
 	threads: { max: 500, mode: 'grapheme' },
 	instagram: { max: 2200, mode: 'grapheme' },

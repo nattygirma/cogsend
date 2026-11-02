@@ -1,8 +1,8 @@
 export type PlatformId =
-	'bluesky' | 'linkedin' | 'threads' | 'instagram' | 'facebook' | 'youtube' | 'tiktok' | 'x';
+	'linkedin' | 'threads' | 'instagram' | 'facebook' | 'youtube' | 'tiktok' | 'x';
 
 /** Canonical display order everywhere: X first, then the Meta platforms, the
- *  video platforms, LinkedIn, Bluesky. */
+ *  video platforms, LinkedIn. */
 export const PLATFORM_ORDER: PlatformId[] = [
 	'x',
 	'threads',
@@ -10,8 +10,7 @@ export const PLATFORM_ORDER: PlatformId[] = [
 	'facebook',
 	'youtube',
 	'tiktok',
-	'linkedin',
-	'bluesky'
+	'linkedin'
 ];
 
 /** The same set, for validation and iteration. Derived so the platform list
@@ -30,8 +29,7 @@ export const PREVIEW_PRIORITY: PlatformId[] = [
 	'facebook',
 	'youtube',
 	'tiktok',
-	'linkedin',
-	'bluesky'
+	'linkedin'
 ];
 
 /** Sort rank for a platform id; unknown platforms sink to the end, stable. */
@@ -43,7 +41,7 @@ export function platformRank(platform: string): number {
 /** Whether a platform supports multi-post threads (mirrors provider capabilities). */
 export function supportsThreads(platform: string): boolean {
 	if (!isPlatformId(platform)) return true;
-	return platform === 'bluesky' || platform === 'x' || platform === 'threads';
+	return platform === 'x' || platform === 'threads';
 }
 
 export function platformName(p: string): string {
@@ -54,7 +52,7 @@ export function platformName(p: string): string {
 	return p.charAt(0).toUpperCase() + p.slice(1);
 }
 
-/** "Threads, LinkedIn and Bluesky". */
+/** "Threads, LinkedIn and X". */
 export function platformNames(platforms: string[]): string {
 	const names = platforms.map((p) => platformName(p));
 	if (names.length <= 1) return names[0] ?? '';

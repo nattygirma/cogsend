@@ -16,7 +16,8 @@ export const POST: RequestHandler = async ({ locals, cookies }) => {
 	try {
 		const user = requireSession(locals.user, locals.authMethod);
 		// On appkeep, appkeep's own TikTok app runs the login and keeps the token.
-		if (locals.env.appkeep) return ok({ authorizeUrl: appkeepConnectUrl('tiktok') });
+		if (locals.env.appkeep)
+			return ok({ authorizeUrl: appkeepConnectUrl(locals.bindings, 'tiktok') });
 		const credentials = await resolvePlatformCredentials(locals.db, locals.env, 'tiktok');
 		const clientKey = credentials?.values.TIKTOK_CLIENT_KEY;
 		const clientSecret = credentials?.values.TIKTOK_CLIENT_SECRET;

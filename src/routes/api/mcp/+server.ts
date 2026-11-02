@@ -244,7 +244,6 @@ const mcpOutputSchemas = {
 	validate_post: z
 		.object({
 			graphemes: z.number(),
-			bluesky: validationCheck,
 			linkedin: validationCheck,
 			threads: validationCheck,
 			instagram: validationCheck,

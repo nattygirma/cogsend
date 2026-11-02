@@ -156,7 +156,7 @@ describe('quotableXPosts', () => {
 			quotableXPosts([
 				target({ status: 'scheduled' }),
 				target({ status: 'failed' }),
-				target({ connection: { platform: 'bluesky' } }),
+				target({ connection: { platform: 'linkedin' } }),
 				target({ remoteUrl: null }),
 				target({ remoteUrl: 'https://example.com/a/status/1' }),
 				target({ remoteUrl: 'javascript:alert(1)' })

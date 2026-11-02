@@ -16,7 +16,8 @@ export const POST: RequestHandler = async ({ locals, cookies }) => {
 	try {
 		const user = requireSession(locals.user, locals.authMethod);
 		// On appkeep, appkeep's own LinkedIn app runs the login and keeps the token.
-		if (locals.env.appkeep) return ok({ authorizeUrl: appkeepConnectUrl('linkedin') });
+		if (locals.env.appkeep)
+			return ok({ authorizeUrl: appkeepConnectUrl(locals.bindings, 'linkedin') });
 		const credentials = await resolvePlatformCredentials(locals.db, locals.env, 'linkedin');
 		const clientId = credentials?.values.LINKEDIN_CLIENT_ID;
 		const clientSecret = credentials?.values.LINKEDIN_CLIENT_SECRET;

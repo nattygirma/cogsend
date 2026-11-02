@@ -1,5 +1,10 @@
 import { providerFetch } from './timed-fetch';
-import type { ConnectionCredentials, FetchLike, PlatformProvider } from './types';
+import {
+	ProviderError,
+	type ConnectionCredentials,
+	type FetchLike,
+	type PlatformProvider
+} from './types';
 
 /**
  * On appkeep, Instagram, Facebook, TikTok and YouTube are connected through
@@ -48,11 +53,25 @@ export function appkeepFetch(connectionId: string, base: FetchLike = providerFet
 		// Upload URLs a platform handed out carry their own authorisation.
 		if (!tagged) return base(input, init);
 		headers.set('x-altstack-connection', connectionId);
-		return base(url.toString(), { ...init, headers, body });
+		return base(url.toString(), { ...init, headers, body }).then(paidOrThrow);
 	};
 }
 
-/** A provider that publishes through an appkeep connection. Appkeep refreshes tokens, so this never does. */
+/** A post appkeep charges for (on X) and the balance can't cover: say so plainly, and don't retry. */
+async function paidOrThrow(res: Response): Promise<Response> {
+	if (res.status !== 402) return res;
+	const body = (await res
+		.clone()
+		.json()
+		.catch(() => null)) as { error?: { code?: string; message?: string } } | null;
+	if (body?.error?.code !== 'insufficient_funds') return res;
+	throw new ProviderError(body.error.message || 'Add money to your balance to post here', {
+		status: 402,
+		code: 'forbidden'
+	});
+}
+
+/** A provider that publishes through an appkeep connection. Appkeep refreshes tokens and knows who the account is, so this does neither. */
 export function viaAppkeep(provider: PlatformProvider, connectionId: string): PlatformProvider {
 	const wrap = (fetchImpl?: FetchLike) => appkeepFetch(connectionId, fetchImpl);
 	const withToken = (creds: ConnectionCredentials) => ({ ...creds, accessToken: APPKEEP_TOKEN });
@@ -60,10 +79,8 @@ export function viaAppkeep(provider: PlatformProvider, connectionId: string): Pl
 		...provider,
 		publish: (content, creds, meta, fetchImpl, opts) =>
 			provider.publish(content, withToken(creds), meta, wrap(fetchImpl), opts),
-		alignCredentials: provider.alignCredentials
-			? (creds, meta, fetchImpl) =>
-					provider.alignCredentials!(withToken(creds), meta, wrap(fetchImpl))
-			: undefined,
+		// Identity healing reads the token itself (Threads' debug_token); appkeep already knows the account.
+		alignCredentials: undefined,
 		refreshIfNeeded: undefined,
 		refreshImpossibleReason: undefined
 	};

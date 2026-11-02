@@ -80,7 +80,7 @@ describe('doctor CLI', () => {
 	it('reports the optional platforms, and that nothing is broken without them', () => {
 		const output = runDoctor(scratchCheckout(['APP_ENCRYPTION_KEY', 'SCHEDULER_SECRET']));
 		expect(output).toContain('LinkedIn, Threads, Instagram, X: no app credentials (optional)');
-		expect(output).toContain('Bluesky can be connected');
+		expect(output).toContain('Add an app to connect a platform');
 		// Exit 0: a deployment without app credentials is complete.
 		expect(output).not.toMatch(/✗/);
 	});

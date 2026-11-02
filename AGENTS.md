@@ -1,6 +1,6 @@
 # PostEasy
 
-> Self-hosted social scheduler for Bluesky, LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X. SvelteKit 3 and Svelte 5 on Cloudflare Workers, D1 via Drizzle, R2 for media.
+> Self-hosted social scheduler for LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X. SvelteKit 3 and Svelte 5 on Cloudflare Workers, D1 via Drizzle, R2 for media.
 
 PostEasy is single-tenant: one admin account on the operator's own Cloudflare account, with their own provider credentials. Every instance is somebody's personal deployment, so nothing may assume the maintainer's account, domain or data.
 

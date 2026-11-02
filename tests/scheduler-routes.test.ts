@@ -47,18 +47,13 @@ describe('scheduler routes', () => {
 		await db.insert(connections).values({
 			id: accountId,
 			userId,
-			platform: 'bluesky',
-			handle: 'tick.bsky.social',
+			platform: 'linkedin',
+			handle: 'tick-linkedin',
 			credentialsEncrypted: await encryptJson(
-				{
-					handle: 'tick.bsky.social',
-					appPassword: 'xxxx',
-					did: 'did:plc:tick',
-					pdsHost: 'https://bsky.social'
-				},
+				{ accessToken: 'token', personUrn: 'urn:li:person:tick' },
 				TEST_ENV.APP_ENCRYPTION_KEY
 			),
-			metaJson: JSON.stringify({ did: 'did:plc:tick' }),
+			metaJson: JSON.stringify({ personUrn: 'urn:li:person:tick' }),
 			status: 'active',
 			createdAt: now,
 			updatedAt: now
@@ -107,16 +102,11 @@ describe('scheduler routes', () => {
 			'fetch',
 			vi.fn(async (input: unknown) => {
 				const url = String(input);
-				if (url.includes('createSession')) {
-					return Response.json({
-						accessJwt: 'a',
-						refreshJwt: 'r',
-						did: 'did:plc:tick',
-						handle: 'tick.bsky.social'
+				if (url.includes('/rest/posts')) {
+					return new Response(null, {
+						status: 201,
+						headers: { 'x-restli-id': 'urn:li:share:1' }
 					});
-				}
-				if (url.includes('createRecord')) {
-					return Response.json({ uri: 'at://did:plc:tick/app.bsky.feed.post/1', cid: 'c' });
 				}
 				return new Response('unmocked', { status: 404 });
 			})

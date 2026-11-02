@@ -39,7 +39,7 @@ An X account on a paid plan can post up to 25,000 characters in one post ([how P
 
 Each card takes up to four images, shown large in the card the way they will be laid out: one image at its own shape, two to four in a grid. Its buttons sit in the top corner, on hover or always on a phone: **ALT** (amber until it has a description) opens the alt-text field ("Describe
 this image…"); fill it in and it goes out with the image on platforms that
-support it. The × removes the image. Size and format limits differ per platform — Bluesky takes 2 MB, X 5
+support it. The × removes the image. Size and format limits differ per platform — X takes 5
 MB, and LinkedIn rejects WebP — and are checked again when the post is published.
 
 A larger image is shown from a lighter 1280 px copy your browser makes when you attach it, in the composer and in **Posts**; the original is what gets published.
@@ -64,9 +64,9 @@ A URL in a card shows the link preview it will produce, while you write.
 
 A card takes one video (MP4, MOV or WebM) and nothing else beside it; a thread can have a video on each card. Your browser prepares it before it uploads: a file every platform already takes goes up as it is, and anything else, such as a phone's HEVC video, a 4K clip or a frame rate over 60, is converted to MP4 (H.264 with AAC sound) at most 1920 pixels on the long edge. The card shows the video at its own shape, with **Reading**, **Converting** and **Uploading** and the progress along its bottom edge, and **Cancel** stops it. Once it is up, the video shows its cover with a play button and its length, and loads only when you press play. Videos up to 300 MB go up in parts, so a slow connection only resends the part that failed. Leave the page while a video is still uploading and the browser asks first, since the upload stops with it. A browser that can't convert the file says so; export it as MP4 (H.264) and attach it again.
 
-When every selected platform takes the video, nothing more is shown. When one doesn't, a line under the video says why, one line per platform: X takes 2:20 unless the account has X Premium, Threads 5 minutes, Bluesky 10, Instagram 15, LinkedIn 30. **Uncheck** on the line drops that platform's accounts, and the accounts button in the dock and the account itself carry a red dot until it is resolved. Publish and Schedule stop on the first platform that would refuse it; trim the video or uncheck that account.
+When every selected platform takes the video, nothing more is shown. When one doesn't, a line under the video says why, one line per platform: X takes 2:20 unless the account has X Premium, Threads 5 minutes, Instagram 15, LinkedIn 30. **Uncheck** on the line drops that platform's accounts, and the accounts button in the dock and the account itself carry a red dot until it is resolved. Publish and Schedule stop on the first platform that would refuse it; trim the video or uncheck that account.
 
-**COVER**, among the buttons on the video, picks the frame shown before it plays: scrub to a moment and **Use this frame**, or **Upload image**. LinkedIn and Instagram show it; X, Threads and Bluesky choose their own frame. Until you pick one, the frame one second in is the cover, and it is also what **Posts** shows. **ALT** describes the video, as for an image.
+**COVER**, among the buttons on the video, picks the frame shown before it plays: scrub to a moment and **Use this frame**, or **Upload image**. LinkedIn and Instagram show it; X and Threads choose their own frame. Until you pick one, the frame one second in is the cover, and it is also what **Posts** shows. **ALT** describes the video, as for an image.
 
 Platforms process a video before it can be posted, which can take minutes. PostEasy uploads and waits for up to 20 seconds of the publish, then hands the rest to the next [tick](scheduling.md): the result says the platform "is processing the video" and that it publishes on its own, and **Posts** marks it **Processing**. A large video to X or LinkedIn is sent over several ticks the same way, carrying on from the last part sent. So closing or reloading the tab right after **Publish** loses nothing. Waiting uses none of the five attempts. A video still not ready after 45 minutes fails, and **Retry** starts it again.
 
@@ -78,7 +78,7 @@ X shows a post as a quote when its text ends with a link to another X post. With
 - A card quotes one post. Another X link pasted into it stays in the text as a plain link, so nothing is lost; its button swaps the two. To quote several posts, give each its own card with **+ Thread**.
 - The quote button in a card's tools lists your recent published X posts, so you can quote one without copying its link.
 - On **Global**, the other selected platforms get the same text, link included, and the card names them. **Only on X** keeps the quote for X alone: X gets its own tab with the quote, and the others get the text without the link. On the X tab, **Share with all** gives them the link again. A card holding only the quote can't be split this way.
-- On Bluesky and LinkedIn, a link to an X post gets a card with the post's author and text.
+- On LinkedIn, a link to an X post gets a card with the post's author and text.
 - X bills a post that contains a link at $0.20 instead of $0.015, and a quote is such a post.
 
 ## Global, and a tab per platform
@@ -98,7 +98,7 @@ you fix it.
 
 ## Publish now, or schedule
 
-**Publish** hands the draft to every selected account and empties the composer at once, so you can start the next post while it goes out. The result arrives as a message wherever you are in the app, updated as each account answers ("Published to Bluesky · still sending to Threads") and ending with **Published to 3 destinations**, or which account failed and why, with a link to the post in **Posts**. A failure also puts a red dot on the menu at the top left, beside **Posts**, until you open it. By default Publish asks first, with a **Confirm Post** step; tick **Publish
+**Publish** hands the draft to every selected account and empties the composer at once, so you can start the next post while it goes out. The result arrives as a message wherever you are in the app, updated as each account answers ("Published to X · still sending to Threads") and ending with **Published to 3 destinations**, or which account failed and why, with a link to the post in **Posts**. A failure also puts a red dot on the menu at the top left, beside **Posts**, until you open it. By default Publish asks first, with a **Confirm Post** step; tick **Publish
 without asking next time** to skip it in this browser, and turn the question back
 on under **Settings → Preferences → Ask for confirmation before publishing**.
 **Cmd/Ctrl + Enter** publishes from the keyboard.

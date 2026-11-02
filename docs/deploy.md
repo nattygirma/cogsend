@@ -75,7 +75,7 @@ This path needs no GitHub App and no Workers Builds, and nothing to configure in
 
 1. Open the Worker URL and sign in with the email and password `setup` created
    (or, after the button, the account you just created).
-2. Connect accounts under **Accounts**. Bluesky works immediately;
+2. Connect accounts under **Accounts**.
    LinkedIn, Threads, Instagram, Facebook, YouTube, TikTok and X need an OAuth app each, with the redirect URI built
    from your deployed URL. The accounts dialog walks you through it, takes the
    app's credentials in a form, and can hand the whole job to a browser agent

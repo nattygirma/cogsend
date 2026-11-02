@@ -11,7 +11,6 @@ import {
 } from 'drizzle-orm';
 import {
 	countGraphemes,
-	validateBlueskyText,
 	validateLinkedinText,
 	validateInstagramText,
 	validateThreadsText,
@@ -100,13 +99,12 @@ export function validatePost(input: {
 	maxCharacters?: unknown;
 }) {
 	const text = String(input.text || '');
-	// Five validators run over this: an unbounded body is free CPU for any read-only key.
+	// Four validators run over this: an unbounded body is free CPU for any read-only key.
 	if (text.length > MAX_VALIDATE_LENGTH)
 		invalid(`text must be ${MAX_VALIDATE_LENGTH} characters or fewer`, 413);
 	const platform = input.platform as PlatformId | undefined;
 	const maxCharacters = input.maxCharacters as number | undefined;
-	const bluesky = validateBlueskyText(text),
-		linkedin = validateLinkedinText(text),
+	const linkedin = validateLinkedinText(text),
 		threads = validateThreadsText(text),
 		instagram = validateInstagramText(text),
 		x = validateXText(text);
@@ -116,7 +114,6 @@ export function validatePost(input: {
 			: [];
 	return {
 		graphemes: countGraphemes(text),
-		bluesky,
 		linkedin,
 		threads,
 		instagram,

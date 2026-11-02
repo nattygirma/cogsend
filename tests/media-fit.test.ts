@@ -80,14 +80,14 @@ describe('fitByPlatform', () => {
 	it('says nothing when every platform takes the video', () => {
 		expect(
 			fitByPlatform(
-				[{ platform: 'bluesky' }, { platform: 'threads' }, { platform: 'linkedin' }],
+				[{ platform: 'facebook' }, { platform: 'threads' }, { platform: 'linkedin' }],
 				phone
 			)
 		).toEqual([]);
 	});
 
 	it('names only the platform that refuses it, with the reason', () => {
-		expect(fitByPlatform([{ platform: 'x' }, { platform: 'bluesky' }], phone)).toEqual([
+		expect(fitByPlatform([{ platform: 'x' }, { platform: 'threads' }], phone)).toEqual([
 			{
 				platform: 'x',
 				level: 'error',
@@ -109,17 +109,17 @@ describe('fitByPlatform', () => {
 
 describe('imageOverCap', () => {
 	it('says which platform an image is too large for, plainly and in the publish message', () => {
-		const media = [{ mime: 'image/jpeg', size: 3_000_000 }];
-		expect(imageOverCap('bluesky', media)).toBe("An image is over Bluesky's 2MB limit");
+		const media = [{ mime: 'image/jpeg', size: 6_000_000 }];
+		expect(imageOverCap('x', media)).toBe("An image is over X's 5MB limit");
 		expect(imageOverCap('mastodon', media)).toBeNull();
-		expect(mediaSizeProblem(['mastodon', 'bluesky'], media)).toBe(
-			"An image is over Bluesky's 2MB limit — remove it or uncheck Bluesky"
+		expect(mediaSizeProblem(['mastodon', 'x'], media)).toBe(
+			"An image is over X's 5MB limit — remove it or uncheck X"
 		);
 	});
 });
 
 describe('publish outcome', () => {
-	const nameOf = (id: string) => ({ a: 'Bluesky · a', b: 'Threads · b' })[id] ?? id;
+	const nameOf = (id: string) => ({ a: 'LinkedIn · a', b: 'Threads · b' })[id] ?? id;
 	const out = (connectionId: string, row: Parameters<typeof outcomeOfRow>[1]) =>
 		outcomeOfRow(connectionId, row);
 
@@ -144,14 +144,14 @@ describe('publish outcome', () => {
 
 	it('reports each account as it lands while others are still sending', () => {
 		const names = (id: string) =>
-			({ a: 'Bluesky · a', b: 'Threads · b', c: 'Mastodon · c' })[id] ?? id;
+			({ a: 'LinkedIn · a', b: 'Threads · b', c: 'Mastodon · c' })[id] ?? id;
 		expect(summarizeProgress([], ['a'], names)).toBeNull();
 		// The last one in is the final summary's job.
 		expect(summarizeProgress([out('a', { status: 'published' })], [], names)).toBeNull();
 
 		const quick = summarizeProgress([out('a', { status: 'published' })], ['b', 'c'], names);
 		expect(quick).toMatchObject({
-			message: 'Published to Bluesky · a · still sending to Threads · b, Mastodon · c',
+			message: 'Published to LinkedIn · a · still sending to Threads · b, Mastodon · c',
 			tone: 'success',
 			action: { label: 'View posts', href: '/posts' }
 		});
@@ -165,7 +165,7 @@ describe('publish outcome', () => {
 			names
 		);
 		expect(mixed?.message).toBe(
-			'Published to Bluesky · a · Mastodon · c processing the video · still sending to Threads · b'
+			'Published to LinkedIn · a · Mastodon · c processing the video · still sending to Threads · b'
 		);
 		expect(mixed?.tone).toBe('success');
 
@@ -174,7 +174,7 @@ describe('publish outcome', () => {
 			['a'],
 			names
 		);
-		expect(failed?.message).toMatch(/^Failed on Threads · b: .+ · still sending to Bluesky · a$/);
+		expect(failed?.message).toMatch(/^Failed on Threads · b: .+ · still sending to LinkedIn · a$/);
 		expect(failed?.tone).toBe('error');
 		expect(failed?.action).toEqual({ label: 'View', href: '/posts?tab=failed' });
 	});
@@ -222,7 +222,7 @@ describe('publish outcome', () => {
 			[out('a', { status: 'failed', error: 'x' }), out('b', { status: 'failed', error: 'y' })],
 			nameOf
 		);
-		expect(both.message).toBe('Failed on Bluesky · a, Threads · b');
+		expect(both.message).toBe('Failed on LinkedIn · a, Threads · b');
 	});
 
 	it('tells processing apart from retrying', () => {

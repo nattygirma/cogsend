@@ -228,7 +228,6 @@ export function callbackUri(id: OAuthPlatformId, appUrl: string): string {
  * order the accounts empty state lists them in.
  */
 const CONNECT_ORDER = [
-	'bluesky',
 	'linkedin',
 	'threads',
 	'instagram',
@@ -238,7 +237,7 @@ const CONNECT_ORDER = [
 	'x'
 ] as const;
 
-/** "Bluesky", "Bluesky or LinkedIn", "Bluesky, LinkedIn, or X". */
+/** "LinkedIn", "LinkedIn or X", "LinkedIn, Threads, or X". */
 export function joinPlatformNames(names: readonly string[]): string {
 	if (names.length <= 1) return names[0] ?? '';
 	if (names.length === 2) return `${names[0]} or ${names[1]}`;

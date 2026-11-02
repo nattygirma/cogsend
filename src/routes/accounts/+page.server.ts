@@ -10,7 +10,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const connected = url.searchParams.get('connected');
 	const importError: string | null =
 		locals.env.appkeep && connected && isAppkeepPlatform(connected)
-			? await importAppkeepConnections(locals.db, locals.env, user.id, connected).then(
+			? await importAppkeepConnections(
+					locals.db,
+					locals.env,
+					locals.bindings,
+					user.id,
+					connected
+				).then(
 					() => null,
 					(err) => {
 						console.error('[accounts] appkeep import failed', err);

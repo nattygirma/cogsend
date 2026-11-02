@@ -38,13 +38,18 @@ function mockFetch(
 	};
 }
 
+/** LinkedIn's answer to a created post: 201, with the post's urn in a header. */
+function linkedinCreated(urn: string): Response {
+	return new Response(null, { status: 201, headers: { 'x-restli-id': urn } });
+}
+
 describe('publishTarget integration', () => {
 	let db: AppDb;
 	let close: () => void;
 	const store = createTestMedia();
 	let userId: string;
 	let draftId: string;
-	let connBsky: string;
+	let connLinkedin: string;
 	let connX: string;
 
 	beforeAll(async () => {
@@ -69,22 +74,17 @@ describe('publishTarget integration', () => {
 			createdAt: now,
 			updatedAt: now
 		});
-		connBsky = newId();
+		connLinkedin = newId();
 		await db.insert(connections).values({
-			id: connBsky,
+			id: connLinkedin,
 			userId,
-			platform: 'bluesky',
-			handle: 'test.bsky.social',
+			platform: 'linkedin',
+			handle: 'test-linkedin',
 			credentialsEncrypted: await encryptJson(
-				{
-					handle: 'test.bsky.social',
-					appPassword: 'xxxx',
-					did: 'did:plc:test',
-					pdsHost: 'https://bsky.social'
-				},
+				{ accessToken: 'token', personUrn: 'urn:li:person:test' },
 				TEST_ENV.APP_ENCRYPTION_KEY
 			),
-			metaJson: JSON.stringify({ did: 'did:plc:test' }),
+			metaJson: JSON.stringify({ personUrn: 'urn:li:person:test' }),
 			status: 'active',
 			createdAt: now,
 			updatedAt: now
@@ -134,7 +134,7 @@ describe('publishTarget integration', () => {
 		await db.insert(publishTargets).values({
 			id: targetId,
 			draftId: slowDraft,
-			connectionId: connBsky,
+			connectionId: connLinkedin,
 			status: 'pending',
 			attemptCount: 0,
 			createdAt: now,
@@ -147,17 +147,10 @@ describe('publishTarget integration', () => {
 		});
 		let entered = false;
 		const fetchImpl = mockFetch({
-			'com.atproto.server.createSession': () =>
-				Response.json({
-					accessJwt: 'a',
-					refreshJwt: 'r',
-					did: 'did:plc:test',
-					handle: 'test.bsky.social'
-				}),
-			'com.atproto.repo.createRecord': async () => {
+			'/rest/posts': async () => {
 				entered = true;
 				await gate;
-				return Response.json({ uri: 'at://did:plc:test/app.bsky.feed.post/slow', cid: 'cid' });
+				return linkedinCreated('urn:li:share:slow');
 			}
 		});
 
@@ -202,7 +195,7 @@ describe('publishTarget integration', () => {
 		await db.insert(publishTargets).values({
 			id: targetId,
 			draftId: publishedDraft,
-			connectionId: connBsky,
+			connectionId: connLinkedin,
 			status: 'published',
 			remotePostId: null,
 			remoteUrl: null,
@@ -223,7 +216,7 @@ describe('publishTarget integration', () => {
 	});
 
 	it('records a post the provider accepted without an id', async () => {
-		// A 200 whose body has no uri/cid: the post is out, so the row is
+		// A 201 that carries no post id: the post is out, so the row is
 		// published and carries no id rather than being marked failed (which
 		// would post it again on the next attempt).
 		const logged = captureConsole();
@@ -233,7 +226,7 @@ describe('publishTarget integration', () => {
 		await db.insert(publishTargets).values({
 			id: targetId,
 			draftId: idlessDraft,
-			connectionId: connBsky,
+			connectionId: connLinkedin,
 			status: 'pending',
 			attemptCount: 0,
 			createdAt: now,
@@ -241,34 +234,25 @@ describe('publishTarget integration', () => {
 		});
 		const result = await publishTarget(db, TEST_ENV, store, targetId, {
 			fetchImpl: mockFetch({
-				'com.atproto.server.createSession': () =>
-					Response.json({
-						accessJwt: 'a',
-						refreshJwt: 'r',
-						did: 'did:plc:test',
-						handle: 'test.bsky.social'
-					}),
-				'com.atproto.repo.createRecord': () => Response.json({})
+				'/rest/posts': () => new Response(null, { status: 201 })
 			})
 		});
 		expect(result.status).toBe('published');
 		expect(result.remotePostId).toBeUndefined();
 		// Recorded, and the missing id is logged for the operator.
-		expect(loggedLines(logged).join('\n')).toContain(
-			'[bluesky] createRecord answered without a record uri/cid'
-		);
+		expect(loggedLines(logged).join('\n')).toContain('[linkedin] post accepted without an id');
 		const [row] = await db.select().from(publishTargets).where(eq(publishTargets.id, targetId));
 		expect(row?.status).toBe('published');
 		expect(row?.remotePostId).toBeNull();
 	});
 
-	it('publishes to bluesky with mocked HTTP', async () => {
+	it('publishes to linkedin with mocked HTTP', async () => {
 		const targetId = newId();
 		const now = new Date();
 		await db.insert(publishTargets).values({
 			id: targetId,
 			draftId,
-			connectionId: connBsky,
+			connectionId: connLinkedin,
 			status: 'pending',
 			attemptCount: 0,
 			createdAt: now,
@@ -276,15 +260,7 @@ describe('publishTarget integration', () => {
 		});
 		const result = await publishTarget(db, TEST_ENV, store, targetId, {
 			fetchImpl: mockFetch({
-				'com.atproto.server.createSession': () =>
-					Response.json({
-						accessJwt: 'a',
-						refreshJwt: 'r',
-						did: 'did:plc:test',
-						handle: 'test.bsky.social'
-					}),
-				'com.atproto.repo.createRecord': () =>
-					Response.json({ uri: 'at://did:plc:test/app.bsky.feed.post/testid', cid: 'cid' })
+				'/rest/posts': () => linkedinCreated('urn:li:share:testid')
 			})
 		});
 		expect(result.status).toBe('published');
@@ -301,9 +277,9 @@ describe('publishTarget integration', () => {
 		await db.insert(publishTargets).values({
 			id: targetId,
 			draftId: ownDraft,
-			connectionId: connBsky,
+			connectionId: connLinkedin,
 			status: 'published',
-			remotePostId: 'at://already/posted',
+			remotePostId: 'urn:li:share:already',
 			attemptCount: 0,
 			createdAt: now,
 			updatedAt: now
@@ -316,7 +292,7 @@ describe('publishTarget integration', () => {
 			}
 		});
 		expect(result.skipped).toBe(true);
-		expect(result.remotePostId).toBe('at://already/posted');
+		expect(result.remotePostId).toBe('urn:li:share:already');
 		expect(called).toBe(false);
 	});
 
@@ -371,7 +347,7 @@ describe('publishTarget integration', () => {
 			{
 				id: t1,
 				draftId: ownDraft,
-				connectionId: connBsky,
+				connectionId: connLinkedin,
 				status: 'pending',
 				attemptCount: 0,
 				createdAt: now,
@@ -389,15 +365,7 @@ describe('publishTarget integration', () => {
 		]);
 		const r1 = await publishTarget(db, TEST_ENV, store, t1, {
 			fetchImpl: mockFetch({
-				'com.atproto.server.createSession': () =>
-					Response.json({
-						accessJwt: 'a',
-						refreshJwt: 'r',
-						did: 'did:plc:test',
-						handle: 'test.bsky.social'
-					}),
-				'com.atproto.repo.createRecord': () =>
-					Response.json({ uri: 'at://did:plc:test/app.bsky.feed.post/partial', cid: 'c' })
+				'/rest/posts': () => linkedinCreated('urn:li:share:partial')
 			})
 		});
 		const r2 = await publishTarget(db, TEST_ENV, store, t2, {
@@ -440,7 +408,7 @@ describe('publishTarget integration', () => {
 		await db.insert(publishTargets).values({
 			id: targetId,
 			draftId: ownDraft,
-			connectionId: connBsky,
+			connectionId: connLinkedin,
 			status: 'scheduled',
 			scheduledFor: new Date(now.getTime() + 60 * 60_000),
 			attemptCount: 0,
@@ -470,11 +438,11 @@ describe('publishTarget integration', () => {
 		expect(isRetryableError('Target not found')).toBe(false);
 		expect(isRetryableError('Target cancelled')).toBe(false);
 		expect(isRetryableError('Already scheduled — cancel')).toBe(false);
-		expect(isRetryableError('Bluesky allows max 1MB per image')).toBe(false);
-		expect(isRetryableError('Bluesky allows max 2MB per image')).toBe(false);
+		expect(isRetryableError('X allows max 5MB per image')).toBe(false);
+		expect(isRetryableError('LinkedIn allows max 8MB per image')).toBe(false);
 		expect(isRetryableError('X allows max 15MB per GIF')).toBe(false);
 		expect(isRetryableError('Text exceeds 3000 UTF-8 bytes (3100)')).toBe(false);
-		expect(isRetryableError('Bluesky allows max 16MB per image')).toBe(false);
+		expect(isRetryableError('Threads allows max 8MB per image')).toBe(false);
 	});
 
 	it('claims so two concurrent publishes only post once', async () => {
@@ -484,7 +452,7 @@ describe('publishTarget integration', () => {
 		await db.insert(publishTargets).values({
 			id: targetId,
 			draftId: ownDraft,
-			connectionId: connBsky,
+			connectionId: connLinkedin,
 			status: 'pending',
 			attemptCount: 0,
 			createdAt: now,
@@ -492,17 +460,10 @@ describe('publishTarget integration', () => {
 		});
 		let creates = 0;
 		const fetchImpl = mockFetch({
-			'com.atproto.server.createSession': () =>
-				Response.json({
-					accessJwt: 'a',
-					refreshJwt: 'r',
-					did: 'did:plc:test',
-					handle: 'test.bsky.social'
-				}),
-			'com.atproto.repo.createRecord': async () => {
+			'/rest/posts': async () => {
 				creates += 1;
 				await new Promise((r) => setTimeout(r, 80));
-				return Response.json({ uri: 'at://did:plc:test/app.bsky.feed.post/once', cid: 'cid' });
+				return linkedinCreated('urn:li:share:once');
 			}
 		});
 		const [a, b] = await Promise.all([
@@ -549,7 +510,7 @@ describe('publishTarget integration', () => {
 		await db.insert(publishTargets).values({
 			id: targetId,
 			draftId: ownDraft,
-			connectionId: connBsky,
+			connectionId: connLinkedin,
 			status: 'publishing',
 			attemptCount: 1,
 			createdAt: now,
@@ -558,15 +519,7 @@ describe('publishTarget integration', () => {
 		const result = await publishTarget(db, TEST_ENV, store, targetId, {
 			now,
 			fetchImpl: mockFetch({
-				'com.atproto.server.createSession': () =>
-					Response.json({
-						accessJwt: 'a',
-						refreshJwt: 'r',
-						did: 'did:plc:test',
-						handle: 'test.bsky.social'
-					}),
-				'com.atproto.repo.createRecord': () =>
-					Response.json({ uri: 'at://did:plc:test/app.bsky.feed.post/reclaimed', cid: 'cid' })
+				'/rest/posts': () => linkedinCreated('urn:li:share:reclaimed')
 			})
 		});
 		expect(result.status).toBe('published');
@@ -580,7 +533,7 @@ describe('publishTarget integration', () => {
 		await db.insert(publishTargets).values({
 			id: targetId,
 			draftId: ownDraft,
-			connectionId: connBsky,
+			connectionId: connLinkedin,
 			status: 'pending',
 			attemptCount: 0,
 			createdAt: now,
@@ -593,18 +546,11 @@ describe('publishTarget integration', () => {
 		});
 		let creates = 0;
 		const slowFetch = mockFetch({
-			'com.atproto.server.createSession': () =>
-				Response.json({
-					accessJwt: 'a',
-					refreshJwt: 'r',
-					did: 'did:plc:test',
-					handle: 'test.bsky.social'
-				}),
-			'com.atproto.repo.createRecord': async () => {
+			'/rest/posts': async () => {
 				creates += 1;
 				firstEntered = true;
 				await firstGate;
-				return Response.json({ uri: 'at://did:plc:test/app.bsky.feed.post/late', cid: 'cid' });
+				return linkedinCreated('urn:li:share:late');
 			}
 		});
 		const first = publishTarget(db, TEST_ENV, store, targetId, { now, fetchImpl: slowFetch });
@@ -616,16 +562,9 @@ describe('publishTarget integration', () => {
 		const second = await publishTarget(db, TEST_ENV, store, targetId, {
 			now,
 			fetchImpl: mockFetch({
-				'com.atproto.server.createSession': () =>
-					Response.json({
-						accessJwt: 'a',
-						refreshJwt: 'r',
-						did: 'did:plc:test',
-						handle: 'test.bsky.social'
-					}),
-				'com.atproto.repo.createRecord': () => {
+				'/rest/posts': () => {
 					creates += 1;
-					return Response.json({ uri: 'at://did:plc:test/app.bsky.feed.post/winner', cid: 'cid' });
+					return linkedinCreated('urn:li:share:winner');
 				}
 			})
 		});
@@ -672,32 +611,32 @@ describe('publishTarget integration', () => {
 		it('all cancelled -> draft', async () => {
 			expect(
 				await statusAfter([
-					{ conn: connBsky, status: 'cancelled' },
+					{ conn: connLinkedin, status: 'cancelled' },
 					{ conn: connX, status: 'cancelled' }
 				])
 			).toBe('draft');
 		});
 
 		it('pending or publishing only -> scheduled', async () => {
-			expect(await statusAfter([{ conn: connBsky, status: 'pending' }])).toBe('scheduled');
-			expect(await statusAfter([{ conn: connBsky, status: 'publishing' }])).toBe('scheduled');
+			expect(await statusAfter([{ conn: connLinkedin, status: 'pending' }])).toBe('scheduled');
+			expect(await statusAfter([{ conn: connLinkedin, status: 'publishing' }])).toBe('scheduled');
 		});
 
 		it('all active published -> published', async () => {
-			expect(await statusAfter([{ conn: connBsky, status: 'published' }])).toBe('published');
+			expect(await statusAfter([{ conn: connLinkedin, status: 'published' }])).toBe('published');
 			expect(
 				await statusAfter([
-					{ conn: connBsky, status: 'published' },
+					{ conn: connLinkedin, status: 'published' },
 					{ conn: connX, status: 'cancelled' }
 				])
 			).toBe('published');
 		});
 
 		it('all active failed -> failed', async () => {
-			expect(await statusAfter([{ conn: connBsky, status: 'failed' }])).toBe('failed');
+			expect(await statusAfter([{ conn: connLinkedin, status: 'failed' }])).toBe('failed');
 			expect(
 				await statusAfter([
-					{ conn: connBsky, status: 'failed' },
+					{ conn: connLinkedin, status: 'failed' },
 					{ conn: connX, status: 'cancelled' }
 				])
 			).toBe('failed');
@@ -706,19 +645,19 @@ describe('publishTarget integration', () => {
 		it('mixed published with failed or pending -> partial', async () => {
 			expect(
 				await statusAfter([
-					{ conn: connBsky, status: 'published' },
+					{ conn: connLinkedin, status: 'published' },
 					{ conn: connX, status: 'failed' }
 				])
 			).toBe('partial');
 			expect(
 				await statusAfter([
-					{ conn: connBsky, status: 'published' },
+					{ conn: connLinkedin, status: 'published' },
 					{ conn: connX, status: 'pending' }
 				])
 			).toBe('partial');
 			expect(
 				await statusAfter([
-					{ conn: connBsky, status: 'published' },
+					{ conn: connLinkedin, status: 'published' },
 					{ conn: connX, status: 'publishing' }
 				])
 			).toBe('partial');
@@ -727,7 +666,7 @@ describe('publishTarget integration', () => {
 		it('failed mixed with a queued sibling -> partial', async () => {
 			expect(
 				await statusAfter([
-					{ conn: connBsky, status: 'failed' },
+					{ conn: connLinkedin, status: 'failed' },
 					{ conn: connX, status: 'pending' }
 				])
 			).toBe('partial');
@@ -804,7 +743,7 @@ describe('buildNormalizedPost per-segment media', () => {
 				createdAt: now
 			}
 		]);
-		const post = await buildNormalizedPost(db, draftId, 'bluesky');
+		const post = await buildNormalizedPost(db, draftId, 'threads');
 		expect(post.thread).toBeDefined();
 		expect(post.thread!.length).toBe(3);
 		expect(post.thread![0].text).toBe('first text');
@@ -875,18 +814,13 @@ describe('retry backoff', () => {
 			await db.insert(connections).values({
 				id: cId,
 				userId,
-				platform: 'bluesky',
-				handle: 'test.bsky.social',
+				platform: 'linkedin',
+				handle: 'test-linkedin',
 				credentialsEncrypted: await encryptJson(
-					{
-						handle: 'test.bsky.social',
-						appPassword: 'xxxx',
-						did: 'did:plc:test',
-						pdsHost: 'https://bsky.social'
-					},
+					{ accessToken: 'token', personUrn: 'urn:li:person:test' },
 					TEST_ENV.APP_ENCRYPTION_KEY
 				),
-				metaJson: JSON.stringify({ did: 'did:plc:test' }),
+				metaJson: JSON.stringify({ personUrn: 'urn:li:person:test' }),
 				status: 'active',
 				createdAt: now,
 				updatedAt: now
@@ -902,23 +836,9 @@ describe('retry backoff', () => {
 				createdAt: now,
 				updatedAt: now
 			});
-			const fetchImpl = (async (input: unknown) => {
-				const url =
-					typeof input === 'string'
-						? input
-						: input instanceof URL
-							? input.toString()
-							: (input as Request).url;
-				if (url.includes('createSession')) {
-					return Response.json({
-						accessJwt: 'a',
-						refreshJwt: 'r',
-						did: 'did:plc:test',
-						handle: 'test.bsky.social'
-					});
-				}
-				return new Response('rate limited', { status: 429 });
-			}) as FetchLike;
+			const fetchImpl = mockFetch({
+				'/rest/posts': () => new Response('rate limited', { status: 429 })
+			});
 			const before = Date.now();
 			const result = await publishTarget(db, TEST_ENV, createTestMedia(), targetId, {
 				fetchImpl,

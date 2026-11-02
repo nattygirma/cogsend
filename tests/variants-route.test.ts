@@ -74,9 +74,9 @@ describe('PUT /api/drafts/[id]/variants', () => {
 		)[0];
 
 	it('accepts a custom body', async () => {
-		const res = await put({ platform: 'bluesky', body: 'custom text', options: {} });
+		const res = await put({ platform: 'linkedin', body: 'custom text', options: {} });
 		expect(res.status).toBe(200);
-		expect((await stored('bluesky'))?.body).toBe('custom text');
+		expect((await stored('linkedin'))?.body).toBe('custom text');
 	});
 
 	it('accepts null as "clear the override", keeping the options', async () => {
@@ -121,14 +121,14 @@ describe('PUT /api/drafts/[id]/variants', () => {
 
 	it('rejects malformed options and unknown platforms', async () => {
 		expect(
-			(await put({ platform: 'bluesky', body: 'x', options: { threadSegments: [1] } })).status
+			(await put({ platform: 'linkedin', body: 'x', options: { threadSegments: [1] } })).status
 		).toBe(400);
 		expect((await put({ platform: 'myspace', body: 'x', options: {} })).status).toBe(400);
 	});
 
 	it('leaves the stored body alone when the payload omits it', async () => {
-		const res = await put({ platform: 'bluesky' });
+		const res = await put({ platform: 'linkedin' });
 		expect(res.status).toBe(200);
-		expect((await stored('bluesky'))?.body).toBe('custom text');
+		expect((await stored('linkedin'))?.body).toBe('custom text');
 	});
 });

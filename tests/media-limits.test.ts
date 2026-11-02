@@ -56,8 +56,8 @@ describe('mediaSizeProblem', () => {
 	const png = (size: number) => ({ mime: 'image/png', size });
 
 	it('blocks an image over a selected platform cap', () => {
-		expect(mediaSizeProblem(['bluesky'], [png(2_000_001)])).toBe(
-			"An image is over Bluesky's 2MB limit — remove it or uncheck Bluesky"
+		expect(mediaSizeProblem(['linkedin'], [png(8_000_001)])).toBe(
+			"An image is over LinkedIn's 8MB limit — remove it or uncheck LinkedIn"
 		);
 		expect(mediaSizeProblem(['x'], [png(5_000_001)])).toContain("X's 5MB");
 	});
@@ -72,7 +72,7 @@ describe('mediaSizeProblem', () => {
 	});
 
 	it('leaves video and unknown sizes to the providers', () => {
-		expect(mediaSizeProblem(['bluesky'], [{ mime: 'video/mp4', size: 50_000_000 }])).toBeNull();
-		expect(mediaSizeProblem(['bluesky'], [{ mime: 'image/png' }])).toBeNull();
+		expect(mediaSizeProblem(['x'], [{ mime: 'video/mp4', size: 50_000_000 }])).toBeNull();
+		expect(mediaSizeProblem(['x'], [{ mime: 'image/png' }])).toBeNull();
 	});
 });

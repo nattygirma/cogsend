@@ -234,7 +234,7 @@ describe('failure categorisation', () => {
 		expect(categorizeFailure('threads', 'Threads container failed (400) missing permissions')).toBe(
 			'Threads permission'
 		);
-		expect(categorizeFailure('bluesky', 'HTTP 429 rate limited')).toBe('Bluesky rate limit');
+		expect(categorizeFailure('facebook', 'HTTP 429 rate limited')).toBe('Facebook rate limit');
 		expect(
 			categorizeFailure('linkedin', 'LinkedIn does not support threads — keep it to a single post')
 		).toBe('LinkedIn threads unsupported');
@@ -244,8 +244,6 @@ describe('failure categorisation', () => {
 	});
 
 	it('labels the real setup failures the app stores', () => {
-		// Bluesky rejects a PDS by validation before any request is made.
-		expect(categorizeFailure('bluesky', 'PDS host not allowed')).toBe('Bluesky host not allowed');
 		// An incomplete credential row is a reconnect, not a mystery.
 		expect(
 			categorizeFailure('linkedin', 'LinkedIn credentials require personUrn (reconnect account)')
@@ -258,14 +256,14 @@ describe('failure categorisation', () => {
 				connectionId: 'c1',
 				status: 'failed',
 				updatedAtMs: NOW,
-				platform: 'bluesky',
+				platform: 'facebook',
 				errorMessage: 'HTTP 429 rate limited'
 			},
 			{
 				connectionId: 'c1',
 				status: 'failed',
 				updatedAtMs: NOW,
-				platform: 'bluesky',
+				platform: 'facebook',
 				errorMessage: 'HTTP 429 rate limited'
 			},
 			{
@@ -291,7 +289,7 @@ describe('failure categorisation', () => {
 			}
 		];
 		expect(groupFailureReasons(rows)).toEqual([
-			{ label: 'Bluesky rate limit', count: 2 },
+			{ label: 'Facebook rate limit', count: 2 },
 			{ label: 'LinkedIn rate limit', count: 1 },
 			{ label: 'X auth expired', count: 1 }
 		]);
@@ -375,8 +373,8 @@ describe('GET /api/insights', () => {
 			{
 				id: 'c1',
 				userId: 'u1',
-				platform: 'bluesky',
-				handle: 'alpha.bsky.social',
+				platform: 'facebook',
+				handle: 'alpha',
 				displayName: 'Alpha',
 				credentialsEncrypted: 'x',
 				status: 'active',
@@ -415,7 +413,7 @@ describe('GET /api/insights', () => {
 			{
 				id: 'c9',
 				userId: 'u2',
-				platform: 'bluesky',
+				platform: 'facebook',
 				handle: 'other',
 				displayName: 'Other',
 				credentialsEncrypted: 'x',
@@ -470,7 +468,7 @@ describe('GET /api/insights', () => {
 		expect(sum(body.series.previous)).toEqual({ p: 2, f: 1 });
 
 		expect(body.failures).toEqual([
-			{ label: 'Bluesky rate limit', count: 1 },
+			{ label: 'Facebook rate limit', count: 1 },
 			{ label: 'LinkedIn rate limit', count: 1 }
 		]);
 
@@ -482,8 +480,8 @@ describe('GET /api/insights', () => {
 		const c1 = body.accounts[0];
 		expect(c1).toMatchObject({
 			connectionId: 'c1',
-			platform: 'bluesky',
-			handle: 'alpha.bsky.social',
+			platform: 'facebook',
+			handle: 'alpha',
 			connected: true,
 			published: 3,
 			failed: 1,

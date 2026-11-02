@@ -307,11 +307,6 @@ export function publishCallEstimate(platform: string, content: NormalizedPost): 
 			}
 			platformCalls += segments.length;
 			break;
-		case 'bluesky':
-			platformCalls += images.length + segments.length;
-			// A link card: page fetch (and a redirect), image fetch, blob upload.
-			platformCalls += segments.filter((s) => !(s.media ?? []).length && hasLink(s)).length * 4;
-			break;
 		case 'linkedin':
 			platformCalls += images.length * 2 + 1;
 			if (!media.length && hasLink(content)) platformCalls += 5;

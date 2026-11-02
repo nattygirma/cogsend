@@ -4,6 +4,7 @@ import { OAUTH_PENDING_TTL_MS } from '#lib/domain/oauth-pending.js';
 import { encryptSecret } from '#lib/server/crypto.js';
 import { oauthPending } from '#lib/server/db/schema.js';
 import { handleError, ok } from '#lib/server/http.js';
+import { appkeepConnectUrl } from '#lib/server/appkeep-connections.js';
 import { resolvePlatformCredentials } from '#lib/server/platform-credentials.js';
 import { platformNotConfigured } from '#lib/server/platform-setup.js';
 import { threadsAuthorizeUrl } from '#lib/server/providers/index.js';
@@ -14,6 +15,9 @@ import { requireSession } from '#lib/server/require.js';
 export const POST: RequestHandler = async ({ locals, cookies }) => {
 	try {
 		const user = requireSession(locals.user, locals.authMethod);
+		// On appkeep, appkeep's own Threads app runs the login and keeps the token.
+		if (locals.env.appkeep)
+			return ok({ authorizeUrl: appkeepConnectUrl(locals.bindings, 'threads') });
 		const credentials = await resolvePlatformCredentials(locals.db, locals.env, 'threads');
 		const appId = credentials?.values.THREADS_APP_ID;
 		const appSecret = credentials?.values.THREADS_APP_SECRET;

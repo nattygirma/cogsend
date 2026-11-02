@@ -1,9 +1,6 @@
 export const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 export const MAX_IMAGE_BYTES = 16_000_000;
-// app.bsky.embed.images raised the blob cap from 1MB to 2MB. The link-card
-// thumb (app.bsky.embed.external) is still 1MB, so it keeps its own limit.
-export const BLUESKY_MAX_IMAGE_BYTES = 2_000_000;
 export const LINKEDIN_MAX_IMAGE_BYTES = 8_000_000;
 // LinkedIn combines a flattened thread into one post, so this is a per-post
 // cap. The provider imports this, so the two cannot drift.
@@ -131,7 +128,6 @@ export function validateImageUpload(input: {
 }
 
 const PLATFORM_LABEL = {
-	bluesky: 'Bluesky',
 	linkedin: 'LinkedIn',
 	threads: 'Threads',
 	instagram: 'Instagram',
@@ -140,7 +136,6 @@ const PLATFORM_LABEL = {
 };
 
 function imageCap(platform: string, mime: string): number | null {
-	if (platform === 'bluesky') return BLUESKY_MAX_IMAGE_BYTES;
 	if (platform === 'linkedin') return LINKEDIN_MAX_IMAGE_BYTES;
 	if (platform === 'threads') return THREADS_MAX_IMAGE_BYTES;
 	// Anything else goes to Instagram as its JPEG copy, capped when it is made.

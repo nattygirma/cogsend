@@ -9,7 +9,7 @@ import {
 	publishTarget,
 	VIDEO_PROCESSING_DEADLINE_MS
 } from '#lib/server/publish.js';
-import { blueskyProvider } from '#lib/server/providers/bluesky.js';
+import { xProvider } from '#lib/server/providers/x.js';
 import { retryDelivery } from '#lib/server/api/operations.js';
 import { SubrequestBudget } from '#lib/server/budget.js';
 import { consumePublishJob } from '#lib/server/scheduler.js';
@@ -51,21 +51,21 @@ describe('a video the platform is still processing', () => {
 		await db.insert(connections).values({
 			id: connId,
 			userId,
-			platform: 'bluesky',
-			handle: 'me.bsky.social',
+			platform: 'x',
+			handle: 'me',
 			credentialsEncrypted: await encryptJson(
-				{ handle: 'me.bsky.social', appPassword: 'app-pass' },
+				{ accessToken: 'tok', xUserId: '1', xUsername: 'me' },
 				TEST_ENV.APP_ENCRYPTION_KEY
 			),
-			metaJson: '{}',
+			metaJson: JSON.stringify({ xUserId: '1' }),
 			status: 'active',
 			createdAt: now,
 			updatedAt: now
 		});
-		vi.spyOn(blueskyProvider, 'validate').mockReturnValue([]);
-		// The session refresh is Bluesky's own network call; these tests are about parking.
-		vi.spyOn(blueskyProvider, 'refreshIfNeeded').mockImplementation(async (creds) => creds);
-		vi.spyOn(blueskyProvider, 'publish').mockImplementation(
+		vi.spyOn(xProvider, 'validate').mockReturnValue([]);
+		// The token refresh is X's own network call; these tests are about parking.
+		vi.spyOn(xProvider, 'refreshIfNeeded').mockImplementation(async (creds) => creds);
+		vi.spyOn(xProvider, 'publish').mockImplementation(
 			async (content, _creds, _meta, _fetch, opts) => {
 				seen.push(opts?.resume);
 				const step = steps.shift();
@@ -129,7 +129,7 @@ describe('a video the platform is still processing', () => {
 	const park =
 		(storageKey: string, state: Record<string, unknown>, segment = 0): Step =>
 		() => {
-			throw processingError('Bluesky', { segment, storageKey, state });
+			throw processingError('X', { segment, storageKey, state });
 		};
 	const done: Step = () => ({ remotePostId: 'p1', remoteUrl: 'https://example.social/@me/1' });
 
@@ -170,7 +170,7 @@ describe('a video the platform is still processing', () => {
 
 		// All five attempts are still there once the video is ready.
 		const flaky: Step = () => {
-			throw new Error('Bluesky returned 503');
+			throw new Error('X returned 503');
 		};
 		for (let i = 0; i < 4; i++) {
 			steps = [flaky];
@@ -211,7 +211,7 @@ describe('a video the platform is still processing', () => {
 		await run(targetId, t0);
 		const late = await run(targetId, t0 + VIDEO_PROCESSING_DEADLINE_MS + 60_000);
 		expect(late.status).toBe('failed');
-		expect(late.error).toBe('Bluesky took too long to process the video — Retry starts it again');
+		expect(late.error).toBe('X took too long to process the video — Retry starts it again');
 		expect(isRetryableError(late.error!)).toBe(false);
 
 		steps = [done];
@@ -243,7 +243,7 @@ describe('a video the platform is still processing', () => {
 		steps = [
 			park(storageKey, { mediaId: 'm1' }),
 			() => {
-				throw new Error('Bluesky takes videos up to 99 MB — this one is 120 MB');
+				throw new Error('X takes videos up to 99 MB — this one is 120 MB');
 			},
 			done
 		];
@@ -277,9 +277,9 @@ describe('a video the platform is still processing', () => {
 		steps = [
 			async (_content, opts) => {
 				await opts.checkpoint?.({ segmentIds: ['s0'] });
-				throw new PublishPartialError(`Bluesky ${PROCESSING_MARK}`, {
+				throw new PublishPartialError(`X ${PROCESSING_MARK}`, {
 					segmentIds: ['s0'],
-					cause: processingError('Bluesky', { segment: 1, storageKey, state: { mediaId: 'm2' } })
+					cause: processingError('X', { segment: 1, storageKey, state: { mediaId: 'm2' } })
 				});
 			},
 			done

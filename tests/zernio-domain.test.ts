@@ -7,18 +7,20 @@ import {
 } from '#lib/domain/zernio.js';
 
 describe('zernio platform mapping', () => {
-	it('maps the five supported platforms both ways and refuses the rest', () => {
+	it('maps the four supported platforms both ways and refuses the rest', () => {
 		expect(toZernioPlatform('x')).toBe('twitter');
 		expect(toZernioPlatform('threads')).toBe('threads');
 		expect(toZernioPlatform('instagram')).toBe('instagram');
 		expect(toZernioPlatform('linkedin')).toBe('linkedin');
-		expect(toZernioPlatform('bluesky')).toBe('bluesky');
+		expect(toZernioPlatform('bluesky')).toBeNull();
 		expect(toZernioPlatform('mastodon')).toBeNull();
 		expect(fromZernioPlatform('twitter')).toBe('x');
-		expect(fromZernioPlatform('bluesky')).toBe('bluesky');
+		expect(fromZernioPlatform('threads')).toBe('threads');
+		expect(fromZernioPlatform('linkedin')).toBe('linkedin');
 		expect(fromZernioPlatform('instagram')).toBe('instagram');
 		// Zernio also does TikTok, Facebook, …: PostEasy has no editor for them.
 		expect(fromZernioPlatform('tiktok')).toBeNull();
+		expect(fromZernioPlatform('bluesky')).toBeNull();
 	});
 
 	it('reads the provider marker from a JSON string or a parsed object', () => {

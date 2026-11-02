@@ -35,6 +35,8 @@ function platformFrom(param: string | undefined): OAuthPlatformId | null {
 
 export const PUT: RequestHandler = async ({ locals, params, request }) => {
 	try {
+		// On appkeep the platform holds every app's keys; nothing is entered here.
+		if (locals.env.appkeep) return fail('Not found', 404);
 		await requireOwner(locals.db, requireSession(locals.user, locals.authMethod));
 		const id = platformFrom(params.platform);
 		if (!id) return fail('Unknown platform', 404);
@@ -57,6 +59,8 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	try {
+		// On appkeep the platform holds every app's keys; nothing is entered here.
+		if (locals.env.appkeep) return fail('Not found', 404);
 		await requireOwner(locals.db, requireSession(locals.user, locals.authMethod));
 		const id = platformFrom(params.platform);
 		if (!id) return fail('Unknown platform', 404);

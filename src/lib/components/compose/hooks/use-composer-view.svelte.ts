@@ -105,8 +105,7 @@ export function useComposerView(ed: Composer): void {
 					platform,
 					max: ed.platformMax(platform as PlatformId, ed.accountsFor(platform as PlatformId))
 				})),
-			threadsLinks: ed.threadsLinkCount,
-			blueskyBytesOver: ed.blueskyBytesOver
+			threadsLinks: ed.threadsLinkCount
 		})
 	);
 

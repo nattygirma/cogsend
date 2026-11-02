@@ -1,11 +1,10 @@
 import { showToast } from '#lib/components/toast.svelte.js';
 import { shrinkToFit, makePreview, makeJpegCopy } from '#lib/components/shrink-image.js';
 import {
-	BLUESKY_MAX_IMAGE_BYTES,
+	X_MAX_IMAGE_BYTES,
 	LINKEDIN_MAX_IMAGE_BYTES,
 	THREADS_MAX_IMAGE_BYTES,
 	X_MAX_GIF_BYTES,
-	X_MAX_IMAGE_BYTES,
 	MAX_VIDEO_BYTES,
 	imageOverCap
 } from '#lib/domain/media-limits.js';
@@ -67,14 +66,11 @@ export function useMediaUpload(ed: Composer): void {
 			showToast('Videos cannot mix with images on the same post', 'warn');
 			return;
 		}
-		// Shrink to Bluesky's cap, the strictest one, whatever is selected now:
+		// Shrink to X's cap, the strictest one, whatever is selected now:
 		// the file is stored once and may be published anywhere later.
 		ed.uploadingSegment = segmentIndex;
 		const images: File[] = [];
-		for (const f of picked) images.push(await shrinkToFit(f, BLUESKY_MAX_IMAGE_BYTES));
-		const blueskySelected = ed.connections.some(
-			(c) => ed.selected.has(c.id) && c.platform === 'bluesky'
-		);
+		for (const f of picked) images.push(await shrinkToFit(f, X_MAX_IMAGE_BYTES));
 		const linkedinSelected = ed.connections.some(
 			(c) => ed.selected.has(c.id) && c.platform === 'linkedin'
 		);
@@ -83,14 +79,8 @@ export function useMediaUpload(ed: Composer): void {
 		);
 		const xSelected = ed.connections.some((c) => ed.selected.has(c.id) && c.platform === 'x');
 		const webpSelected = images.some((f) => f.type === 'image/webp') && linkedinSelected;
-		const overBluesky = images.filter((f) => f.size > BLUESKY_MAX_IMAGE_BYTES);
 		const overLinkedin = images.filter((f) => f.size > LINKEDIN_MAX_IMAGE_BYTES);
 		const advisories: string[] = [];
-		if (overBluesky.length && blueskySelected) {
-			advisories.push(
-				`${overBluesky[0].name} is over Bluesky's 2MB image cap. Use a smaller image or uncheck Bluesky.`
-			);
-		}
 		if (overLinkedin.length && linkedinSelected) {
 			advisories.push(`${overLinkedin[0].name} is over LinkedIn's 8MB image cap.`);
 		}

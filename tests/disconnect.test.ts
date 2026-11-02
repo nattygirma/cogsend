@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import * as schema from '#lib/server/db/schema.js';
 import {
 	connections,
@@ -15,11 +15,11 @@ import {
 } from '#lib/server/db/schema.js';
 import { newId, type AppDb } from '#lib/server/db/client.js';
 import { DELETE as disconnectDELETE } from '../src/routes/api/connections/[id]/+server';
-import { POST as blueskyPOST } from '../src/routes/api/connections/bluesky/+server';
 import { GET as connectionsGET } from '../src/routes/api/connections/+server';
 import { POST as verifyPOST } from '../src/routes/api/connections/[id]/verify/+server';
 import { GET as queueGET } from '../src/routes/api/queue/+server';
 import { claimDueTargets, purgeDisconnectedConnections } from '#lib/server/scheduler.js';
+import { upsertConnection } from '#lib/server/oauth-callback.js';
 import { TEST_ENV, createTestDb } from '#lib/server/db/test.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -200,7 +200,7 @@ describe('DELETE /api/connections/[id] — archive, not destroy', () => {
 
 	it('recomputes a mixed draft without touching sibling accounts', async () => {
 		const connA = await addConnection(userId);
-		const connB = await addConnection(userId, { platform: 'bluesky' });
+		const connB = await addConnection(userId, { platform: 'linkedin' });
 		const draft = await addDraft(userId, 'partial');
 		const pubOnA = await addTarget(draft, connA, {
 			status: 'published',
@@ -311,52 +311,35 @@ describe('DELETE /api/connections/[id] — archive, not destroy', () => {
 	});
 
 	it('reconnects into the same tombstone row so the archive stays attached', async () => {
-		const handle = 'archive-test.bsky.social';
+		const handle = 'archive-test';
 		const conn = await addConnection(userId, {
-			platform: 'bluesky',
+			platform: 'linkedin',
 			handle,
 			status: 'disconnected',
 			credentialsEncrypted: ''
 		});
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async (input: unknown) => {
-				const url = String(input);
-				if (url.includes('com.atproto.server.createSession')) {
-					return Response.json({
-						accessJwt: 'a',
-						refreshJwt: 'r',
-						did: 'did:plc:archive',
-						handle
-					});
-				}
-				if (url.includes('app.bsky.actor.getProfile')) {
-					return Response.json({ handle, displayName: 'Archive Test' });
-				}
-				return new Response('unmocked', { status: 404 });
-			})
-		);
-		const res = (await blueskyPOST({
-			request: new Request('http://localhost/api/connections/bluesky', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ handle, appPassword: 'xxxx-xxxx-xxxx-xxxx' })
-			}),
-			locals: {
-				db,
-				user: sessionUser(userId).user,
-				authMethod: 'session',
-				env: TEST_ENV
+		// The upsert every connect flow ends in: it revives the stored row
+		// rather than adding a second one.
+		await upsertConnection(
+			db,
+			TEST_ENV,
+			userId,
+			{ platform: 'linkedin' },
+			{
+				credentials: { accessToken: 'a', personUrn: 'urn:li:person:archive' },
+				handle,
+				displayName: 'Archive Test',
+				meta: {}
 			}
-		} as never)) as Response;
-		expect(res.status).toBe(200);
-		const body = (await res.json()) as { connection: { id: string; status: string } };
-		expect(body.connection.id).toBe(conn);
+		);
 
-		const [row] = await db.select().from(connections).where(eq(connections.id, conn));
-		expect(row.status).toBe('active');
-		expect(row.credentialsEncrypted).not.toBe('');
-		vi.unstubAllGlobals();
+		const rows = await db
+			.select()
+			.from(connections)
+			.where(and(eq(connections.userId, userId), eq(connections.handle, handle)));
+		expect(rows.map((r) => r.id)).toEqual([conn]);
+		expect(rows[0].status).toBe('active');
+		expect(rows[0].credentialsEncrypted).not.toBe('');
 	});
 
 	it('purges tombstones without targets and keeps archived ones', async () => {
@@ -465,7 +448,7 @@ describe('DELETE /api/connections/[id] — archive, not destroy', () => {
 
 	it('refreshes many stranded drafts within the D1 statement budget', async () => {
 		const conn = await addConnection(userId);
-		const otherConn = await addConnection(userId, { platform: 'bluesky' });
+		const otherConn = await addConnection(userId, { platform: 'linkedin' });
 		const stranded: string[] = [];
 		// 95 drafts crosses the 90-id chunk boundary, proving the sweep
 		// chunks without one query per draft.

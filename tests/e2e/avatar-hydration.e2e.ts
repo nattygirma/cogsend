@@ -28,7 +28,7 @@ test('a cached account avatar shows when the app hydrates late', async ({ page }
 	const now = Date.now();
 	const avatarUrl = `${new URL(page.url()).origin}/apple-touch-icon.png`;
 	d1(
-		`INSERT INTO connections (id, user_id, platform, handle, avatar_url, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${connId}', '${me.user.id}', 'bluesky', 'avatar-e2e.bsky.social', '${avatarUrl}', 'enc', '{}', 'active', ${now}, ${now})`
+		`INSERT INTO connections (id, user_id, platform, handle, avatar_url, credentials_encrypted, meta_json, status, created_at, updated_at) VALUES ('${connId}', '${me.user.id}', 'linkedin', 'avatar-e2e', '${avatarUrl}', 'enc', '{}', 'active', ${now}, ${now})`
 	);
 	try {
 		const avatar = page.locator('img[src$="/apple-touch-icon.png"]').first();

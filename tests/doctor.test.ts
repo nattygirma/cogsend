@@ -42,7 +42,7 @@ const ids = (checks: { id: string }[]) => checks.map((c) => c.id);
 
 /**
  * The platforms that need an app registered at the provider are optional:
- * a deployment without them still connects Bluesky. So the line
+ * a deployment without them is still complete. So the line
  * says what is possible, and must never look like a warning — a fresh install
  * runs doctor on a clean checkout, where a yellow line would read as a defect.
  */
@@ -51,7 +51,7 @@ describe('platform credentials', () => {
 		const check = platformVerdict(['APP_ENCRYPTION_KEY']);
 		expect(check.status).toBe('ok');
 		expect(check.label).toBe('LinkedIn, Threads, Instagram, X: no app credentials (optional)');
-		expect(check.detail).toBe('Bluesky can be connected');
+		expect(check.detail).toBe('Add an app to connect a platform');
 		expect(check.fix).toMatch(/oauth-apps\.md/);
 	});
 
