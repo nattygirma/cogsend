@@ -9,6 +9,7 @@
 	type CreatorInfo = {
 		nickname?: string;
 		username?: string;
+		avatarUrl?: string | null;
 		privacyLevels: string[];
 		commentDisabled?: boolean;
 		duetDisabled?: boolean;
@@ -102,8 +103,17 @@
 			<p class="text-stone-500">Checking with TikTok…</p>
 		{/if}
 		{#each infos as info, i (i)}
-			<p class="text-stone-800" data-testid="tiktok-creator">
-				Posting as <strong>{info.nickname || info.username}</strong>
+			<p class="flex items-center gap-2 text-stone-800" data-testid="tiktok-creator">
+				{#if info.avatarUrl}
+					<img
+						src={info.avatarUrl}
+						alt=""
+						class="size-6 rounded-full"
+						referrerpolicy="no-referrer"
+						onerror={(e) => ((e.currentTarget as HTMLImageElement).hidden = true)}
+					/>
+				{/if}
+				<span>Posting as <strong>{info.nickname || info.username}</strong></span>
 			</p>
 		{/each}
 		{#each failures as failure, i (i)}
