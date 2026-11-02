@@ -2,7 +2,7 @@
 	"schema": 1,
 	"slug": "posteasy",
 	"name": "PostEasy",
-	"version": "1.25.0",
+	"version": "1.26.0",
 	"tagline": "Write once, schedule everywhere: X, Instagram, Facebook, YouTube, TikTok, LinkedIn and Threads",
 	"description": "A social media scheduler. Connect your accounts, write a post once, tailor it per platform, and publish now or on a schedule. Includes a calendar, drafts, video uploads, and an MCP server so AI agents can draft and schedule for you.",
 	"category": "marketing",
