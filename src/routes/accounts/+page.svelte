@@ -738,7 +738,7 @@
 						type="button"
 						class="btn btn-primary btn-sm"
 						data-testid="connect-card-{platform.id}"
-						aria-label={`Add a ${platform.name} account`}
+						aria-label={`Add ${/^[AEIOU]/i.test(platform.name) ? 'an' : 'a'} ${platform.name} account`}
 						onclick={() => connectFromCard(platform.id)}
 						disabled={loading}
 					>

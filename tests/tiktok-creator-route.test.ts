@@ -147,6 +147,31 @@ describe('GET /api/connections/[id]/tiktok-creator', () => {
 		expect(calls).toEqual([]);
 	});
 
+	it('asks through appkeep for an account appkeep holds, without refreshing here', async () => {
+		const id = await addConnection({
+			credentialsEncrypted: await encryptJson(
+				{ accessToken: 'appkeep-connection', tiktokOpenId: 'open-1' },
+				TEST_ENV.APP_ENCRYPTION_KEY
+			),
+			metaJson: JSON.stringify({ tiktokOpenId: 'open-1', appkeepConnectionId: 'con_tt' })
+		});
+		const seen: Array<{ url: string; headers: Headers }> = [];
+		vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+			seen.push({ url: String(input), headers: new Headers(init?.headers) });
+			return Response.json({
+				data: { privacy_level_options: ['SELF_ONLY'] },
+				error: { code: 'ok' }
+			});
+		});
+		const res = await get(id);
+		expect(res.status).toBe(200);
+		expect(seen).toHaveLength(1);
+		expect(seen[0].url).toContain('/creator_info/');
+		expect(seen[0].headers.get('x-altstack-connection')).toBe('con_tt');
+		expect(seen[0].headers.get('authorization')).toBeNull();
+		expect((await row(id)).status).toBe('active');
+	});
+
 	it('marks the account expired when TikTok refuses the refresh', async () => {
 		const id = await addConnection();
 		stubTikTok(() => Response.json({ error: 'invalid_grant', error_description: 'expired' }));

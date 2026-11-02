@@ -5,6 +5,7 @@ import { first } from '#lib/server/db/client.js';
 import { connections } from '#lib/server/db/schema.js';
 import { fail, handleError, ok } from '#lib/server/http.js';
 import { ProviderError, type ConnectionCredentials } from '#lib/server/providers/types.js';
+import { APPKEEP_TOKEN, appkeepConnectionId, appkeepFetch } from '#lib/server/providers/appkeep.js';
 import { tiktokCreatorInfo, tiktokProvider } from '#lib/server/providers/tiktok.js';
 import { requireSession } from '#lib/server/require.js';
 
@@ -41,6 +42,12 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			conn.credentialsEncrypted,
 			locals.env.APP_ENCRYPTION_KEY
 		);
+		// Appkeep holds this account's token and keeps it fresh.
+		const appkeepId = appkeepConnectionId(conn.metaJson);
+		if (appkeepId)
+			return ok(
+				await tiktokCreatorInfo({ ...creds, accessToken: APPKEEP_TOKEN }, appkeepFetch(appkeepId))
+			);
 		const fresh = await tiktokProvider.refreshIfNeeded!(creds);
 		if (fresh.accessToken !== creds.accessToken || fresh.refreshToken !== creds.refreshToken) {
 			await locals.db
