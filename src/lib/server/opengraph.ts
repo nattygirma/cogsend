@@ -32,7 +32,7 @@ export const OG_IMAGE_MAX_BYTES = 5_000_000;
 const OG_FETCH_TIMEOUT_MS = 10_000;
 const OG_MAX_REDIRECTS = 3;
 
-function assertPublicHttpUrl(raw: string): URL {
+export function assertPublicHttpUrl(raw: string): URL {
 	let u: URL;
 	try {
 		u = new URL(raw);

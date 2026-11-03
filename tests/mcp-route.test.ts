@@ -27,7 +27,8 @@ const toolNames = [
 	'list_queue',
 	'cancel_delivery',
 	'retry_delivery',
-	'reschedule_delivery'
+	'reschedule_delivery',
+	'post_video'
 ];
 
 const readAnnotations = {
@@ -196,7 +197,7 @@ async function postMcp(
 }
 
 describe('MCP route', () => {
-	it('exposes exactly the curated 16-tool catalog and the required annotations', async () => {
+	it('exposes exactly the curated 17-tool catalog and the required annotations', async () => {
 		const { response, payload } = await postMcp('tools/list');
 		expect(response.headers.get('content-type')).toContain('application/json');
 		expect(response.headers.get('content-type')).not.toContain('text/event-stream');
@@ -233,7 +234,11 @@ describe('MCP route', () => {
 			list_queue: { fields: ['limit'], required: [] },
 			cancel_delivery: { fields: ['targetId'], required: ['targetId'] },
 			retry_delivery: { fields: ['targetId'], required: ['targetId'] },
-			reschedule_delivery: { fields: ['targetId', 'runAt'], required: ['targetId', 'runAt'] }
+			reschedule_delivery: { fields: ['targetId', 'runAt'], required: ['targetId', 'runAt'] },
+			post_video: {
+				fields: ['videoUrl', 'text', 'title', 'connectionIds', 'runAt', 'youtube', 'tiktok'],
+				required: ['videoUrl', 'connectionIds']
+			}
 		};
 		for (const tool of tools) {
 			const expected = expectedParameters[tool.name];
@@ -259,7 +264,8 @@ describe('MCP route', () => {
 			list_queue: readAnnotations,
 			cancel_delivery: deleteAnnotations,
 			retry_delivery: publishAnnotations,
-			reschedule_delivery: updateAnnotations
+			reschedule_delivery: updateAnnotations,
+			post_video: publishAnnotations
 		};
 		for (const tool of tools) expect(tool.annotations).toEqual(expectedAnnotations[tool.name]);
 

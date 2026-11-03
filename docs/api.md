@@ -48,12 +48,25 @@ For Claude Code, add this to `.mcp.json` and set `POSTEASY_API_KEY` in your envi
 
 **Settings → API access** shows this with your own URL, plus the Codex version.
 
-| Tools                                                                                                                                                                                                         | Key needed   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| `list_connections`, `list_drafts`, `get_draft`, `list_queue`, `validate_post`                                                                                                                                 | Read-only    |
-| `create_draft`, `update_draft`, `duplicate_draft`, `delete_draft`, `set_draft_variant`, `delete_draft_variant`, `schedule_draft`, `reschedule_delivery`, `cancel_delivery`, `publish_draft`, `retry_delivery` | Read + write |
+| Tools                                                                                                                                                                                                                       | Key needed   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `list_connections`, `list_drafts`, `get_draft`, `list_queue`, `validate_post`                                                                                                                                               | Read-only    |
+| `create_draft`, `update_draft`, `duplicate_draft`, `delete_draft`, `set_draft_variant`, `delete_draft_variant`, `schedule_draft`, `reschedule_delivery`, `cancel_delivery`, `publish_draft`, `retry_delivery`, `post_video` | Read + write |
 
-`publish_draft` and `retry_delivery` post to real accounts. Set your client to ask before it runs tools that write or publish; PostEasy marks them, but only the client can stop and ask. Media, settings, insights and account management are not exposed. If Cloudflare Access protects the instance, see [Cloudflare Access](access.md#the-paths-it-has-to-let-through).
+`publish_draft`, `retry_delivery` and `post_video` post to real accounts. Set your client to ask before it runs tools that write or publish; PostEasy marks them, but only the client can stop and ask. Settings, insights and account management are not exposed, and media only through `post_video`.
+
+### Posting a video in one call
+
+`post_video` takes a `videoUrl`, the caption as `text`, up to 10 `connectionIds` and an optional `runAt`, and does the rest: it creates a draft, downloads the video into it, then publishes or schedules it. The link must be a direct link to an MP4 file of at most 300 MB, on a public http(s) host; a web page such as a YouTube or Drive viewer is refused. YouTube accounts need `youtube.madeForKids` and a title (`youtube.title`, or the first line of `text`), and TikTok accounts need `tiktok.privacyLevel`, with the same fields `set_draft_variant` takes.
+
+Each account comes back with a `status`:
+
+- `published`, with its `permalink`.
+- `processing`: the platform is still preparing the video (Instagram processes a Reel before it can be published, for example), or the request ran out of calls after the download. The scheduler finishes it within a few minutes; don't send it again. `list_queue` shows the outcome.
+- `scheduled`, when `runAt` was given.
+- `failed`, with the reason in `error`.
+
+If the download or the video is refused, nothing is kept. If publishing is refused (a TikTok account without a privacy level, say), the error carries the `draftId` and the draft keeps its video: fix it with `set_draft_variant`, then call `publish_draft` or `schedule_draft` with that id. If Cloudflare Access protects the instance, see [Cloudflare Access](access.md#the-paths-it-has-to-let-through).
 
 ## Examples
 

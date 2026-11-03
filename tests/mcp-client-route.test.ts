@@ -28,7 +28,8 @@ const expectedTools = [
 	'list_queue',
 	'cancel_delivery',
 	'retry_delivery',
-	'reschedule_delivery'
+	'reschedule_delivery',
+	'post_video'
 ];
 
 let db: Awaited<ReturnType<typeof createTestDb>>['db'];
@@ -148,7 +149,8 @@ const expectedOutputFields: Record<string, string[]> = {
 	list_queue: ['targets', 'hasMore'],
 	cancel_delivery: ['target'],
 	retry_delivery: ['status', 'remotePostId', 'error', 'skipped'],
-	reschedule_delivery: ['ok', 'scheduledFor']
+	reschedule_delivery: ['ok', 'scheduledFor'],
+	post_video: ['draftId', 'media', 'results', 'scheduledFor']
 };
 
 describe('MCP protocol client through the deployed route handler', () => {
@@ -246,7 +248,8 @@ describe('MCP protocol client through the deployed route handler', () => {
 			list_queue: read,
 			cancel_delivery: remove,
 			retry_delivery: publish,
-			reschedule_delivery: update
+			reschedule_delivery: update,
+			post_video: publish
 		});
 	});
 

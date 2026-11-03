@@ -50,7 +50,7 @@ Hosted schedulers usually charge per channel and keep your posts and tokens on t
 - **Insights**: published against failed over 7, 30 or 90 days, and why posts failed
 - **Link previews**: cards for URLs in a post
 - **Accounts for everyone**: sign up with email and password; the first account owns the workspace and its platform apps
-- **AI agents (MCP)**: connect Claude Code, Codex or any MCP client to draft, schedule and publish with your API key
+- **AI agents (MCP)**: connect Claude Code, Codex or any MCP client to draft, schedule and publish with your API key, including a video to several accounts in one call
 - **API access**: a personal key for scripts and Shortcuts, read-only or read-write
 
 ## What it costs
