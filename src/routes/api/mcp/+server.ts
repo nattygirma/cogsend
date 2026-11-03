@@ -412,6 +412,12 @@ function createServer(event: RequestEvent) {
 	) => registerForEvent(server, event, name, spec, inputSchema, operation);
 	const read = annotations.read;
 	const write = annotations.update;
+	// MCP carries no files, so media goes up over the REST API with the same key.
+	const mediaHelp =
+		'To attach an image or video from a file, upload it after creating the draft: ' +
+		`curl -X POST "${event.url.origin}/api/drafts/<draftId>/media" -H "Authorization: Bearer <your API key>" ` +
+		'-F "files=@clip.mp4" -F "segmentIndex=0" (one video per post, or up to 4 images per card; ' +
+		'a post carries up to 100 MB of media). Then publish_draft or schedule_draft.';
 	register(
 		server,
 		'list_connections',
@@ -454,7 +460,7 @@ function createServer(event: RequestEvent) {
 		{
 			scope: 'write',
 			annotation: annotations.create,
-			description: 'Create a draft.',
+			description: `Create a draft. ${mediaHelp}`,
 			outputSchema: mcpOutputSchemas.create_draft
 		},
 		z.object(draftFields).strict(),
@@ -554,7 +560,11 @@ function createServer(event: RequestEvent) {
 		{
 			scope: 'write',
 			annotation: annotations.publish,
-			description: 'Publish a draft to selected connected accounts.',
+			description:
+				'Publish a draft to selected connected accounts. An account whose platform is still processing a ' +
+				'video is not published yet when this returns; the scheduler finishes it, so do not publish it ' +
+				'again (list_queue shows the outcome). ' +
+				mediaHelp,
 			outputSchema: mcpOutputSchemas.publish_draft
 		},
 		z.object({ draftId: id, connectionIds }).strict(),

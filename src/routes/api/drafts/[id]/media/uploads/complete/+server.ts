@@ -5,6 +5,7 @@ import { draftMedia } from '#lib/server/db/schema.js';
 import {
 	cleanAltText,
 	ownDraft,
+	postSizeProblem,
 	rejectIfNotEditable,
 	videoSlotProblem
 } from '#lib/server/draft-media.js';
@@ -74,6 +75,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			const facts = requirePlayableVideo(await probeStoredVideo(locals.media, claim.key, size));
 			const problem = await videoSlotProblem(locals, draft, claim.segmentIndex);
 			if (problem) return problem;
+			// Again: another upload may have landed since this one started.
+			const tooBig = await postSizeProblem(locals.db, params.id, size);
+			if (tooBig) return tooBig;
 			const siblings = await locals.db
 				.select({ id: draftMedia.id })
 				.from(draftMedia)

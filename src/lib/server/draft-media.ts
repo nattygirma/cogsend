@@ -1,5 +1,9 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import { MAX_IMAGES_PER_SEGMENT, videoMixProblem } from '#lib/domain/media-limits.js';
+import {
+	MAX_IMAGES_PER_SEGMENT,
+	MAX_POST_MEDIA_BYTES,
+	videoMixProblem
+} from '#lib/domain/media-limits.js';
 import { splitThreadSegments } from '#lib/domain/thread-segments.js';
 import { chunkIds, first } from './db/client';
 import { draftMedia, draftVariants, drafts, publishTargets } from './db/schema';
@@ -91,6 +95,25 @@ export async function overUserFileCap(
 		if (userFiles + adding > MAX_FILES_PER_USER) break;
 	}
 	return userFiles + adding > MAX_FILES_PER_USER;
+}
+
+/** A 413 when `adding` more bytes would take the post past MAX_POST_MEDIA_BYTES. */
+export async function postSizeProblem(
+	db: App.Locals['db'],
+	draftId: string,
+	adding: number
+): Promise<Response | null> {
+	const rows = await db
+		.select({ size: draftMedia.size })
+		.from(draftMedia)
+		.where(eq(draftMedia.draftId, draftId));
+	const stored = rows.reduce((n, r) => n + (r.size ?? 0), 0);
+	if (stored + adding <= MAX_POST_MEDIA_BYTES) return null;
+	const mb = (n: number) => Math.ceil(n / 1_000_000);
+	return fail(
+		`A post can carry up to ${mb(MAX_POST_MEDIA_BYTES)} MB of images and video; this would make it ${mb(stored + adding)} MB`,
+		413
+	);
 }
 
 const isVideoRow = (m: { mime: string | null }) =>

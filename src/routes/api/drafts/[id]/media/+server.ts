@@ -15,6 +15,7 @@ import {
 	overUserFileCap,
 	ownDraft,
 	parseSegmentIndex,
+	postSizeProblem,
 	rejectIfNotEditable,
 	segmentProblem
 } from '#lib/server/draft-media.js';
@@ -120,6 +121,12 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 				);
 			}
 		}
+		const tooBig = await postSizeProblem(
+			locals.db,
+			params.id,
+			files.reduce((n, f) => n + f.size, 0)
+		);
+		if (tooBig) return tooBig;
 		if (existing.length + files.length > MAX_FILES_PER_DRAFT) {
 			return fail(`Max ${MAX_FILES_PER_DRAFT} files per draft`, 413);
 		}

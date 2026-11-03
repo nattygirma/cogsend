@@ -211,4 +211,4 @@ those URLs are not signed and never expire, protected only by the randomness in
 the object key, so keep the origin unlisted and treat a leaked URL as permanent.
 A Reel's cover always goes through the signed route, since a new cover replaces the old one in place. Remove the variable to go back to signed URLs.
 
-Every platform takes one video per post, with no images beside it; on LinkedIn, which joins a thread into one post, that means one video for the whole thread. PostEasy stores videos up to 300MB, whatever a platform allows. Threads and Instagram fetch the video from the same signed URLs as images.
+Every platform takes one video per post, with no images beside it; on LinkedIn, which joins a thread into one post, that means one video for the whole thread. PostEasy takes up to 100MB of media per post, so a video tops out there whatever a platform allows. Threads and Instagram fetch the video from the same signed URLs as images.

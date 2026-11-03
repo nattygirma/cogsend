@@ -7,6 +7,7 @@ import { draftMedia, drafts, users } from '#lib/server/db/schema.js';
 import { createTestDb, TEST_ENV } from '#lib/server/db/test.js';
 import { coverKey, memoryMediaStore } from '#lib/server/media.js';
 import { UPLOAD_PART_BYTES } from '#lib/server/media-uploads.js';
+import { MAX_POST_MEDIA_BYTES, MAX_VIDEO_BYTES } from '#lib/domain/media-limits.js';
 import type { MediaStore } from '#lib/server/providers/types.js';
 import { POST as mediaPOST } from '../src/routes/api/drafts/[id]/media/+server';
 import {
@@ -361,7 +362,64 @@ describe('video uploads', () => {
 	it('refuses a card the draft does not have, and a video over the cap', async () => {
 		const draftId = await newDraft();
 		expect((await start(draftId, 1000, 3)).res.status).toBe(400);
-		expect((await start(draftId, 300_000_001)).res.status).toBe(413);
+		expect((await start(draftId, MAX_VIDEO_BYTES + 1)).res.status).toBe(413);
+	});
+
+	/** A row standing for media already on the post, without storing its bytes. */
+	async function storedMedia(draftId: string, size: number, segmentIndex = 0) {
+		await db.insert(draftMedia).values({
+			id: newId(),
+			draftId,
+			storageKey: `${Date.now()}-${newId().replace(/-/g, '').slice(0, 16)}.mp4`,
+			mime: 'video/mp4',
+			size,
+			width: null,
+			height: null,
+			altText: null,
+			sortOrder: 0,
+			segmentIndex,
+			createdAt: new Date()
+		});
+	}
+
+	it('caps a post at 100 MB of media across its cards', async () => {
+		expect(MAX_POST_MEDIA_BYTES).toBe(100_000_000);
+		const draftId = await newDraft('first card\n\n---\n\nsecond card');
+		await storedMedia(draftId, 70_000_000);
+		const over = await start(draftId, 30_000_001, 1);
+		expect(over.res.status).toBe(413);
+		expect(over.body.error).toBe(
+			'A post can carry up to 100 MB of images and video; this would make it 101 MB'
+		);
+		expect((await start(draftId, 30_000_000, 1)).res.status).toBe(201);
+	});
+
+	it('checks the cap again when an upload completes, and keeps nothing over it', async () => {
+		const draftId = await newDraft('first card\n\n---\n\nsecond card');
+		const bytes = buildMp4({ durationMs: 2_000 });
+		const { body: claim } = await start(draftId, bytes.length, 1);
+		const { body: part } = await sendPart(draftId, claim, 1, bytes);
+		// Something else landed on the post while this one was going up.
+		await storedMedia(draftId, MAX_POST_MEDIA_BYTES - bytes.length + 1);
+		const { res } = await complete(draftId, claim, [part]);
+		expect(res.status).toBe(413);
+		expect(await media.get(String(claim.key))).toBeNull();
+		const rows = await db.select().from(draftMedia).where(eq(draftMedia.draftId, draftId));
+		expect(rows).toHaveLength(1);
+	});
+
+	it('applies the cap to the form route too', async () => {
+		const draftId = await newDraft();
+		await storedMedia(draftId, MAX_POST_MEDIA_BYTES - 10, 0);
+		const form = new FormData();
+		form.set('segmentIndex', '0');
+		form.append('files', new File([buildMp4()], 'clip.mp4', { type: 'video/mp4' }));
+		const res = (await mediaPOST({
+			params: { id: draftId },
+			request: new Request('http://localhost/x', { method: 'POST', body: form }),
+			locals: locals()
+		} as never)) as Response;
+		expect(res.status).toBe(413);
 	});
 
 	it('abandons an upload on request', async () => {

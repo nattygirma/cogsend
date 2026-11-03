@@ -75,7 +75,7 @@ curl -s -X POST "$APP_URL/api/drafts/DRAFT_ID/publish" \
 
 `POST /api/drafts/:id/media` takes a `multipart/form-data` body with one or more `files`, the card's `segmentIndex` (0 for the first) and an optional `altText`. Images go up to 16 MB, an MP4 to 95 MB. An optional `preview-<n>`, a JPEG of at most 1 MB, is shown in place of the n-th file in the app; the original is what gets published. An optional `jpeg-<n>`, a JPEG at the n-th file's full size of at most 8 MB, is what Instagram gets for a PNG or WebP; without one, such an image cannot go to Instagram unless the deployment has the Images binding, which makes the copy when the draft is scheduled or published to Instagram. If one request cannot make every copy within its call budget, it answers 503 and the next try picks up the rest.
 
-A larger video goes up in parts, up to 300 MB:
+A post (every card of a draft) carries at most 100 MB of images and video in all; an upload that would go past it answers **413**. A video over 95 MB goes up in parts:
 
 1. `POST /api/drafts/:id/media/uploads` with `{"size": <bytes>, "mime": "video/mp4", "segmentIndex": 0}`. Every check that can refuse the video runs here, before any bytes move. The answer carries `key`, `uploadId`, `size`, `segmentIndex` and `token`, which the next calls send back unchanged, plus `partSize` and `parts`.
 2. `PUT /api/drafts/:id/media/uploads/part` for each part `n` from 1 to `parts`, with those five values and `n` in the query string and the bytes as the body. Every part is exactly `partSize` bytes except the last. Each answers `{ "partNumber": n, "etag": "…" }`.

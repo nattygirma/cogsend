@@ -3,6 +3,7 @@ import { MAX_VIDEO_BYTES } from '#lib/domain/media-limits.js';
 import {
 	ownDraft,
 	parseSegmentIndex,
+	postSizeProblem,
 	rejectIfNotEditable,
 	videoSlotProblem
 } from '#lib/server/draft-media.js';
@@ -51,6 +52,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		const segmentIndex = parseSegmentIndex(body.segmentIndex);
 		const problem = await videoSlotProblem(locals, draft, segmentIndex);
 		if (problem) return problem;
+		const tooBig = await postSizeProblem(locals.db, params.id, size);
+		if (tooBig) return tooBig;
 		if (!locals.media.multipart) return fail('This storage cannot take uploads in parts', 501);
 		const key = newVideoKey();
 		const uploadId = await locals.media.multipart.create(key, 'video/mp4');

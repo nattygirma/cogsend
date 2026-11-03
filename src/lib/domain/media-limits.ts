@@ -21,10 +21,11 @@ export const MAX_IMAGES_PER_SEGMENT = 4;
 export const FACEBOOK_MAX_IMAGE_BYTES = 10_000_000;
 export const FACEBOOK_MAX_IMAGES = 10;
 
-// The largest video any route stores. Bluesky's 300 MB is the smallest cap
-// among the platforms that take long videos; larger files go up in parts
-// (api/drafts/[id]/media/uploads), so the 100 MB request limit does not apply.
-export const MAX_VIDEO_BYTES = 300_000_000;
+// All the media one post (a draft, every card of it) may carry, so a single
+// video tops out here too. Videos past what one request carries go up in parts
+// (api/drafts/[id]/media/uploads).
+export const MAX_POST_MEDIA_BYTES = 100_000_000;
+export const MAX_VIDEO_BYTES = MAX_POST_MEDIA_BYTES;
 
 function looksLikeMp4(bytes: Uint8Array): boolean {
 	return (
@@ -54,7 +55,7 @@ export function validateVideoUpload(input: {
 	}
 	if (input.size <= 0) return { ok: false, message: 'Empty file' };
 	if (input.size > MAX_VIDEO_BYTES) {
-		return { ok: false, message: 'Video too large (max 300MB)' };
+		return { ok: false, message: `Video too large (max ${MAX_VIDEO_BYTES / 1_000_000}MB)` };
 	}
 	return { ok: true, mime: 'video/mp4' };
 }
