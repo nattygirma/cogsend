@@ -22,7 +22,6 @@ import {
 	validatePost
 } from '#lib/server/api/operations.js';
 import { ApiOperationError } from '#lib/server/api/operation-error.js';
-import { postVideo } from '#lib/server/api/post-video.js';
 import { requireScope, requireUser } from '#lib/server/require.js';
 import type { OperationContext } from '#lib/server/api/operations.js';
 
@@ -36,29 +35,23 @@ const draftFields = {
 	baseBody: z.string().max(100_000).optional(),
 	selectedConnectionIds: z.array(id).max(10).nullable().optional()
 };
-// YouTube: the video's title and audience (the post text is its description).
-const youtubeFields = {
-	title: z.string().max(100).optional(),
-	privacy: z.enum(['public', 'unlisted', 'private']).optional(),
-	madeForKids: z.boolean().optional(),
-	notifySubscribers: z.boolean().optional()
-};
-// TikTok: who can watch, interactions and disclosure. TikTok requires a privacy level.
-const tiktokFields = {
-	privacyLevel: z.string().max(64).optional(),
-	allowComment: z.boolean().optional(),
-	allowDuet: z.boolean().optional(),
-	allowStitch: z.boolean().optional(),
-	discloseCommercial: z.boolean().optional(),
-	brandOrganic: z.boolean().optional(),
-	brandedContent: z.boolean().optional(),
-	aiGenerated: z.boolean().optional()
-};
 const variantOptions = z
 	.object({
 		threadSegments: z.array(z.string().max(100_000)).max(100).optional(),
-		...youtubeFields,
-		...tiktokFields
+		// YouTube: the video's title and audience (the post text is its description).
+		title: z.string().max(100).optional(),
+		privacy: z.enum(['public', 'unlisted', 'private']).optional(),
+		madeForKids: z.boolean().optional(),
+		notifySubscribers: z.boolean().optional(),
+		// TikTok: who can watch, interactions and disclosure. TikTok requires a privacy level.
+		privacyLevel: z.string().max(64).optional(),
+		allowComment: z.boolean().optional(),
+		allowDuet: z.boolean().optional(),
+		allowStitch: z.boolean().optional(),
+		discloseCommercial: z.boolean().optional(),
+		brandOrganic: z.boolean().optional(),
+		brandedContent: z.boolean().optional(),
+		aiGenerated: z.boolean().optional()
 	})
 	.strict()
 	.optional();
@@ -294,26 +287,7 @@ const mcpOutputSchemas = {
 			skipped: z.boolean().optional()
 		})
 		.passthrough(),
-	reschedule_delivery: z.object({ ok: z.literal(true), scheduledFor: dateTime() }).passthrough(),
-	post_video: z
-		.object({
-			draftId: z.string(),
-			media: mediaSchema,
-			results: z.array(
-				z
-					.object({
-						connectionId: z.string(),
-						platform: z.string(),
-						handle: z.string().nullable(),
-						status: z.enum(['published', 'processing', 'scheduled', 'failed']),
-						permalink: z.string().nullable(),
-						error: z.string().nullable()
-					})
-					.passthrough()
-			),
-			scheduledFor: dateTime().optional()
-		})
-		.passthrough()
+	reschedule_delivery: z.object({ ok: z.literal(true), scheduledFor: dateTime() }).passthrough()
 } as const;
 
 type ToolSpec = {
@@ -351,16 +325,6 @@ function concise(name: string, result: Record<string, unknown>): string {
 			return `retry_delivery: ${String(result.status ?? 'started')}${result.skipped ? ' (already published)' : ''}`;
 		case 'reschedule_delivery':
 			return `reschedule_delivery: scheduled for ${String(result.scheduledFor ?? 'the requested time')}`;
-		case 'post_video': {
-			const results = Array.isArray(result.results)
-				? (result.results as Array<{ status?: string }>)
-				: [];
-			const counts = ['published', 'processing', 'scheduled', 'failed']
-				.map((status) => [status, results.filter((r) => r.status === status).length] as const)
-				.filter(([, n]) => n > 0)
-				.map(([status, n]) => `${n} ${status}`);
-			return `post_video (draft ${String(result.draftId)}): ${counts.join(', ') || 'no accounts'} of ${results.length} accounts`;
-		}
 		case 'get_draft':
 		case 'create_draft':
 		case 'duplicate_draft':
@@ -656,35 +620,6 @@ function createServer(event: RequestEvent) {
 		},
 		z.object({ targetId: id, runAt }).strict(),
 		(input, ctx, uid) => rescheduleDelivery(ctx, uid, input.targetId, { runAt: input.runAt })
-	);
-	register(
-		server,
-		'post_video',
-		{
-			scope: 'write',
-			annotation: annotations.publish,
-			description:
-				'Post one video to up to 10 connected accounts in one call. PostEasy downloads the MP4 at videoUrl ' +
-				'(a direct link to the file, up to 300 MB), attaches it with text as the caption, then publishes now, ' +
-				'or at runAt when given. Each account comes back published, processing (PostEasy finishes it on its ' +
-				'own within a few minutes, nothing to do), scheduled, or failed with the reason. YouTube needs ' +
-				'youtube.madeForKids and a title (youtube.title, or the first line of text); TikTok needs ' +
-				'tiktok.privacyLevel. Check list_queue later for permalinks. If an error names a draftId, the draft ' +
-				'and its video were kept: fix it with set_draft_variant, then use publish_draft.',
-			outputSchema: mcpOutputSchemas.post_video
-		},
-		z
-			.object({
-				videoUrl: z.string().min(1).max(2048),
-				text: z.string().max(100_000).optional(),
-				title: z.string().max(200).optional(),
-				connectionIds,
-				runAt: runAt.optional(),
-				youtube: z.object(youtubeFields).strict().optional(),
-				tiktok: z.object(tiktokFields).strict().optional()
-			})
-			.strict(),
-		(input, ctx, uid) => postVideo(ctx, uid, input)
 	);
 	return server;
 }

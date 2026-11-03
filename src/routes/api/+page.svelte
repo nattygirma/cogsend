@@ -264,26 +264,25 @@ curl ${origin}/api/drafts/$DRAFT/publish \\
 				<code>delete_draft</code>, <code>set_draft_variant</code>,
 				<code>delete_draft_variant</code>,
 				<code>publish_draft</code>, <code>schedule_draft</code>, <code>cancel_delivery</code>,
-				<code>retry_delivery</code>, <code>reschedule_delivery</code>, <code>post_video</code>.
-				Write includes read.
+				<code>retry_delivery</code>, <code>reschedule_delivery</code>. Write includes read.
 			</p>
 			<p class="mb-4 text-[14px] leading-relaxed text-stone-600">
 				The tools annotated as destructive are <code>update_draft</code>,
 				<code>set_draft_variant</code>, <code>delete_draft</code>,
 				<code>delete_draft_variant</code>,
 				<code>publish_draft</code>, <code>schedule_draft</code>, <code>cancel_delivery</code>,
-				<code>retry_delivery</code>, <code>reschedule_delivery</code>, and <code>post_video</code>.
-				<code>publish_draft</code>, <code>retry_delivery</code> and <code>post_video</code> are also open-world
-				operations. Verify content, destination, and timing before approving publish, retry, schedule,
-				or reschedule.
+				<code>retry_delivery</code>, and <code>reschedule_delivery</code>.
+				<code>publish_draft</code>
+				and
+				<code>retry_delivery</code> are also open-world operations. Verify content, destination, and timing
+				before approving publish, retry, schedule, or reschedule.
 			</p>
 			<div class="mb-6 rounded-xl border border-amber-200/70 bg-amber-50/60 p-4">
 				<p class="text-[14px] leading-relaxed text-amber-950">
 					Use an MCP client that asks you to approve destructive and open-world actions. Review
-					content and destination before <code>publish_draft</code>, <code>retry_delivery</code> or
-					<code>post_video</code>, which can post to external services. Tool annotations are hints,
-					not authorization or enforced consent; PostEasy has no server-side preview/commit step in
-					v1.
+					content and destination before <code>publish_draft</code> or <code>retry_delivery</code>,
+					which can post to external services. Tool annotations are hints, not authorization or
+					enforced consent; PostEasy has no server-side preview/commit step in v1.
 				</p>
 				<p class="mt-2 text-[14px] leading-relaxed text-amber-950">
 					MCP v1 does not expose media operations, settings, insights, account/provider management,
