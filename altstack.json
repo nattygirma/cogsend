@@ -2,10 +2,11 @@
 	"schema": 1,
 	"slug": "posteasy",
 	"name": "PostEasy",
-	"version": "1.26.0",
+	"version": "1.26.8",
 	"tagline": "Write once, schedule everywhere: X, Instagram, Facebook, YouTube, TikTok, LinkedIn and Threads",
 	"description": "A social media scheduler. Connect your accounts, write a post once, tailor it per platform, and publish now or on a schedule. Includes a calendar, drafts, video uploads, and an MCP server so AI agents can draft and schedule for you.",
 	"category": "marketing",
+	"icon": "icon.svg",
 	"replaces": [
 		{
 			"name": "Buffer",
@@ -14,10 +15,77 @@
 		{
 			"name": "Hootsuite",
 			"monthly_cents": 9900
+		},
+		{
+			"name": "Postiz",
+			"monthly_cents": 2900
+		},
+		{
+			"name": "Post Bridge",
+			"monthly_cents": 3900
 		}
 	],
 	"license": "MIT",
 	"original_source": "https://github.com/cogsend/cogsend",
+	"screenshots": [
+		{
+			"src": "store/tour.webm",
+			"poster": "store/tour-poster.jpg",
+			"caption": "From idea to scheduled post in under 20 seconds."
+		},
+		{
+			"src": "store/compose.jpg",
+			"caption": "Write once and see exactly how it looks on every network."
+		},
+		{
+			"src": "store/calendar.jpg",
+			"caption": "Plan your whole week on one calendar."
+		},
+		{
+			"src": "store/overview.jpg",
+			"caption": "See what's going out, what's live and what needs you, at a glance."
+		},
+		{
+			"src": "store/accounts.jpg",
+			"caption": "Connect X, Instagram, Facebook, Threads, YouTube, TikTok and LinkedIn."
+		},
+		{
+			"src": "store/insights.jpg",
+			"caption": "Track how much you're posting and where."
+		}
+	],
+	"features": [
+		{
+			"title": "Write once, post everywhere",
+			"body": "Pick the accounts, add your text and a photo, and switch between previews that look like X, Instagram, Facebook, Threads and LinkedIn before anything goes out.",
+			"media": "store/compose.jpg"
+		},
+		{
+			"title": "Schedule in seconds",
+			"body": "Write your post, choose where it goes, check the previews and pick a time. It shows up on your calendar straight away and goes out on its own.",
+			"media": "store/tour.webm",
+			"poster": "store/tour-poster.jpg"
+		},
+		{
+			"title": "A calendar for every post",
+			"body": "Every scheduled and published post sits on a weekly calendar, so you can spot gaps, filter by network and keep a steady rhythm.",
+			"media": "store/calendar.jpg"
+		},
+		{
+			"title": "Insights that keep you consistent",
+			"body": "See how many posts went out over the last 7, 30 or 90 days compared with the period before, and which accounts you post to most.",
+			"media": "store/insights.jpg"
+		},
+		{
+			"title": "All your accounts, one place",
+			"body": "Connect each social account once and post to any of them from a single screen. You can see at a glance that each one is connected and ready.",
+			"media": "store/accounts.jpg"
+		},
+		{
+			"title": "Let AI draft for you",
+			"body": "Connect Claude or another AI assistant and it can write and schedule posts for you to approve, using PostEasy's built-in MCP server."
+		}
+	],
 	"entry": "dist-appkeep/_worker.js",
 	"migrations": "drizzle",
 	"healthcheck": "/api/health",

@@ -1,0 +1,44 @@
+[
+	{
+		"file": "overview.jpg",
+		"caption": "See what's going out, what's live and what needs you, at a glance.",
+		"feature_title": "Your week at a glance",
+		"feature_body": "The dashboard shows how many posts are waiting, what went out this week and anything that failed, with your next posts and connected accounts right beside them."
+	},
+	{
+		"file": "compose.jpg",
+		"caption": "Write once and see exactly how it looks on every network.",
+		"feature_title": "Write once, post everywhere",
+		"feature_body": "Pick the accounts, add your text and a photo, and switch between previews that look like X, Instagram, Facebook, Threads and LinkedIn before anything goes out."
+	},
+	{
+		"file": "calendar.jpg",
+		"caption": "Plan your whole week on one calendar.",
+		"feature_title": "A calendar for every post",
+		"feature_body": "Every scheduled and published post sits on a weekly calendar, so you can spot gaps, filter by network and keep a steady rhythm."
+	},
+	{
+		"file": "accounts.jpg",
+		"caption": "Connect X, Instagram, Facebook, Threads, YouTube, TikTok and LinkedIn.",
+		"feature_title": "All your accounts, one place",
+		"feature_body": "Connect each social account once and post to any of them from a single screen. You can see at a glance that each one is connected and ready."
+	},
+	{
+		"file": "insights.jpg",
+		"caption": "Track how much you're posting and where.",
+		"feature_title": "Insights that keep you consistent",
+		"feature_body": "See how many posts went out over the last 7, 30 or 90 days compared with the period before, and which accounts you post to most."
+	},
+	{
+		"file": "tour.webm",
+		"caption": "From idea to scheduled post in under 20 seconds.",
+		"feature_title": "Schedule in seconds",
+		"feature_body": "Write your post, choose where it goes, check the previews and pick a time. It shows up on your calendar straight away and goes out on its own."
+	},
+	{
+		"file": "tour-poster.jpg",
+		"caption": "Preview your post the way each network will show it.",
+		"feature_title": "Preview before you post",
+		"feature_body": "Switch between networks to see your text and images as your followers will, so every post looks right everywhere."
+	}
+]
