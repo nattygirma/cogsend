@@ -53,7 +53,7 @@ For Claude Code, add this to `.mcp.json` and set `POSTEASY_API_KEY` in your envi
 | `list_connections`, `list_drafts`, `get_draft`, `list_queue`, `validate_post`                                                                                                                                 | Read-only    |
 | `create_draft`, `update_draft`, `duplicate_draft`, `delete_draft`, `set_draft_variant`, `delete_draft_variant`, `schedule_draft`, `reschedule_delivery`, `cancel_delivery`, `publish_draft`, `retry_delivery` | Read + write |
 
-`publish_draft` and `retry_delivery` post to real accounts. Set your client to ask before it runs tools that write or publish; PostEasy marks them, but only the client can stop and ask. Media, settings, insights and account management are not exposed. If Cloudflare Access protects the instance, see [Cloudflare Access](access.md#the-paths-it-has-to-let-through).
+`publish_draft` and `retry_delivery` post to real accounts. Set your client to ask before it runs tools that write or publish; PostEasy marks them, but only the client can stop and ask. MCP carries no files: the server's instructions and the `create_draft` and `publish_draft` descriptions give agents the exact `curl` commands for [Media](#media), using the same key. Settings, insights and account management are not exposed. If Cloudflare Access protects the instance, see [Cloudflare Access](access.md#the-paths-it-has-to-let-through).
 
 ## Examples
 
@@ -73,9 +73,18 @@ curl -s -X POST "$APP_URL/api/drafts/DRAFT_ID/publish" \
 
 ## Media
 
-`POST /api/drafts/:id/media` takes a `multipart/form-data` body with one or more `files`, the card's `segmentIndex` (0 for the first) and an optional `altText`. Images go up to 16 MB, an MP4 to 95 MB. An optional `preview-<n>`, a JPEG of at most 1 MB, is shown in place of the n-th file in the app; the original is what gets published. An optional `jpeg-<n>`, a JPEG at the n-th file's full size of at most 8 MB, is what Instagram gets for a PNG or WebP; without one, such an image cannot go to Instagram unless the deployment has the Images binding, which makes the copy when the draft is scheduled or published to Instagram. If one request cannot make every copy within its call budget, it answers 503 and the next try picks up the rest.
+**Video, one request.** `PUT /api/drafts/:id/media/video` takes the raw MP4 as the body, up to 100 MB:
 
-A post (every card of a draft) carries at most 100 MB of images and video in all; an upload that would go past it answers **413**. A video over 95 MB goes up in parts:
+```sh
+curl -sS -T clip.mp4 -H "Authorization: Bearer $POSTEASY_API_KEY" \
+  "$APP_URL/api/drafts/DRAFT_ID/media/video?segmentIndex=0"
+```
+
+`segmentIndex` (the card, 0 by default) and an optional `altText` go in the query string, and `Content-Length` is required (`curl -T` sends it). The server streams the body into storage as it arrives, so nothing has to be split by the client. It answers `201` with the stored `media`, `400` when the file is not an MP4 the server can read, and `413` past the post's 100 MB. This is the route to use from scripts and agents; the steps in parts below are what the browser uses.
+
+**Images, or the composer's form.** `POST /api/drafts/:id/media` takes a `multipart/form-data` body with one or more `files`, the card's `segmentIndex` (0 for the first) and an optional `altText`. Images go up to 16 MB, an MP4 to 95 MB. An optional `preview-<n>`, a JPEG of at most 1 MB, is shown in place of the n-th file in the app; the original is what gets published. An optional `jpeg-<n>`, a JPEG at the n-th file's full size of at most 8 MB, is what Instagram gets for a PNG or WebP; without one, such an image cannot go to Instagram unless the deployment has the Images binding, which makes the copy when the draft is scheduled or published to Instagram. If one request cannot make every copy within its call budget, it answers 503 and the next try picks up the rest.
+
+A post (every card of a draft) carries at most 100 MB of images and video in all; an upload that would go past it answers **413**. The form route holds the whole file in memory, so send videos to `/media/video` above instead. The browser sends videos in parts:
 
 1. `POST /api/drafts/:id/media/uploads` with `{"size": <bytes>, "mime": "video/mp4", "segmentIndex": 0}`. Every check that can refuse the video runs here, before any bytes move. The answer carries `key`, `uploadId`, `size`, `segmentIndex` and `token`, which the next calls send back unchanged, plus `partSize` and `parts`.
 2. `PUT /api/drafts/:id/media/uploads/part` for each part `n` from 1 to `parts`, with those five values and `n` in the query string and the bytes as the body. Every part is exactly `partSize` bytes except the last. Each answers `{ "partNumber": n, "etag": "…" }`.

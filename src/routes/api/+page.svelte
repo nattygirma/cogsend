@@ -1,5 +1,9 @@
 <script lang="ts">
-	const origin = typeof window !== 'undefined' ? window.location.origin : '';
+	import { page } from '$app/state';
+
+	// On appkeep, API calls go to this copy's own address, not the shared one in the browser.
+	const origin =
+		page.data.publicUrl || (typeof window !== 'undefined' ? window.location.origin : '');
 
 	const snippets = [
 		{

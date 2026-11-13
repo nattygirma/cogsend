@@ -582,6 +582,7 @@ export async function publishTarget(
 						segmentIds: state.segmentIds,
 						segmentCids: state.segmentCids,
 						remoteUrl: state.remoteUrl ?? null,
+						...(state.publishing ? { publishing: state.publishing } : {}),
 						checkpoint: true
 					})
 				})
@@ -890,7 +891,18 @@ async function lastPartialResume(db: AppDb, targetId: string) {
 			remoteUrl?: string | null;
 			remotePostId?: string;
 			pending?: PublishPending | null;
+			publishing?: string;
 		}>(attempt.responseSummary, {});
+		// A run cut off while publishing: before the empty-list check below,
+		// which would otherwise read it as a fresh start and post again.
+		if (typeof summary.publishing === 'string' && summary.publishing) {
+			return {
+				segmentIds: Array.isArray(summary.segmentIds) ? summary.segmentIds : [],
+				segmentCids: summary.segmentCids,
+				remoteUrl: summary.remoteUrl ?? null,
+				publishing: summary.publishing
+			};
+		}
 		// A parked video resumes even before any segment is posted, which is
 		// what an empty list otherwise means.
 		const pending = validPending(summary.pending);

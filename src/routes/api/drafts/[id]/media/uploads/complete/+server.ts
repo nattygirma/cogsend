@@ -1,24 +1,9 @@
-import { and, eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
-import { newId } from '#lib/server/db/client.js';
-import { draftMedia } from '#lib/server/db/schema.js';
-import {
-	cleanAltText,
-	ownDraft,
-	postSizeProblem,
-	rejectIfNotEditable,
-	videoSlotProblem
-} from '#lib/server/draft-media.js';
-import { fail, handleError, ok } from '#lib/server/http.js';
-import {
-	deleteMediaObjects,
-	probeStoredVideo,
-	requirePlayableVideo,
-	videoMetaFrom
-} from '#lib/server/media.js';
+import { ownDraft, rejectIfNotEditable } from '#lib/server/draft-media.js';
+import { fail, handleError } from '#lib/server/http.js';
 import { partCount, readClaim, verifyUploadClaim } from '#lib/server/media-uploads.js';
 import { requireScope, requireUser } from '#lib/server/require.js';
-import { serializeMedia } from '#lib/server/serialize.js';
+import { recordStoredVideo } from '#lib/server/video-upload.js';
 
 function readParts(value: unknown, count: number): { partNumber: number; etag: string }[] | null {
 	if (!Array.isArray(value) || value.length !== count) return null;
@@ -29,15 +14,6 @@ function readParts(value: unknown, count: number): { partNumber: number; etag: s
 		parts.push({ partNumber: i + 1, etag: part.etag });
 	}
 	return parts;
-}
-
-async function keyInUse(db: App.Locals['db'], key: string): Promise<boolean> {
-	const rows = await db
-		.select({ id: draftMedia.id })
-		.from(draftMedia)
-		.where(eq(draftMedia.storageKey, key))
-		.limit(1);
-	return rows.length > 0;
 }
 
 /**
@@ -69,47 +45,13 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		if (!locals.media.multipart) return fail('This storage cannot take uploads in parts', 501);
 
 		const size = await locals.media.multipart.complete(claim.key, claim.uploadId, parts);
-		let stored = false;
-		try {
-			if (size !== claim.size) return fail('The upload is not the size it started as');
-			const facts = requirePlayableVideo(await probeStoredVideo(locals.media, claim.key, size));
-			const problem = await videoSlotProblem(locals, draft, claim.segmentIndex);
-			if (problem) return problem;
-			// Again: another upload may have landed since this one started.
-			const tooBig = await postSizeProblem(locals.db, params.id, size);
-			if (tooBig) return tooBig;
-			const siblings = await locals.db
-				.select({ id: draftMedia.id })
-				.from(draftMedia)
-				.where(
-					and(eq(draftMedia.draftId, params.id), eq(draftMedia.segmentIndex, claim.segmentIndex))
-				);
-			const [media] = await locals.db
-				.insert(draftMedia)
-				.values({
-					id: newId(),
-					draftId: params.id,
-					storageKey: claim.key,
-					mime: 'video/mp4',
-					size,
-					width: facts.width,
-					height: facts.height,
-					metaJson: JSON.stringify(videoMetaFrom(facts)),
-					altText: cleanAltText(body.altText),
-					sortOrder: siblings.length,
-					segmentIndex: claim.segmentIndex,
-					createdAt: new Date()
-				})
-				.returning();
-			stored = true;
-			return ok({ media: serializeMedia(media) }, 201);
-		} finally {
-			// A replayed `complete` for an upload that already landed is refused
-			// as a second video; the object it names belongs to the first row.
-			if (!stored && !(await keyInUse(locals.db, claim.key))) {
-				await deleteMediaObjects(locals.media, [claim.key]).catch(() => {});
-			}
-		}
+		return await recordStoredVideo(locals, draft, {
+			key: claim.key,
+			size,
+			expectedSize: claim.size,
+			segmentIndex: claim.segmentIndex,
+			altText: body.altText
+		});
 	} catch (err) {
 		return handleError(err);
 	}

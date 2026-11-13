@@ -14,6 +14,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		appName: storedAppName ?? locals.env.APP_NAME,
 		// On appkeep, signing out and account details belong to appkeep.
 		appkeep: locals.env.appkeep,
+		// appkeep serves the app at one address for every account and routes each
+		// to its own copy, so pingers, API clients and agents use this copy's own address.
+		publicUrl: locals.env.appkeep ? locals.env.APP_URL.replace(/\/$/, '') : null,
 		// Pages hide what only the workspace owner may change.
 		isOwner: locals.user ? await isOwner(locals.db, locals.user.id) : false
 	};

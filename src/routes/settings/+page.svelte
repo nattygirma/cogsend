@@ -548,7 +548,7 @@
 	}
 
 	onMount(() => {
-		tickOrigin = window.location.origin;
+		tickOrigin = data.publicUrl || window.location.origin;
 		void load();
 		try {
 			askPublish = localStorage.getItem(SKIP_ASK_KEY) !== '1';

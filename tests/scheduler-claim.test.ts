@@ -18,6 +18,7 @@ import {
 	consumePublishJob,
 	JANITOR_INTERVAL_MS,
 	JANITOR_SETTING,
+	recoverStalePublishing,
 	runJanitorsIfDue,
 	runSchedulerTick,
 	schedulerHealth,
@@ -105,6 +106,46 @@ describe('claimDueTargets stale publishing', () => {
 			}
 		});
 		expect(result.results.some((r) => r.id === targetId && r.status === 'published')).toBe(true);
+	});
+
+	it('stops a post whose runs keep getting cut off at the attempt cap', async () => {
+		const stale = new Date(Date.now() - 60 * 60_000);
+		const insert = async (attemptCount: number) => {
+			const id = newId();
+			const ownDraft = newId();
+			await db.insert(drafts).values({
+				id: ownDraft,
+				userId,
+				baseBody: 'cut off',
+				status: 'scheduled',
+				createdAt: stale,
+				updatedAt: stale
+			});
+			await db.insert(publishTargets).values({
+				id,
+				draftId: ownDraft,
+				connectionId: connId,
+				status: 'publishing',
+				scheduledFor: stale,
+				attemptCount,
+				createdAt: stale,
+				updatedAt: stale
+			});
+			return id;
+		};
+		const again = await insert(2);
+		const spent = await insert(5);
+		await recoverStalePublishing(db);
+		const rows = await db
+			.select()
+			.from(publishTargets)
+			.where(inArray(publishTargets.id, [again, spent]));
+		const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
+		expect(byId[again].status).toBe('pending');
+		expect(byId[spent].status).toBe('failed');
+		expect(byId[spent].errorMessage).toMatch(/may have been published/);
+		expect((await claimDueTargets(db)).map((t) => t.id)).not.toContain(spent);
+		await db.delete(publishTargets).where(inArray(publishTargets.id, [again, spent]));
 	});
 
 	it('bounds the batch oldest-due-first', async () => {

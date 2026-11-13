@@ -24,6 +24,7 @@ import {
 import { ApiOperationError } from '#lib/server/api/operation-error.js';
 import { requireScope, requireUser } from '#lib/server/require.js';
 import type { OperationContext } from '#lib/server/api/operations.js';
+import { mediaHelpFor, uploadInstructions } from '#lib/server/mcp-help.js';
 
 const id = z.string().min(1).max(128);
 const boundedLimit = z.number().int().min(1).max(100).default(50);
@@ -398,7 +399,10 @@ function registerForEvent<T extends z.ZodType>(
 }
 
 function createServer(event: RequestEvent) {
-	const server = new McpServer({ name: 'posteasy', version: '1.0.0' });
+	const server = new McpServer(
+		{ name: 'posteasy', version: '1.0.0' },
+		{ instructions: uploadInstructions(event.url.origin) }
+	);
 	const register = <T extends z.ZodType>(
 		server: McpServer,
 		name: string,
@@ -413,11 +417,7 @@ function createServer(event: RequestEvent) {
 	const read = annotations.read;
 	const write = annotations.update;
 	// MCP carries no files, so media goes up over the REST API with the same key.
-	const mediaHelp =
-		'To attach an image or video from a file, upload it after creating the draft: ' +
-		`curl -X POST "${event.url.origin}/api/drafts/<draftId>/media" -H "Authorization: Bearer <your API key>" ` +
-		'-F "files=@clip.mp4" -F "segmentIndex=0" (one video per post, or up to 4 images per card; ' +
-		'a post carries up to 100 MB of media). Then publish_draft or schedule_draft.';
+	const mediaHelp = mediaHelpFor(event.url.origin);
 	register(
 		server,
 		'list_connections',

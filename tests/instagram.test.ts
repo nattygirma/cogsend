@@ -243,8 +243,8 @@ describe('instagramProvider.publish', () => {
 				}
 			})
 		);
-		expect(order).toEqual(['checkpoint', 'permalink']);
-		expect(saved).toEqual([{ segmentIds: ['post-1'] }]);
+		expect(order).toEqual(['checkpoint', 'checkpoint', 'permalink']);
+		expect(saved).toEqual([{ segmentIds: [], publishing: 'c1' }, { segmentIds: ['post-1'] }]);
 		expect(result.remoteUrl).toBe('https://www.instagram.com/p/abc/');
 	});
 
@@ -493,6 +493,48 @@ describe('instagramProvider.publish', () => {
 			remoteUrl: 'https://www.instagram.com/p/9/'
 		});
 		expect(seen.length).toBe(before);
+	});
+
+	it('asks the container whether a run cut off while publishing already posted, before posting again', async () => {
+		const run = async (status: string | null) => {
+			let made = 0;
+			const { seen, fetchImpl } = fakeMeta({
+				'/1789/media_publish': () => json({ id: 'reel-3' }),
+				'/1789/media': () => json({ id: `fresh-${++made}` }),
+				'/rc-cut?fields=status_code': () =>
+					status ? json({ status_code: status }) : json({}, 500),
+				'?fields=status_code': () => json({ status_code: 'FINISHED' }),
+				'?fields=permalink': () => json({})
+			});
+			const outcome = await instagramProvider
+				.publish(
+					{ text: 'clip', media: [reel] },
+					creds,
+					undefined,
+					fetchImpl,
+					opts({ resume: { segmentIds: [], publishing: 'rc-cut' } })
+				)
+				.catch((e: unknown) => e);
+			const published = seen.filter((r) => r.url.endsWith('/media_publish'));
+			return {
+				outcome,
+				made,
+				publishedFrom: await Promise.all(
+					published.map(async (r) => (await form(r)).get('creation_id'))
+				)
+			};
+		};
+
+		// Instagram already took it: done, with nothing sent again.
+		expect(await run('PUBLISHED')).toEqual({ outcome: {}, made: 0, publishedFrom: [] });
+		// Ready and never published: that container goes, not a new one.
+		expect(await run('FINISHED')).toMatchObject({ made: 0, publishedFrom: ['rc-cut'] });
+		// Dead: start over.
+		expect(await run('EXPIRED')).toMatchObject({ made: 1, publishedFrom: ['fresh-1'] });
+		// Unreadable: the person has to look, rather than risk a second post.
+		const unknown = await run(null);
+		expect((unknown.outcome as ProviderError).code).toBe('unconfirmed');
+		expect(unknown.publishedFrom).toEqual([]);
 	});
 });
 

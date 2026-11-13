@@ -12,6 +12,7 @@ import {
 } from '#lib/server/db/schema.js';
 import { LEASE_REFRESH_MS } from '#lib/domain/due-jobs.js';
 import { createTestDb, createTestMedia, TEST_ENV } from '#lib/server/db/test.js';
+import { recoverStalePublishing } from '#lib/server/scheduler.js';
 import {
 	MAX_PUBLISH_ATTEMPTS,
 	buildNormalizedPost,
@@ -1726,6 +1727,45 @@ describe('posts a platform may have taken, URL-only media and stored links', () 
 			const result = await publishTarget(db, TEST_ENV, store, id, { fetchImpl: meta(noAnswer) });
 			expect(result.status).toBe('failed');
 			expect((await row(id)).errorMessage).toMatch(/may have been published/);
+		});
+
+		it('a run cut off while Instagram publishes is not posted again by the next one', async () => {
+			const conn = await connection('instagram', igCreds);
+			const id = await withPhoto(conn, 'cut off');
+			let publishes = 0;
+			let containerStatus = 'FINISHED';
+			let cutOff: (res: Response) => void = () => {};
+			let reached: () => void = () => {};
+			const atPublish = new Promise<void>((resolve) => (reached = resolve));
+			const fetchImpl = mockFetch({
+				'/media_publish': () => {
+					publishes++;
+					reached();
+					// Instagram takes the post; the run never hears back.
+					containerStatus = 'PUBLISHED';
+					return new Promise<Response>((resolve) => (cutOff = resolve));
+				},
+				'/container-1?fields=status_code': () => Response.json({ status_code: containerStatus }),
+				'/1789/media': () => Response.json({ id: 'container-1' })
+			});
+			const lost = publishTarget(db, TEST_ENV, store, id, { fetchImpl });
+			await atPublish;
+
+			// The claim goes stale, and the scheduler hands the row to a new run.
+			await db
+				.update(publishTargets)
+				.set({ updatedAt: new Date(Date.now() - 60 * 60_000) })
+				.where(eq(publishTargets.id, id));
+			await recoverStalePublishing(db);
+			const next = await publishTarget(db, TEST_ENV, store, id, { fetchImpl });
+
+			expect(next.status).toBe('published');
+			expect(publishes).toBe(1);
+			expect((await row(id)).status).toBe('published');
+			// The lost run's late answer cannot undo that.
+			cutOff(Response.json({ id: 'ig-late' }));
+			await lost;
+			expect((await row(id)).status).toBe('published');
 		});
 	});
 

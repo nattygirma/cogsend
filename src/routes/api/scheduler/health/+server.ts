@@ -9,7 +9,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 	try {
 		requireUser(locals.user);
 		requireScope(locals, 'read');
-		const ping = await schedulerHealth(locals.db);
+		const ping = await schedulerHealth(locals.db, undefined, {
+			wakesOnDemand: locals.env?.appkeep
+		});
 		// What the last deploy managed to do with the trigger. Null when nothing
 		// recorded it — a deploy that bypassed scripts/wrangler.mjs, or one made
 		// before the state was tracked — in which case the heartbeat decides.

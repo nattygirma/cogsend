@@ -146,6 +146,8 @@ export interface PublishResume {
 	segmentCids?: string[];
 	remoteUrl?: string | null;
 	pending?: PublishPending | null;
+	/** The platform object a cut-off run was publishing (an Instagram container). */
+	publishing?: string | null;
 }
 
 /**
@@ -159,6 +161,9 @@ export interface PublishCheckpoint {
 	segmentIds: string[];
 	segmentCids?: string[];
 	remoteUrl?: string | null;
+	/** Set right before a create call that takes no idempotency key, so a run
+	 *  cut off during it resumes by asking the platform instead of posting again. */
+	publishing?: string | null;
 }
 
 /** Reads a stored video in slices or as a stream; a video never fits in memory whole. */

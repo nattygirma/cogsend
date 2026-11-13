@@ -30,6 +30,7 @@ import {
 	SubrequestBudget
 } from '#lib/server/budget.js';
 import { runSchedulerTick } from '#lib/server/scheduler.js';
+import { reportNextWake } from '#lib/server/wake.js';
 import { securityHeadersFor } from '#lib/server/security-headers.js';
 import { isPinnedAppUrl } from '#lib/domain/app-url.js';
 import { appkeepIdentity, appkeepLoginUrl, userForAppkeepIdentity } from '#lib/server/appkeep.js';
@@ -378,5 +379,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return deny(path, 303, { error: 'Unauthorized' }, secureRequest, login);
 	}
 
-	return withPageSecurity(path, await resolve(event), secureRequest);
+	const response = await resolve(event);
+	// Scheduling, retrying or cancelling a post changes when there is work next.
+	// appkeep only wakes a copy when it says so (src/lib/server/wake.ts).
+	if (appEnv.appkeep && !['GET', 'HEAD', 'OPTIONS'].includes(event.request.method)) {
+		waitUntil(reportNextWake(event.locals.bindings, db));
+	}
+	return withPageSecurity(path, response, secureRequest);
 };

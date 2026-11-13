@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		loadDashboardCounts(locals.db, user.id, now),
 		loadUpcomingPosts(locals.db, user.id, 8),
 		loadDashboardAccounts(locals.db, user.id),
-		schedulerHealth(locals.db)
+		schedulerHealth(locals.db, undefined, { wakesOnDemand: locals.env?.appkeep })
 	]);
 	return {
 		user: locals.user,

@@ -183,7 +183,9 @@ export const instagramProvider: PlatformProvider = {
 		async function containerState(
 			id: string
 		): Promise<
-			{ state: 'ready' | 'working' } | { state: 'failed'; code: string; status: string } | null
+			| { state: 'ready' | 'working' | 'published' }
+			| { state: 'failed'; code: string; status: string }
+			| null
 		> {
 			let res: Response;
 			try {
@@ -205,7 +207,8 @@ export const instagramProvider: PlatformProvider = {
 				status?: unknown;
 			};
 			const code = typeof data.status_code === 'string' ? data.status_code : '';
-			if (code === 'FINISHED' || code === 'PUBLISHED') return { state: 'ready' };
+			if (code === 'PUBLISHED') return { state: 'published' };
+			if (code === 'FINISHED') return { state: 'ready' };
 			if (code === 'ERROR' || code === 'EXPIRED') {
 				return {
 					state: 'failed',
@@ -243,7 +246,7 @@ export const instagramProvider: PlatformProvider = {
 								detail: state.status
 							});
 						}
-						if (state?.state !== 'ready') still.push(id);
+						if (state?.state !== 'ready' && state?.state !== 'published') still.push(id);
 					}
 					waiting = still;
 					return waiting.length ? null : true;
@@ -290,7 +293,7 @@ export const instagramProvider: PlatformProvider = {
 				},
 				async () => {
 					const state = await containerState(containerId);
-					if (state?.state === 'ready') return containerId;
+					if (state?.state === 'ready' || state?.state === 'published') return containerId;
 					if (state?.state === 'failed') {
 						// A container left parked past Meta's 24 hours: make a new one.
 						if (state.code === 'EXPIRED' && resumed) {
@@ -314,33 +317,55 @@ export const instagramProvider: PlatformProvider = {
 			});
 		}
 
-		let containerId: string;
-		const video = media.find(isVideoAttachment);
-		if (video) {
-			containerId = await reelContainer(video);
-		} else if (media.length === 1) {
-			const params = photoParams(media[0], await photoUrl(media[0]));
-			if (text) params.caption = text;
-			containerId = await createContainer(params);
-			await photosReady([containerId]);
-		} else {
-			const children: string[] = [];
-			for (const m of media) {
-				children.push(
-					await createContainer({ ...photoParams(m, await photoUrl(m)), is_carousel_item: 'true' })
+		// A run cut off after it asked Instagram to publish: Instagram takes no
+		// idempotency key, so its container is the only way to know whether the
+		// post went out. Publishing a fresh one would post it again.
+		const inFlight = opts?.resume?.publishing;
+		let containerId = '';
+		if (inFlight) {
+			const state = await containerState(inFlight);
+			if (state?.state === 'published') return {};
+			if (state?.state === 'ready') containerId = inFlight;
+			else if (state?.state !== 'failed') {
+				throw unconfirmedPostError(
+					'Instagram',
+					new Error(`container ${inFlight} is ${state?.state ?? 'unreadable'}`)
 				);
 			}
-			// Meta checks every child when the carousel is made, so each must be ready first.
-			await photosReady(children);
-			const params: Record<string, string> = {
-				media_type: 'CAROUSEL',
-				children: children.join(',')
-			};
-			if (text) params.caption = text;
-			containerId = await createContainer(params);
-			await photosReady([containerId]);
+		}
+		const video = media.find(isVideoAttachment);
+		// A ready container that was never published is used as it is.
+		if (!containerId) {
+			if (video) {
+				containerId = await reelContainer(video);
+			} else if (media.length === 1) {
+				const params = photoParams(media[0], await photoUrl(media[0]));
+				if (text) params.caption = text;
+				containerId = await createContainer(params);
+				await photosReady([containerId]);
+			} else {
+				const children: string[] = [];
+				for (const m of media) {
+					children.push(
+						await createContainer({
+							...photoParams(m, await photoUrl(m)),
+							is_carousel_item: 'true'
+						})
+					);
+				}
+				// Meta checks every child when the carousel is made, so each must be ready first.
+				await photosReady(children);
+				const params: Record<string, string> = {
+					media_type: 'CAROUSEL',
+					children: children.join(',')
+				};
+				if (text) params.caption = text;
+				containerId = await createContainer(params);
+				await photosReady([containerId]);
+			}
 		}
 
+		await opts?.checkpoint?.({ segmentIds: [], publishing: containerId });
 		let postId: string;
 		try {
 			postId = await graphPost(

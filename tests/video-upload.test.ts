@@ -20,6 +20,8 @@ import {
 } from '../src/routes/api/drafts/[id]/media/uploads/+server';
 import { POST as completePOST } from '../src/routes/api/drafts/[id]/media/uploads/complete/+server';
 import { PUT as partPUT } from '../src/routes/api/drafts/[id]/media/uploads/part/+server';
+import { PUT as videoPUT } from '../src/routes/api/drafts/[id]/media/video/+server';
+import { streamIntoParts } from '#lib/server/video-upload.js';
 import { GET as mediaGET } from '../src/routes/api/media/[key]/+server';
 import { buildMp4 } from './mp4-fixture';
 
@@ -501,5 +503,116 @@ describe('video uploads', () => {
 		} as never)) as Response;
 		expect(del.status).toBe(200);
 		expect(await media.get(coverKey(String(claim.key)))).toBeNull();
+	});
+
+	/** A body that arrives in uneven chunks, as a network upload does. */
+	function chunked(bytes: Uint8Array, sizes = [1, 7_000, 3_000_001]): ReadableStream<Uint8Array> {
+		let at = 0;
+		let i = 0;
+		return new ReadableStream({
+			pull(controller) {
+				if (at >= bytes.length) return controller.close();
+				const n = sizes[i++ % sizes.length];
+				controller.enqueue(bytes.slice(at, at + n));
+				at += n;
+			}
+		});
+	}
+
+	async function putVideo(
+		draftId: string,
+		body: Uint8Array | ReadableStream<Uint8Array> | FormData,
+		opts: { query?: string; length?: number | null } = {}
+	) {
+		const url = new URL(`http://localhost/api/drafts/${draftId}/media/video${opts.query ?? ''}`);
+		const headers: Record<string, string> = {};
+		const length =
+			opts.length !== undefined ? opts.length : body instanceof Uint8Array ? body.length : null;
+		if (length !== null) headers['Content-Length'] = String(length);
+		const res = (await videoPUT({
+			params: { id: draftId },
+			url,
+			request: new Request(url, { method: 'PUT', headers, body, duplex: 'half' } as RequestInit),
+			locals: locals()
+		} as never)) as Response;
+		return { res, body: (await res.json()) as Record<string, unknown> };
+	}
+
+	it('stores a video sent as one raw body, streamed into parts as it arrives', async () => {
+		const draftId = await newDraft();
+		const bytes = buildMp4({ durationMs: 61_000, mdatBytes: UPLOAD_PART_BYTES * 2 + 4321 });
+		const { res, body } = await putVideo(draftId, chunked(bytes), {
+			query: '?altText=%20my%20clip%20',
+			length: bytes.length
+		});
+		expect(res.status).toBe(201);
+		const row = (await db.select().from(draftMedia).where(eq(draftMedia.draftId, draftId)))[0];
+		expect(row).toMatchObject({ mime: 'video/mp4', size: bytes.length, altText: 'my clip' });
+		expect(JSON.parse(row.metaJson!).durationMs).toBe(61_000);
+		expect((body.media as { id: string }).id).toBe(row.id);
+		const stored = await media.get(row.storageKey);
+		expect(stored && Buffer.from(stored).equals(Buffer.from(bytes))).toBe(true);
+	});
+
+	it('puts a raw video on the card named in the query, and refuses a second one there', async () => {
+		const draftId = await newDraft('first card\n\n---\n\nsecond card');
+		expect((await putVideo(draftId, buildMp4(), { query: '?segmentIndex=1' })).res.status).toBe(
+			201
+		);
+		const rows = await db.select().from(draftMedia).where(eq(draftMedia.draftId, draftId));
+		expect(rows.map((r) => r.segmentIndex)).toEqual([1]);
+		const again = await putVideo(draftId, buildMp4(), { query: '?segmentIndex=1' });
+		expect(again.res.status).toBe(400);
+		expect(again.body.error).toBe('Only one video per post');
+		expect((await putVideo(draftId, buildMp4(), { query: '?segmentIndex=5' })).res.status).toBe(
+			400
+		);
+	});
+
+	it('refuses a raw body that is not an MP4, or not the length it declared, and keeps nothing', async () => {
+		const draftId = await newDraft();
+		const text = new TextEncoder().encode('definitely not a video, just some text here');
+		const notMp4 = await putVideo(draftId, text);
+		expect(notMp4.res.status).toBe(400);
+		expect(notMp4.body.error).toBe('File does not look like an MP4 video');
+		const bytes = buildMp4();
+		const short = await putVideo(draftId, chunked(bytes), { length: bytes.length + 10 });
+		expect(short.res.status).toBe(400);
+		expect(short.body.error).toBe('The body is shorter than Content-Length');
+		const long = await putVideo(draftId, chunked(bytes), { length: bytes.length - 10 });
+		expect(long.res.status).toBe(400);
+		expect(long.body.error).toBe('The body is longer than Content-Length');
+		expect(await db.select().from(draftMedia).where(eq(draftMedia.draftId, draftId))).toEqual([]);
+	});
+
+	it('says how to send a raw video when the request is not one', async () => {
+		const draftId = await newDraft();
+		const none = await putVideo(draftId, chunked(buildMp4()), { length: null });
+		expect(none.res.status).toBe(411);
+		expect(none.body.error).toMatch(/curl -T/);
+		const form = new FormData();
+		form.append('files', new File([buildMp4()], 'clip.mp4', { type: 'video/mp4' }));
+		const asForm = await putVideo(draftId, form, { length: 1000 });
+		expect(asForm.res.status).toBe(400);
+		expect(asForm.body.error).toMatch(/not a form/);
+		expect((await putVideo(draftId, buildMp4(), { length: MAX_VIDEO_BYTES + 1 })).res.status).toBe(
+			413
+		);
+	});
+
+	it('cuts a stream into equal parts whatever its chunks', async () => {
+		const bytes = new Uint8Array(UPLOAD_PART_BYTES * 2 + 5).map((_, i) => i % 251);
+		const sent: Uint8Array[] = [];
+		const parts = await streamIntoParts(
+			chunked(bytes, [3, UPLOAD_PART_BYTES + 1]),
+			bytes.length,
+			async (n, b) => {
+				sent.push(b);
+				return { partNumber: n, etag: `e${n}` };
+			}
+		);
+		expect(parts.map((p) => p.partNumber)).toEqual([1, 2, 3]);
+		expect(sent.map((b) => b.length)).toEqual([UPLOAD_PART_BYTES, UPLOAD_PART_BYTES, 5]);
+		expect(Buffer.concat(sent).equals(Buffer.from(bytes))).toBe(true);
 	});
 });

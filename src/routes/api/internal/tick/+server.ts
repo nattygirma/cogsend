@@ -2,6 +2,7 @@ import type { RequestHandler } from './$types';
 import { handleError, ok } from '#lib/server/http.js';
 import { assertSchedulerOrTickToken } from '#lib/server/require.js';
 import { runSchedulerTick } from '#lib/server/scheduler.js';
+import { reportNextWake } from '#lib/server/wake.js';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -21,6 +22,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 		locals.waitUntil(task.then(() => undefined).catch(() => undefined));
 		const result = await task;
+		// After the publish pass, so it sees what this tick rescheduled.
+		await reportNextWake(locals.bindings, locals.db);
 		return ok(result);
 	} catch (err) {
 		return handleError(err);

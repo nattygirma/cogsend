@@ -12,7 +12,8 @@ import {
 	lt,
 	ne,
 	notExists,
-	or
+	or,
+	sql
 } from 'drizzle-orm';
 import { STALE_CLAIM_MS, selectDueScheduledTargets } from '#lib/domain/due-jobs.js';
 import { draftExcerpt } from '#lib/domain/excerpt.js';
@@ -29,7 +30,13 @@ import {
 } from './db/schema';
 import type { AppEnv } from './env';
 import type { MediaStore } from './media';
-import { PUBLISH_RESERVE_CALLS, publishTarget } from './publish';
+import {
+	MAX_PUBLISH_ATTEMPTS,
+	PUBLISH_RESERVE_CALLS,
+	publishTarget,
+	refreshDraftStatuses
+} from './publish';
+import { UNCONFIRMED_POST_MARK } from './providers';
 import type { SubrequestBudget } from './budget';
 import { purgeExpiredMfaChallenges } from './totp';
 import { purgeExpiredSessions } from './auth';
@@ -64,7 +71,15 @@ export interface SchedulerHealth {
 	lastTickAt: Date | null;
 }
 
-export async function schedulerHealth(db: AppDb, now = new Date()): Promise<SchedulerHealth> {
+export async function schedulerHealth(
+	db: AppDb,
+	now = new Date(),
+	opts: {
+		/** On appkeep the copy is woken only when it has work, plus a sweep every
+		 *  few hours, so an old heartbeat with nothing waiting is normal. */
+		wakesOnDemand?: boolean;
+	} = {}
+): Promise<SchedulerHealth> {
 	const [rows, stuckRows, overdueRows] = (await batchQueries(db, [
 		db.select().from(schedulerHeartbeats).where(eq(schedulerHeartbeats.id, HEARTBEAT_ID)),
 		db
@@ -101,7 +116,8 @@ export async function schedulerHealth(db: AppDb, now = new Date()): Promise<Sche
 	if (!row)
 		return { ok: false, error: 'No heartbeat yet', lastTickAt: null, stuckPublishing, overdue };
 	const age = now.getTime() - row.lastOkAt.getTime();
-	if (age > HEARTBEAT_STALE_MS) {
+	const quiet = opts.wakesOnDemand && overdue === 0 && stuckPublishing === 0;
+	if (age > HEARTBEAT_STALE_MS && !quiet) {
 		return {
 			ok: false,
 			error: `Last tick ${Math.round(age / 1000)}s ago`,
@@ -306,19 +322,35 @@ export async function maybeSendFailureDigest(
  * Resetting to `pending` puts the row back into the "publish now" shape that
  * both the hand-off and the inline claim understand, and a partially published
  * thread still resumes from its attempt checkpoints.
+ *
+ * A run cut off this way never reaches markFailed, so the attempt cap is
+ * enforced here: a post whose runs keep dying (each perhaps after the platform
+ * took it) stops instead of going out again every few minutes.
  */
+export const LOST_RUN_MESSAGE = `PostEasy lost track of this post while sending it, so it ${UNCONFIRMED_POST_MARK}. Check the account before you retry.`;
+
 export async function recoverStalePublishing(db: AppDb, now: Date = new Date()) {
 	const staleBefore = new Date(now.getTime() - STALE_CLAIM_MS);
-	await db
+	const exhausted = sql`${publishTargets.attemptCount} >= ${MAX_PUBLISH_ATTEMPTS}`;
+	const recovered = await db
 		.update(publishTargets)
-		.set({ status: 'pending', scheduledFor: null, jobId: null, updatedAt: now })
+		.set({
+			status: sql`CASE WHEN ${exhausted} THEN 'failed' ELSE 'pending' END`,
+			errorMessage: sql`CASE WHEN ${exhausted} THEN ${LOST_RUN_MESSAGE} ELSE ${publishTargets.errorMessage} END`,
+			scheduledFor: null,
+			jobId: null,
+			updatedAt: now
+		})
 		.where(
 			and(
 				eq(publishTargets.status, 'publishing'),
 				isNull(publishTargets.remotePostId),
 				lte(publishTargets.updatedAt, staleBefore)
 			)
-		);
+		)
+		.returning({ draftId: publishTargets.draftId, status: publishTargets.status });
+	const failedDrafts = recovered.filter((r) => r.status === 'failed').map((r) => r.draftId);
+	if (failedDrafts.length) await refreshDraftStatuses(db, failedDrafts);
 }
 
 export async function claimDueTargets(db: AppDb, now = new Date(), limit = TICK_BATCH_LIMIT) {
