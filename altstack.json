@@ -2,7 +2,7 @@
 	"schema": 1,
 	"slug": "posteasy",
 	"name": "PostEasy",
-	"version": "1.26.8",
+	"version": "1.26.9",
 	"tagline": "Write once, schedule everywhere: X, Instagram, Facebook, YouTube, TikTok, LinkedIn and Threads",
 	"description": "A social media scheduler. Connect your accounts, write a post once, tailor it per platform, and publish now or on a schedule. Includes a calendar, drafts, video uploads, and an MCP server so AI agents can draft and schedule for you.",
 	"category": "marketing",
@@ -283,5 +283,7 @@
 			"label": "Failure email address",
 			"help": "Where failure emails go, if a Resend key is set"
 		}
-	]
+	],
+	"include_source": true,
+	"allow_changes": true
 }
